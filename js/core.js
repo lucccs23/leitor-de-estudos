@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.16.1';
+App.VERSION = '1.17.0';
 App.VERSION_DATE = '14/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -1058,8 +1058,12 @@ function showSelectionPopup(){
   const row = el('div', 'popRow');
   const auto = App.ibtn('highlighter', null, () => { App.setAutoHL(true, true); createHighlight(state.color); }, 'sm', 'Grifar ao selecionar (G) — os próximos trechos são grifados na hora');
   auto.style.marginLeft = 'auto';
-  const selText = getSelection().toString(), selPage = state.currentPage;
-  const ai = App.ibtn('sparkle', 'IA', () => App.aiMenu?.(ai, { text: selText, page: selPage, src: 'trecho' }, { title: 'Trecho selecionado' }), 'sm', 'Perguntar ao Claude, ChatGPT ou Gemini sobre o trecho');
+  const selText = getSelection().toString();
+  // página e altura do trecho (para a resposta da IA poder virar uma nota ali)
+  const selPageEl = (range.startContainer.parentElement || range.startContainer).closest?.('.page');
+  const selPage = selPageEl ? +selPageEl.dataset.page : state.currentPage;
+  let selY = null; if (selPageEl) { const pr = selPageEl.getBoundingClientRect(); selY = Math.max(0, Math.min(1, (rs[0] ? rs[0].top : last.top) - pr.top) / pr.height); }
+  const ai = App.ibtn('sparkle', 'IA', () => App.aiMenu?.(ai, { text: selText, page: selPage, y: selY, src: 'trecho' }, { title: 'Trecho selecionado' }), 'sm', 'Perguntar ao Claude, ChatGPT ou Gemini sobre o trecho');
   row.append(
     App.ibtn('copy', 'Copiar', () => { App.copyText(getSelection().toString()); closePopup(); }, 'sm'),
     App.ibtn('search', 'Buscar', () => { closePopup(); App.openSearch?.(); }, 'sm'),
@@ -1096,7 +1100,7 @@ function showEditPopup(h, x, y, focusNote){
     if (h.text) actions.append(App.ibtn('copy', null, () => App.copyText(h.text), 'sm', 'Copiar texto'));
     if (h.img) actions.append(App.ibtn('camera', null, () => App.copyImage(h.img), 'sm', 'Copiar a figura'));
     if (h.text || h.img) {
-      const ai = App.ibtn('sparkle', null, () => App.aiMenu?.(ai, { text: h.text, image: h.img, note: h.note, page: App.anchorOf(h).page, src: h.kind === 'area' && !h.text ? 'figura' : 'trecho' }, { title: 'Este grifo', question: h.q ? h : null }), 'sm', 'Perguntar à IA sobre este grifo');
+      const ai = App.ibtn('sparkle', null, () => App.aiMenu?.(ai, { text: h.text, image: h.img, note: h.note, page: App.anchorOf(h).page, hid: h.id, y: App.anchorOf(h).y, src: h.kind === 'area' && !h.text ? 'figura' : h.kind === 'note' ? 'nota' : 'grifo' }, { title: 'Este grifo', question: h.q ? h : null }), 'sm', 'Perguntar à IA sobre este grifo');
       actions.append(ai);
     }
   }

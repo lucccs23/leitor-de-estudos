@@ -5,6 +5,12 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.17', title: 'IA mais esperta', items: [
+    'O pedido leva contexto: o capítulo, o texto em volta do trecho, suas notas da página e o significado das siglas (dá para desligar no menu da IA)',
+    'Pergunte sobre o capítulo inteiro ou sobre um conjunto dos seus grifos (todos, por cor, do capítulo ou só os com nota)',
+    'Guarde a resposta: copie no Claude/ChatGPT/Gemini e toque em "Guardar resposta". Ela vira nota do grifo ou da página e fica em "Respostas guardadas"',
+    'Pedidos do seu jeito: em "IA: pedidos e atalhos" você escreve como o pedido começa (ou deixa em branco) e escolhe o que vai junto. "Mandar só o texto" envia só o que está selecionado',
+  ] },
   { v: '1.16', title: 'Timer próprio, em qualquer aparelho', items: [
     'O Vetra tem o próprio timer: seus esquemas de pomodoro e um cronômetro, também no celular e no tablet',
     'Timer flutuante na página sempre que o timer estiver ligado (arraste para onde quiser)',

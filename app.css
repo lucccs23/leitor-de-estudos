@@ -1452,3 +1452,28 @@ body[data-tool=erase] .drawLayer{pointer-events:auto;cursor:cell}
 .touch .shortcuts{display:none}
 /* barra "Ligar aqui" embaixo, acima da barra de páginas (não briga com o timer nem com os avisos do topo) */
 .linkBar{top:auto;bottom:132px}
+
+/* =========================================================
+   v1.17 — IA: guardar respostas e histórico
+   ========================================================= */
+.aiReturn{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:8px;max-width:calc(100vw - 24px);padding:6px 6px 6px 12px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);box-shadow:var(--shadow-lg);font-size:13px;white-space:nowrap}
+.has-doc .aiReturn{bottom:178px}
+.aiRetTxt{display:flex;align-items:center;gap:7px;min-width:0}
+.aiRetTxt .i{flex:none;color:var(--accent)}
+.aiRetTxt span{overflow:hidden;text-overflow:ellipsis}
+.aiReturn .btn{flex:none}
+.aiSaveDlg,.aiHistDlg{width:min(620px,96vw)}
+.aiAnswer{min-height:180px;margin:4px 0 10px}
+.aiHistCard{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px}
+.aiHistCard.has{border-left:3px solid var(--accent)}
+.aiHistTop{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.aiHistTop strong{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aiHistTop span{flex:none}
+.aiHistAns summary{cursor:pointer;font-size:12.5px;color:var(--accent);font-weight:600;margin-top:2px}
+.aiHistText{white-space:pre-wrap;font-size:13px;line-height:1.5;max-height:260px;overflow:auto;padding:8px 10px;margin-top:6px;border-radius:9px;background:var(--hover)}
+.aiHistActs{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+@media (max-width:700px){
+  .has-doc .aiReturn{bottom:118px}
+  .aiRetTxt span{white-space:normal;font-size:12px;line-height:1.25}
+  .aiReturn{white-space:normal;left:8px;right:8px;transform:none;max-width:none}
+}

@@ -46,7 +46,10 @@ const C = [
   { id: 'search', group: 'Estudar', label: 'Buscar neste PDF', icon: 'search', key: 'Ctrl+F', doc: true, el: '#btnSearch', run: () => App.openSearch() },
   { id: 'plan', group: 'Estudar', label: 'Plano de leitura…', short: 'Plano', keywords: 'meta prazo páginas por dia', icon: 'target', doc: true, run: () => App.openPlan() },
   { id: 'siglas', group: 'Estudar', label: 'Siglas deste PDF', short: 'Siglas', keywords: 'abreviações glossário', icon: 'list', doc: true, run: () => App.openSiglas() },
-  { id: 'aiPrompts', group: 'Estudar', label: 'Atalhos da IA…', keywords: 'prompts pedidos', icon: 'ai', run: () => App.openAiPrompts() },
+  { id: 'aiHistory', group: 'Estudar', label: 'Respostas da IA guardadas', keywords: 'histórico ia claude chatgpt', icon: 'news', run: () => App.openAiHistory() },
+  { id: 'aiChapter', group: 'Estudar', label: 'Perguntar à IA sobre o capítulo', keywords: 'resumo capítulo questões', icon: 'book', doc: true, run: a => App.aiChapterMenu(a || $('#btnAi')) },
+  { id: 'aiHighlights', group: 'Estudar', label: 'Perguntar à IA sobre meus grifos', keywords: 'grifos resumo questões', icon: 'highlighter', doc: true, run: a => App.aiHighlightsMenu(a || $('#btnAi')) },
+  { id: 'aiPrompts', group: 'Estudar', label: 'IA: pedidos e atalhos…', keywords: 'prompts pedidos', icon: 'ai', run: () => App.openAiPrompts() },
   { id: 'markdown', group: 'Arquivo', label: 'Exportar resumo em texto (.md)', short: 'Markdown', keywords: 'obsidian notion', icon: 'markdown', run: () => App.exportMd() },
   { id: 'pen', group: 'Estudar', label: 'Caneta', keywords: 'desenhar escrever stylus', icon: 'pen', key: 'P', doc: true, run: () => App.setTool('ink') },
   { id: 'eraser', group: 'Estudar', label: 'Borracha', icon: 'eraser', key: 'E', doc: true, run: () => App.setTool('erase') },
@@ -81,7 +84,7 @@ App.commandAvailable = c => !c.doc || doc();
 // ---------- Menus Exibir e Estudar ----------
 const MENUS = {
   view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', '-', 'look'] },
-  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'siglas', '-', 'ai', 'aiPrompts', '-', 'plan', 'stats', 'pomoSettings', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr'] },
+  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'siglas', '-', 'ai', 'aiChapter', 'aiHighlights', 'aiHistory', 'aiPrompts', '-', 'plan', 'stats', 'pomoSettings', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr'] },
 };
 let openMenu = null;
 function menuItem(c){
