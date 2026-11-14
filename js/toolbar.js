@@ -1,0 +1,292 @@
+/* Barra de cima personalizável + menus Exibir e Estudar.
+   Todas as funções ficam num cadastro único (App.commands), usado pela barra, pelos menus e pela paleta (Ctrl+K).
+   A barra mostra só a lista que você escolher; no modo "Personalizar a barra" dá para arrastar funções
+   para a barra, reordenar arrastando e tirar o que não usa. */
+(() => {
+'use strict';
+const App = window.App;
+const { $, $$, el, state, ls } = App;
+
+// ---------- Cadastro de funções ----------
+const doc = () => !!state.pdf;
+const toolOpen = k => () => document.querySelector(`#toolsDlg [data-tool-open="${k}"]`)?.click();
+const L = () => App.layout || {};
+const ttsOn = () => !!(App.ttsState && App.ttsState.on);
+// el: botão que já existe (com estado próprio: badge, tempo, "ligado"); sem el, um botão é criado com o ícone
+const C = [
+  // Arquivo
+  { id: 'open', group: 'Arquivo', label: 'Abrir PDF', icon: 'folder', key: 'Ctrl+O', run: () => App.fileOpen() },
+  { id: 'save', group: 'Arquivo', label: 'Salvar', icon: 'download', key: 'Ctrl+S', doc: true, run: () => App.fileSave() },
+  { id: 'saveAs', group: 'Arquivo', label: 'Salvar como…', icon: 'download', key: 'Ctrl+Shift+S', doc: true, run: () => App.fileSaveAs() },
+  { id: 'print', group: 'Arquivo', label: 'Imprimir', icon: 'printer', key: 'Ctrl+P', doc: true, run: () => App.filePrint() },
+  { id: 'props', group: 'Arquivo', label: 'Propriedades do PDF', icon: 'list', key: 'Ctrl+D', doc: true, run: () => App.fileProps() },
+  { id: 'closeDoc', group: 'Arquivo', label: 'Fechar arquivo', icon: 'x', key: 'Ctrl+W', doc: true, run: () => App.closeTab(state.fp) },
+  { id: 'home', group: 'Arquivo', label: 'Início (documentos recentes)', icon: 'book', run: () => App.closeDoc() },
+  // Exibir
+  { id: 'sidebar', group: 'Exibir', label: 'Barra lateral', keywords: 'sumário páginas marcadores', short: 'Barra lateral', icon: 'sidebar', key: 'S', doc: true, el: '#btnSidebar', run: () => App.toggleSide(), on: () => document.body.classList.contains('side-open') },
+  { id: 'panel', group: 'Exibir', label: 'Painel de grifos', icon: 'panel', key: 'H', doc: true, el: '#btnPanel', run: () => App.togglePanel(), on: () => document.body.classList.contains('panel-open') },
+  { id: 'continuous', group: 'Exibir', label: 'Rolagem contínua', icon: 'list', doc: true, run: () => App.setLayout({ paged: false }), on: () => !L().paged, radio: true },
+  { id: 'paged', group: 'Exibir', label: 'Página por página', icon: 'pages', doc: true, run: () => App.setLayout({ paged: true }), on: () => !!L().paged, radio: true },
+  { id: 'spread', group: 'Exibir', label: 'Duas páginas lado a lado', icon: 'book', doc: true, run: () => App.setLayout({ spread: !L().spread }), on: () => !!L().spread },
+  { id: 'ruler', group: 'Exibir', label: 'Régua de leitura', icon: 'ruler', key: 'U', doc: true, run: () => App.toggleRuler(), on: () => !!ls.get('le.ruler', false) },
+  { id: 'split', group: 'Exibir', label: 'Lado a lado com outro PDF', short: 'Lado a lado', icon: 'columns', key: 'L', doc: true, el: '#btnSplit', run: a => App.toggleSplit(a), on: () => document.body.classList.contains('split-on') },
+  { id: 'tts', group: 'Exibir', label: 'Ouvir em voz alta', short: 'Ouvir', icon: 'speaker', doc: true, el: '#btnTts', run: () => (ttsOn() ? App.ttsStop() : App.ttsStart()), on: ttsOn },
+  { id: 'fullscreen', group: 'Exibir', label: 'Tela cheia (modo foco)', short: 'Tela cheia', icon: 'focus', key: 'F', doc: true, el: '#btnFocus', run: () => App.toggleFocus(), on: () => document.body.classList.contains('focus') },
+  { id: 'theme', group: 'Exibir', label: 'Alternar claro e escuro', short: 'Tema', icon: 'moon', key: 'D', el: '#btnTheme', run: () => App.toggleDark() },
+  { id: 'zoomIn', group: 'Exibir', label: 'Aumentar o zoom', icon: 'plus', key: 'Ctrl+=', doc: true, run: () => App.zoomBy(1.15) },
+  { id: 'zoomOut', group: 'Exibir', label: 'Diminuir o zoom', icon: 'minus', key: 'Ctrl+−', doc: true, run: () => App.zoomBy(1 / 1.15) },
+  { id: 'fit', group: 'Exibir', label: 'Ajustar à largura', icon: 'fit', key: 'Ctrl+0', doc: true, run: () => App.fitWidth() },
+  { id: 'dock', group: 'Exibir', label: 'Mostrar ou recolher as ferramentas de grifo', short: 'Ferramentas de grifo', icon: 'highlighter', key: 'T', doc: true, run: () => App.toggleDock?.() },
+  { id: 'look', group: 'Exibir', label: 'Aparência e leitura…', short: 'Aparência', icon: 'palette', run: () => App.openLook() },
+  // Estudar
+  { id: 'review', group: 'Estudar', label: 'Revisar grifos', short: 'Revisar', icon: 'cards', key: 'R', doc: true, el: '#btnReview', run: () => App.openReview() },
+  { id: 'exam', group: 'Estudar', label: 'Modo simulado', short: 'Simulado', icon: 'exam', doc: true, el: '#btnExam', run: () => App.openExam() },
+  { id: 'summary', group: 'Estudar', label: 'Caderno de resumo (PDF)', short: 'Caderno de resumo', icon: 'book', run: () => App.openSummary() },
+  { id: 'ai', group: 'Estudar', label: 'Perguntar à IA', icon: 'ai', doc: true, el: '#btnAi', run: a => App.aiOpen ? App.aiOpen(a) : $('#btnAi').click() },
+  { id: 'search', group: 'Estudar', label: 'Buscar neste PDF', icon: 'search', key: 'Ctrl+F', doc: true, el: '#btnSearch', run: () => App.openSearch() },
+  { id: 'searchAll', group: 'Estudar', label: 'Buscar em todos os PDFs', icon: 'search', key: 'Ctrl+Shift+F', run: () => App.searchAll('') },
+  { id: 'bookmark', group: 'Estudar', label: 'Marcar esta página', icon: 'bookmark', key: 'B', doc: true, run: () => App.toggleBookmark() },
+  { id: 'pomo', group: 'Estudar', label: 'Pomodoro / Focus', short: 'Relógio', icon: 'clock', el: '#btnPomo', run: () => $('#btnPomo').click() },
+  { id: 'pomoSettings', group: 'Estudar', label: 'Esquemas de foco…', icon: 'clock', run: () => App.openPomoSettings() },
+  { id: 'tools', group: 'Ferramentas', label: 'Ferramentas (todas)', short: 'Ferramentas', icon: 'tools', key: 'O', el: '#btnTools', run: () => App.openTools() },
+  { id: 'organize', group: 'Ferramentas', label: 'Organizar páginas', icon: 'pages', doc: true, run: toolOpen('organize') },
+  { id: 'combine', group: 'Ferramentas', label: 'Combinar PDFs', icon: 'merge', run: toolOpen('combine') },
+  { id: 'photos', group: 'Ferramentas', label: 'Criar PDF de fotos', icon: 'camera', run: toolOpen('photos') },
+  { id: 'ocr', group: 'Ferramentas', label: 'Reconhecer texto (OCR)', icon: 'scan', doc: true, run: () => App.runOcr() },
+  // Configurações
+  { id: 'customize', group: 'Configurações', label: 'Personalizar a barra…', icon: 'pin', run: () => App.customizeToolbar() },
+  { id: 'shortcuts', group: 'Configurações', label: 'Atalhos do teclado', icon: 'keyboard', key: 'F1', run: () => App.openHelp() },
+  { id: 'backupNow', group: 'Configurações', label: 'Fazer backup agora', icon: 'cloud', run: () => App.backupNow?.() },
+  { id: 'news', group: 'Configurações', label: 'Novidades', icon: 'news', run: () => App.openNews?.() },
+];
+App.commands = C;
+const byId = id => C.find(c => c.id === id);
+App.command = byId;
+App.runCommand = (id, anchor) => {
+  const c = byId(id); if (!c) return;
+  if (c.doc && !state.pdf) { App.toast('Abra um PDF primeiro.'); return; }
+  closeMenus(); c.run(anchor);
+  setTimeout(refreshPins, 50);
+};
+App.commandAvailable = c => !c.doc || doc();
+
+// ---------- Menus Exibir e Estudar ----------
+const MENUS = {
+  view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', '-', 'look'] },
+  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'ai', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr', '-', 'pomoSettings'] },
+};
+let openMenu = null;
+function menuItem(c){
+  const b = el('button', 'fmItem'); b.type = 'button'; b.dataset.cmd = c.id;
+  const isOn = c.on ? c.on() : false;
+  b.append(App.icon(c.icon), el('span', 'fmLabel', c.label));
+  if (c.on) b.append(App.icon(isOn ? 'check' : 'x', 'i fmCheck' + (isOn ? ' on' : '')));
+  if (c.key) b.append(el('kbd', null, c.key));
+  b.disabled = !App.commandAvailable(c);
+  b.onclick = e => { e.stopPropagation(); App.runCommand(c.id, $(MENUS[openMenu]?.btn)); };
+  return b;
+}
+function themesItem(){
+  const wrap = el('div', 'fmSubWrap');
+  const b = el('button', 'fmItem fmHasSub'); b.type = 'button';
+  b.append(App.icon('moon'), el('span', 'fmLabel', 'Tema'), App.icon('right', 'i fmChev'));
+  b.onclick = e => { e.stopPropagation(); wrap.classList.toggle('open'); };
+  const sub = el('div', 'fileMenu fmSub');
+  for (const [id, T] of Object.entries(App.THEMES)) {
+    const t = el('button', 'fmItem'); t.type = 'button';
+    const on = App.currentTheme() === id;
+    t.append(el('span', 'fmNoIcon'), el('span', 'fmLabel', T.name));
+    if (on) t.append(App.icon('check', 'i fmCheck on'));
+    t.onclick = e => { e.stopPropagation(); App.applyTheme(id, true); closeMenus(); };
+    sub.append(t);
+  }
+  if (document.documentElement.dataset.theme === 'dark') {
+    const orig = ls.get('le.darkPage', 'invert') === 'normal';
+    const t = el('button', 'fmItem'); t.type = 'button';
+    t.append(el('span', 'fmNoIcon'), el('span', 'fmLabel', 'Página original (clara) no escuro'), App.icon(orig ? 'check' : 'x', 'i fmCheck' + (orig ? ' on' : '')));
+    t.onclick = e => { e.stopPropagation(); App.setDarkPage(orig ? 'invert' : 'normal'); closeMenus(); };
+    sub.append(el('div', 'fmSep'), t);
+  }
+  wrap.append(b, sub);
+  return wrap;
+}
+function buildMenu(name){
+  const M = MENUS[name], box = $(M.box);
+  box.innerHTML = '';
+  for (const id of M.items) {
+    if (id === '-') { box.append(el('div', 'fmSep')); continue; }
+    if (id === 'themes') { box.append(themesItem()); continue; }
+    const c = byId(id); if (c) box.append(menuItem(c));
+  }
+}
+function showMenu(name){
+  closeMenus(name);
+  const M = MENUS[name];
+  buildMenu(name);
+  $(M.box).hidden = false; $(M.btn).classList.add('on'); openMenu = name;
+}
+function closeMenus(except){
+  for (const [n, M] of Object.entries(MENUS)) if (n !== except) { $(M.box).hidden = true; $(M.btn).classList.remove('on'); }
+  if (!except) openMenu = null;
+  if (except !== 'file' && !$('#fileMenu').hidden) { $('#fileMenu').hidden = true; $('#btnFile').classList.remove('on'); }
+}
+App.closeBarMenus = () => closeMenus();
+for (const [name, M] of Object.entries(MENUS)) {
+  $(M.btn).onclick = e => { e.stopPropagation(); if (openMenu === name) closeMenus(); else showMenu(name); };
+  // com um menu aberto, passar o mouse em outro troca (como numa barra de menus comum)
+  $(M.btn).onmouseenter = () => { if (openMenu && openMenu !== name) showMenu(name); };
+}
+$('#btnFile').addEventListener('mouseenter', () => { if (openMenu) { closeMenus(); $('#btnFile').click(); } });
+$('#btnFile').addEventListener('click', () => { for (const M of Object.values(MENUS)) { $(M.box).hidden = true; $(M.btn).classList.remove('on'); } openMenu = null; }, true);
+document.addEventListener('mousedown', e => { if (openMenu && !e.target.closest?.('.barMenu')) closeMenus(); });
+document.addEventListener('keydown', e => { if (openMenu && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); const b = $(MENUS[openMenu].btn); closeMenus(); b.focus(); } }, true);
+
+// ---------- Barra personalizável ----------
+const DEFAULT_PINS = ['cmdk', 'ai', 'pomo', 'panel'];
+const pins = () => { const p = ls.get('le.tbPins', null); return Array.isArray(p) ? p.filter(id => id === 'cmdk' || byId(id)) : DEFAULT_PINS.slice(); };
+const savePins = p => { ls.set('le.tbPins', p); renderPins(); };
+const zone = $('#tbPins'), stash = $('#tbStash');
+const made = new Map(); // botões criados para funções sem botão próprio
+function pinEl(id){
+  if (id === 'cmdk') {
+    if (!made.has(id)) {
+      const b = el('button', 'btn cmdkPill'); b.type = 'button';
+      b.append(App.icon('search'), el('span', 'cmdkText', 'Buscar ou comando'), el('kbd', null, 'Ctrl K'));
+      b.title = 'Paleta de comandos: digite o nome de qualquer função ou o que quer buscar (Ctrl+K)';
+      b.onclick = () => App.openPalette?.();
+      made.set(id, b);
+    }
+    return made.get(id);
+  }
+  const c = byId(id); if (!c) return null;
+  if (c.el) return $(c.el);
+  if (!made.has(id)) {
+    const b = el('button', 'btn icon' + (c.doc ? ' doc-only' : '')); b.type = 'button';
+    b.append(App.icon(c.icon));
+    b.title = c.label + (c.key ? ` (${c.key})` : ''); b.setAttribute('aria-label', c.label);
+    b.onclick = () => App.runCommand(id, b);
+    made.set(id, b);
+  }
+  return made.get(id);
+}
+function renderPins(){
+  const list = pins();
+  // tudo o que não está na barra volta para o guarda-volumes (os botões próprios continuam funcionando)
+  for (const c of C) if (c.el && !list.includes(c.id)) { const e = $(c.el); if (e && e.parentElement !== stash) stash.append(e); }
+  zone.querySelectorAll(':scope > *').forEach(e => { if (!list.some(id => pinEl(id) === e)) { if (e.id) stash.append(e); else e.remove(); } });
+  for (const id of list) {
+    const e = pinEl(id); if (!e) continue;
+    e.dataset.pin = id; zone.append(e);
+  }
+  refreshPins();
+}
+// estado "ligado" dos botões criados (ex.: régua, duas páginas)
+function refreshPins(){
+  for (const [id, b] of made) { const c = byId(id); if (c && c.on) b.classList.toggle('on', !!c.on()); }
+}
+App.refreshPins = refreshPins;
+['layout:changed', 'theme:changed', 'doc:loaded', 'doc:closed'].forEach(ev => App.on(ev, refreshPins));
+App.toolbarPins = pins;
+
+// ---------- Modo "Personalizar a barra" ----------
+let custom = null, dragId = null, dragFrom = null;
+App.customizeToolbar = () => {
+  if (custom) { endCustomize(); return; }
+  closeMenus(); App.closePop?.();
+  document.body.classList.add('tb-customizing', 'tb-show');
+  custom = el('div', 'tbCustom'); custom.setAttribute('role', 'dialog'); custom.setAttribute('aria-label', 'Personalizar a barra');
+  document.body.append(custom);
+  buildCustom();
+  custom.addEventListener('dragover', e => { if (dragFrom === 'bar') { e.preventDefault(); custom.classList.add('dropOut'); } });
+  custom.addEventListener('dragleave', () => custom.classList.remove('dropOut'));
+  custom.addEventListener('drop', e => { e.preventDefault(); custom.classList.remove('dropOut'); if (dragFrom === 'bar') removePin(dragId); });
+};
+function endCustomize(){
+  document.body.classList.remove('tb-customizing', 'tb-show');
+  custom?.remove(); custom = null;
+  zone.querySelectorAll('.pinX').forEach(x => x.remove());
+  zone.querySelectorAll('[draggable]').forEach(b => b.removeAttribute('draggable'));
+}
+function removePin(id){ savePins(pins().filter(x => x !== id)); buildCustom(); }
+function addPin(id, at){
+  const p = pins().filter(x => x !== id);
+  p.splice(at == null ? p.length : at, 0, id);
+  savePins(p); buildCustom();
+}
+function buildCustom(){
+  if (!custom) return;
+  custom.innerHTML = '';
+  const head = el('div', 'tbcHead');
+  const t = el('div', 'tbcTitle'); t.append(el('strong', null, 'Personalizar a barra'), el('span', 'muted small', 'Arraste uma função para a barra lá em cima. Na barra, arraste para mudar a ordem, ou arraste de volta para cá (ou clique no ×) para tirar.'));
+  head.append(t,
+    App.btn('Restaurar padrão', () => { savePins(DEFAULT_PINS.slice()); buildCustom(); }, 'sm outline'),
+    App.btn('Pronto', endCustomize, 'primary sm'));
+  custom.append(head);
+  const list = pins();
+  const groups = [['', [{ id: 'cmdk', label: 'Buscar ou comando (Ctrl+K)', icon: 'search' }]], ...['Arquivo', 'Exibir', 'Estudar', 'Ferramentas', 'Configurações'].map(g => [g, C.filter(c => c.group === g)])];
+  const body = el('div', 'tbcBody');
+  for (const [g, items] of groups) {
+    const sec = el('div', 'tbcGroup');
+    sec.append(el('div', 'tbcLabel', g || 'Busca'));
+    const row = el('div', 'tbcItems');
+    for (const c of items) {
+      const on = list.includes(c.id);
+      const chip = el('button', 'tbcChip' + (on ? ' on' : '')); chip.type = 'button'; chip.draggable = true;
+      chip.append(App.icon(c.icon), el('span', null, c.short || c.label));
+      if (on) chip.append(App.icon('check', 'i tbcOn'));
+      chip.title = on ? 'Já está na barra — clique para tirar' : 'Arraste para a barra (ou clique para pôr no fim)';
+      chip.onclick = () => (on ? removePin(c.id) : addPin(c.id));
+      chip.addEventListener('dragstart', e => { dragId = c.id; dragFrom = 'panel'; e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; document.body.classList.add('tb-dragging'); });
+      chip.addEventListener('dragend', () => { dragId = dragFrom = null; document.body.classList.remove('tb-dragging'); clearMarks(); });
+      row.append(chip);
+    }
+    sec.append(row); body.append(sec);
+  }
+  custom.append(body);
+  // botões na barra: arrastáveis, com × para tirar
+  zone.querySelectorAll(':scope > [data-pin]').forEach(b => {
+    b.draggable = true;
+    if (!b.querySelector(':scope > .pinX')) {
+      const x = el('span', 'pinX'); x.textContent = '×'; x.title = 'Tirar da barra';
+      x.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); removePin(b.dataset.pin); });
+      b.append(x);
+    }
+    b.ondragstart = e => { dragId = b.dataset.pin; dragFrom = 'bar'; e.dataTransfer.setData('text/plain', dragId); e.dataTransfer.effectAllowed = 'move'; document.body.classList.add('tb-dragging'); };
+    b.ondragend = () => { dragId = dragFrom = null; document.body.classList.remove('tb-dragging'); clearMarks(); };
+  });
+}
+// soltar na barra: posição pela metade de cada botão
+function dropIndex(x){
+  const items = [...zone.querySelectorAll(':scope > [data-pin]')];
+  for (let i = 0; i < items.length; i++) { const r = items[i].getBoundingClientRect(); if (x < r.left + r.width / 2) return { i, el: items[i] }; }
+  return { i: items.length, el: null };
+}
+function clearMarks(){ zone.querySelectorAll('.dropBefore').forEach(e => e.classList.remove('dropBefore')); zone.classList.remove('dropEnd', 'dropHover'); }
+zone.addEventListener('dragover', e => {
+  if (!custom || !dragId) return;
+  e.preventDefault(); clearMarks(); zone.classList.add('dropHover');
+  const { el: target } = dropIndex(e.clientX);
+  if (target) target.classList.add('dropBefore'); else zone.classList.add('dropEnd');
+});
+zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) clearMarks(); });
+zone.addEventListener('drop', e => {
+  if (!custom || !dragId) return;
+  e.preventDefault();
+  let { i } = dropIndex(e.clientX);
+  const p = pins(), from = p.indexOf(dragId);
+  if (from >= 0 && from < i) i--; // reordenando para a direita
+  clearMarks();
+  addPin(dragId, i);
+});
+// no modo personalizar, clicar num botão da barra não executa a função
+zone.addEventListener('click', e => { if (custom && e.target.closest('[data-pin]') && !e.target.closest('.pinX')) { e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('keydown', e => { if (custom && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); endCustomize(); } }, true);
+// botão direito na barra: atalho para personalizar
+$('#toolbar').addEventListener('contextmenu', e => {
+  if (e.target.closest('input, .tab, #tabs')) return;
+  e.preventDefault();
+  App.popMenu(e.target.closest('button') || $('#btnMenu'), [{ label: 'Personalizar a barra…', icon: 'pin', on: App.customizeToolbar }], { alignRight: true });
+});
+
+renderPins();
+})();

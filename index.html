@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#17181b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Leia, grife e revise seus PDFs. Funciona offline.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Leitor de Estudos</title>
+<link rel="icon" href="icone.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-tool="text">
+
+<!-- Ícones (traço único, 24×24) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></symbol>
+    <symbol id="i-sidebar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9.5 4v16"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M14.5 4v16M17 8h1.5M17 11h1.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.3-4.3"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 3.5h10a1 1 0 0 1 1 1V21l-6-4-6 4V4.5a1 1 0 0 1 1-1z"/></symbol>
+    <symbol id="i-focus" viewBox="0 0 24 24"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></symbol>
+    <symbol id="i-cards" viewBox="0 0 24 24"><rect x="3" y="7.5" width="14" height="12.5" rx="2.5"/><path d="M7 4h11.5A2.5 2.5 0 0 1 21 6.5V16"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></symbol>
+    <symbol id="i-moonimg" viewBox="0 0 24 24"><path d="M14 4.6A7.5 7.5 0 1 0 19.4 14"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><path d="m13.5 10 2.5-2.5 2 2 1-1 1.5 1.5"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18.5" cy="12" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 14.5 6-6 6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 6v12M20 6v12M8 12h8M10.5 9.5 8 12l2.5 2.5M13.5 9.5 16 12l-2.5 2.5"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9.5 19h5"/></symbol>
+    <symbol id="i-area" viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M11 4h2M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 11v2M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M13 20h-2M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 13v-2"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m14.5 7.5 3 3"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14A1.5 1.5 0 0 1 20.5 6v9a1.5 1.5 0 0 1-1.5 1.5h-6L8 20.5v-4H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V6A2 2 0 0 0 13.5 4H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 11v6M14 11v6M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4l.8-12M9.5 7V4.5h5V7"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 20h14"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h8M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="7.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="7.5" rx="1.5"/><rect x="4" y="14.5" width="6.5" height="5.5" rx="1.5"/><rect x="13.5" y="14.5" width="6.5" height="5.5" rx="1.5"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6.5 3h7.5l4.5 4.5V20a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v4.5h4.5"/></symbol>
+    <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M6.5 3h7.5l4.5 4.5V20a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v4.5h4.5M8.5 13h7M8.5 16.5h5"/></symbol>
+    <symbol id="i-markdown" viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M6.5 15V9l2.5 3 2.5-3v6M16.5 9v6M14.5 13l2 2 2-2"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.7-8.95A6 6 0 0 1 17.8 8.6 5 5 0 0 1 17 18.5z"/></symbol>
+    <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4.5V8h3.5"/><path d="M12 8v4l2.5 1.5"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M7.5 14h9"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17z"/></symbol>
+    <symbol id="i-highlighter" viewBox="0 0 24 24"><path d="m9 11-5 5v3h6l5-5"/><path d="m21 7-7.5 7.5-5-5L16 2z"/></symbol>
+    <symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.4" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-shrink" viewBox="0 0 24 24"><path d="M4 14h6v6M20 10h-6V4M14 10l6.5-6.5M3.5 20.5 10 14"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3.5h5.5V9M9 20.5H3.5V15M20.5 3.5 14 10M3.5 20.5 10 14"/></symbol>
+    <symbol id="i-tools" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><path d="M17 13.5v7M13.5 17h7"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 9h8M8 12h8M8 15h5"/></symbol>
+    <symbol id="i-rotl" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4.5V8h3.5"/></symbol>
+    <symbol id="i-rotr" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4.5V8h-3.5"/></symbol>
+    <symbol id="i-pages" viewBox="0 0 24 24"><rect x="3.5" y="5" width="8" height="11" rx="1.5"/><rect x="12.5" y="8" width="8" height="11" rx="1.5"/><path d="M7.5 2.5v2M16.5 21.5v-2"/></symbol>
+    <symbol id="i-merge" viewBox="0 0 24 24"><rect x="3" y="3.5" width="7" height="9" rx="1.5"/><rect x="14" y="3.5" width="7" height="9" rx="1.5"/><path d="M6.5 12.5v2.5a2 2 0 0 0 2 2H12m5.5-4.5v2.5a2 2 0 0 1-2 2H12m0 0v4m-2-2 2 2 2-2"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.6-2.2h5.4L16.3 7h2.2A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+    <symbol id="i-exam" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><circle cx="9" cy="10" r="1" fill="currentColor"/><path d="M12 10h4"/><circle cx="9" cy="14.5" r="1" fill="currentColor"/><path d="M12 14.5h4"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5.5 21V4.5"/><path d="M5.5 4.5h11l-2 4 2 4h-11"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5.5v13l11-6.5z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20h16M7 16v-5M12 16V7M17 16v-8"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8z"/><path d="M18.5 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.2 1.2"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.2-1.2"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h14M14.5 4.5 18 8l-3.5 3.5M20 16H6M9.5 12.5 6 16l3.5 3.5"/></symbol>
+    <symbol id="i-columns" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M12 4v16M6.5 8.5h3M6.5 11.5h3M14.5 8.5h3M14.5 11.5h3"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></symbol>
+    <symbol id="i-ai" viewBox="0 0 24 24"><path d="M9.5 3.5l1.6 4.4 4.4 1.6-4.4 1.6-1.6 4.4-1.6-4.4-4.4-1.6 4.4-1.6z"/><path d="M17.5 13l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z"/><circle cx="18" cy="5" r="1.2"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1 .8-1.7 1.8-1.7h2.1a4.3 4.3 0 0 0 4.3-4.3C21 6.6 17 3.5 12 3.5z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10" cy="7.3" r="1" fill="currentColor"/><circle cx="14.5" cy="7.3" r="1" fill="currentColor"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-ruler" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="1.5"/><path d="M7 8v3M11 8v4M15 8v3M19 8v2"/></symbol>
+    <symbol id="i-printer" viewBox="0 0 24 24"><path d="M7 9V3.5h10V9"/><rect x="3.5" y="9" width="17" height="7.5" rx="2"/><path d="M7 14h10v6.5H7z"/></symbol>
+    <symbol id="i-command" viewBox="0 0 24 24"><path d="M9 6.5a2.5 2.5 0 1 0-2.5 2.5H9zM9 9v6M9 9h6M15 6.5A2.5 2.5 0 1 1 17.5 9H15zM15 9v6M9 15H6.5A2.5 2.5 0 1 0 9 17.5zM15 15h2.5a2.5 2.5 0 1 1-2.5 2.5z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7.5"/></symbol>
+    <symbol id="i-news" viewBox="0 0 24 24"><path d="M5 4.5h11a1.5 1.5 0 0 1 1.5 1.5v12.5a1.5 1.5 0 0 0 1.5 1.5H6.5A1.5 1.5 0 0 1 5 18.5z"/><path d="M17.5 9H20v9.5a1.5 1.5 0 0 1-3 0M8 8.5h6M8 12h6M8 15.5h4"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-install" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7.5v7M9 11.5l3 3 3-3M10.5 18.5h3"/></symbol>
+  </defs>
+</svg>
+
+<header id="toolbar">
+  <div id="loadbar" aria-hidden="true"></div>
+  <button id="btnHome" class="logo" title="Início — documentos recentes e sua semana">
+    <img src="icone.png" alt=""><span class="logoName">Leitor de Estudos</span>
+  </button>
+  <div class="menuWrap fileWrap">
+    <button class="btn fileBtn" id="btnFile" title="Arquivo: abrir, salvar, salvar como, exportar, imprimir" aria-haspopup="menu"><svg class="i fmBtnIcon"><use href="#i-file"/></svg><span class="fmBtnText">Arquivo</span></button>
+    <div id="fileMenu" class="fileMenu" role="menu" hidden></div>
+  </div>
+  <div class="menuWrap fileWrap barMenu">
+    <button class="btn fileBtn" id="btnView" title="Exibir: barra lateral, modo de leitura, régua, lado a lado, voz, tema, zoom" aria-haspopup="menu"><svg class="i fmBtnIcon"><use href="#i-eye"/></svg><span class="fmBtnText">Exibir</span></button>
+    <div id="viewMenu" class="fileMenu" role="menu" hidden></div>
+  </div>
+  <div class="menuWrap fileWrap barMenu">
+    <button class="btn fileBtn" id="btnStudy" title="Estudar: revisar, simulado, caderno de resumo, IA e ferramentas" aria-haspopup="menu"><svg class="i fmBtnIcon"><use href="#i-cards"/></svg><span class="fmBtnText">Estudar</span></button>
+    <div id="studyMenu" class="fileMenu" role="menu" hidden></div>
+  </div>
+  <span class="tbSep tbSepLeft"></span>
+  <nav id="tabbar" hidden>
+    <div id="tabs"></div>
+    <button class="btn icon sm" id="btnNewTab" title="Abrir outro PDF (Ctrl+O)"><svg class="i"><use href="#i-plus"/></svg></button>
+  </nav>
+  <div class="tbSpacer"></div>
+  <div id="examBar" class="examBar doc-only"></div>
+  <div class="tbRight">
+    <button class="btn primary home-only" id="btnOpen" title="Abrir PDF (Ctrl+O)"><svg class="i"><use href="#i-folder"/></svg>Abrir PDF</button>
+    <div id="tbPins" class="tbPins" aria-label="Botões da barra (personalizáveis)"></div>
+    <div id="tbStash" hidden>
+    <button class="btn icon doc-only" id="btnSidebar" title="Sumário, páginas, busca e marcadores (S)"><svg class="i"><use href="#i-sidebar"/></svg></button>
+    <button class="btn icon doc-only" id="btnSearch" title="Buscar no texto (Ctrl+F)"><svg class="i"><use href="#i-search"/></svg></button>
+    <button class="btn icon doc-only noExam" id="btnAi" title="Perguntar à IA (Claude, ChatGPT ou Gemini) sobre a página ou o trecho selecionado"><svg class="i"><use href="#i-ai"/></svg></button>
+    <button class="btn icon doc-only noExam" id="btnTts" title="Ouvir — leitura em voz alta a partir desta página (ou só do trecho selecionado)"><svg class="i"><use href="#i-speaker"/></svg></button>
+    <button class="btn icon doc-only noExam" id="btnSplit" title="Lado a lado — abrir outro PDF à direita (L)"><svg class="i"><use href="#i-columns"/></svg></button>
+    <button class="btn icon doc-only" id="btnFocus" title="Modo foco — tela cheia, só a página (F)"><svg class="i"><use href="#i-focus"/></svg></button>
+    <button class="btn soft doc-only noExam" id="btnReview" title="Revisar grifos como cartões (R)"><svg class="i"><use href="#i-cards"/></svg>Revisar</button>
+    <button class="btn soft doc-only noExam" id="btnExam" title="Modo simulado: folha de respostas, cronômetro e correção"><svg class="i"><use href="#i-exam"/></svg>Simulado</button>
+    <button class="btn icon" id="btnTools" title="Ferramentas: organizar páginas, combinar PDFs, PDF de fotos, OCR (O)"><svg class="i"><use href="#i-tools"/></svg></button>
+    <button class="btn pomoChip" id="btnPomo" title="Pomodoro — blocos de foco com pausas"><svg class="i"><use href="#i-clock"/></svg><span id="pomoTime"></span></button>
+    <button class="btn icon" id="btnTheme" title="Tema"></button>
+    <button class="btn icon doc-only badgeWrap" id="btnPanel" title="Painel de grifos (H)"><svg class="i"><use href="#i-panel"/></svg><span class="badge" id="hlCount"></span></button>
+    </div>
+    <span class="tbSep"></span>
+    <div class="menuWrap">
+      <button class="btn icon" id="btnMenu" title="Configurações: aparência, barra, atalhos, backup"><svg class="i"><use href="#i-settings"/></svg></button>
+      <div id="menu" class="menu" hidden>
+        <button data-act="install" class="installOnly"><svg class="i"><use href="#i-install"/></svg><span>Instalar o app<small>Abre em tela cheia e funciona sem internet</small></span></button>
+        <div class="menuLabel">Personalizar</div>
+        <button data-act="look"><svg class="i"><use href="#i-palette"/></svg><span>Aparência e leitura<small>Temas, cores, página, grifos e régua</small></span></button>
+        <button data-act="toolbar"><svg class="i"><use href="#i-pin"/></svg><span>Personalizar a barra<small>Arraste funções para a barra, reordene ou tire</small></span></button>
+        <button data-act="news"><svg class="i"><use href="#i-news"/></svg><span>Novidades<small>O que mudou nas últimas versões</small></span></button>
+        <button data-act="help"><svg class="i"><use href="#i-keyboard"/></svg><span>Atalhos do teclado<small>Tecla ? ou F1</small></span></button>
+        <button data-act="keepimg"><svg class="i"><use href="#i-check" id="keepImgIcon"/></svg><span>Manter imagens originais no escuro<small id="keepImgLabel">Ligado — radiografias e fotos não ficam invertidas</small></span></button>
+        <div class="menuLabel">Backup</div>
+        <button data-act="localbk"><svg class="i"><use href="#i-check"/></svg><span>Backup automático no computador<small id="localBackupLabel">Verificando…</small></span></button>
+        <button data-act="backup"><svg class="i"><use href="#i-download"/></svg><span>Exportar backup para um arquivo<small>Para levar para outro computador</small></span></button>
+        <button data-act="restore"><svg class="i"><use href="#i-restore"/></svg><span>Restaurar backup…<small>Os automáticos ficam em Documentos\Leitor de Estudos\Backups</small></span></button>
+        <button data-act="auto"><svg class="i"><use href="#i-cloud"/></svg><span>Cópia extra numa pasta (OneDrive)<small id="autoBackupLabel">Opcional</small></span></button>
+        <div class="menuFoot" id="menuVersion"></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="main">
+  <aside id="sidebar">
+    <div class="sideTabs">
+      <button data-side="outline" title="Sumário"><svg class="i"><use href="#i-list"/></svg><span>Sumário</span></button>
+      <button data-side="thumbs" title="Páginas"><svg class="i"><use href="#i-grid"/></svg><span>Páginas</span></button>
+      <button data-side="search" title="Busca"><svg class="i"><use href="#i-search"/></svg><span>Busca</span></button>
+      <button data-side="bookmarks" title="Marcadores"><svg class="i"><use href="#i-bookmark"/></svg><span>Marcadores</span></button>
+    </div>
+    <section data-pane="outline"><div id="outline"></div></section>
+    <section data-pane="thumbs"><div id="thumbs"></div></section>
+    <section data-pane="search">
+      <div class="searchBox">
+        <div class="searchField">
+          <svg class="i"><use href="#i-search"/></svg>
+          <input id="searchInput" type="search" placeholder="Buscar no documento" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="searchNav">
+          <span id="searchInfo"></span>
+          <button class="btn icon sm" id="searchPrev" title="Anterior (Shift+Enter)"><svg class="i"><use href="#i-up"/></svg></button>
+          <button class="btn icon sm" id="searchNext" title="Próximo (Enter / F3)"><svg class="i"><use href="#i-down"/></svg></button>
+        </div>
+        <button class="btn soft sm searchAllBtn" id="searchAll" title="Procurar este termo em todos os seus PDFs"><svg class="i"><use href="#i-search"/></svg>Buscar em todos os PDFs</button>
+      </div>
+      <div id="searchResults"></div>
+    </section>
+    <section data-pane="bookmarks"><div id="bookmarkList"></div></section>
+  </aside>
+
+  <div id="stage">
+    <main id="viewer" tabindex="-1">
+      <div id="pages"></div>
+      <section id="home">
+        <div id="libError" class="banner error" hidden></div>
+        <div id="backupBanner" class="banner" hidden></div>
+
+        <div class="hero">
+          <h1 id="greeting">Bom estudo</h1>
+          <p class="lead">Leia, grife e revise seus PDFs. Tudo fica salvo neste computador.</p>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <div class="dzIcon"><svg class="i"><use href="#i-upload"/></svg></div>
+          <div class="dzText">
+            <strong>Abra um PDF para começar</strong>
+            <span>Arraste o arquivo para cá ou escolha no computador</span>
+          </div>
+          <button class="btn primary lg" id="btnOpen2"><svg class="i"><use href="#i-folder"/></svg>Escolher arquivo</button>
+        </div>
+
+        <div class="libSearch">
+          <div class="searchField lg">
+            <svg class="i"><use href="#i-search"/></svg>
+            <input id="libQuery" type="search" placeholder="Buscar em todos os seus PDFs — ex.: síndrome nefrótica" autocomplete="off" spellcheck="false" aria-label="Buscar em todos os PDFs">
+            <button class="btn icon sm" id="libClear" title="Limpar" hidden><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div id="libResults"></div>
+        </div>
+
+        <div class="homeGrid">
+          <div class="homeCol">
+            <div id="recentWrap" hidden>
+              <h2>Continuar lendo</h2>
+              <div id="subjBar" class="subjBar"></div>
+              <div id="recentList"></div>
+            </div>
+            <div id="recentEmpty" class="emptyCard" hidden>
+              <svg class="i"><use href="#i-sparkle"/></svg>
+              <p>Os documentos que você abrir aparecem aqui, com o progresso de leitura e o tempo de estudo.</p>
+            </div>
+          </div>
+          <div class="homeCol side">
+            <div class="card todayCard" id="todayCard"></div>
+            <div class="card">
+              <div class="cardHead"><h2>Sua semana</h2><svg class="i muted"><use href="#i-clock"/></svg></div>
+              <div id="weekTotal" class="weekTotal"></div>
+              <div id="week" class="week"></div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><h2><span class="statusDot" id="backupDot"></span>Backup</h2><svg class="i muted"><use href="#i-cloud"/></svg></div>
+              <p class="muted small" id="backupHint">Verificando o backup automático…</p>
+              <div class="homeBackup">
+                <button class="btn outline sm" id="homeBackup" title="Faz uma cópia agora na pasta de backups"><svg class="i"><use href="#i-check"/></svg>Fazer agora</button>
+                <button class="btn outline sm" id="homeRestore" title="Restaurar a partir de um arquivo de backup"><svg class="i"><use href="#i-restore"/></svg>Restaurar</button>
+                <button class="btn outline sm" id="homeExport" title="Salvar um arquivo de backup para levar para outro computador"><svg class="i"><use href="#i-download"/></svg>Exportar</button>
+                <button class="btn outline sm" id="homeAuto" title="Cópia extra numa pasta do OneDrive (nuvem)"><svg class="i"><use href="#i-cloud"/></svg>OneDrive</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <details class="shortcuts">
+          <summary><svg class="i"><use href="#i-keyboard"/></svg>Atalhos do teclado</summary>
+          <dl>
+            <dt><kbd>1</kbd>–<kbd>6</kbd></dt><dd>Grifa o texto selecionado com a cor. Sem seleção, escolhe a cor.</dd>
+            <dt><kbd>T</kbd></dt><dd>Mostra ou recolhe a barra de ferramentas (arraste pelos pontinhos para mudar de lugar)</dd>
+            <dt><kbd>G</kbd></dt><dd>Grifar ao selecionar: liga/desliga o grifo automático (segure <kbd>Alt</kbd> ao soltar para só selecionar)</dd>
+            <dt><kbd>V</kbd> <kbd>A</kbd> <kbd>P</kbd> <kbd>C</kbd></dt><dd>Ferramenta texto, área, caneta ou nota (post-it na página)</dd>
+            <dt><kbd>U</kbd></dt><dd>Régua de leitura (destaca a faixa que você está lendo)</dd>
+            <dt><kbd>L</kbd></dt><dd>Lado a lado: abre outro PDF (ou outro trecho do mesmo) à direita</dd>
+            <dt><kbd>O</kbd></dt><dd>Ferramentas: organizar páginas, combinar PDFs, PDF de fotos, OCR</dd>
+            <dt>Simulado</dt><dd><kbd>A</kbd>–<kbd>E</kbd> marcam · <kbd>Shift</kbd>+letra risca · <kbd>X</kbd> dúvida · <kbd>J</kbd>/<kbd>K</kbd> próxima/anterior · <kbd>P</kbd> pausa</dd>
+            <dt><kbd>Ctrl</kbd> <kbd>S</kbd></dt><dd>Salvar os grifos no arquivo do PDF · com <kbd>Shift</kbd>, salvar como</dd>
+            <dt><kbd>Ctrl</kbd> <kbd>W</kbd> · <kbd>Ctrl</kbd> <kbd>P</kbd></dt><dd>Fechar o arquivo · imprimir com os grifos</dd>
+            <dt><kbd>Ctrl</kbd> <kbd>K</kbd></dt><dd>Paleta de comandos: digite o nome de qualquer função</dd>
+            <dt><kbd>Ctrl</kbd> <kbd>F</kbd></dt><dd>Buscar no texto (<kbd>Enter</kbd> vai para o próximo)</dd>
+            <dt><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>F</kbd></dt><dd>Buscar em todos os seus PDFs</dd>
+            <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>Desfaz o último grifo ou desenho</dd>
+            <dt><kbd>N</kbd> · <kbd>Del</kbd></dt><dd>Nota · apagar o grifo selecionado</dd>
+            <dt><kbd>B</kbd></dt><dd>Marca a página atual</dd>
+            <dt><kbd>R</kbd></dt><dd>Revisar grifos como cartões</dd>
+            <dt><kbd>F</kbd></dt><dd>Modo foco (tela cheia)</dd>
+            <dt><kbd>S</kbd> · <kbd>H</kbd></dt><dd>Barra lateral · painel de grifos</dd>
+            <dt><kbd>D</kbd></dt><dd>Alterna entre claro e escuro</dd>
+            <dt><kbd>Ctrl</kbd> <kbd>Tab</kbd></dt><dd>Próxima aba</dd>
+            <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Página anterior / próxima</dd>
+            <dt><kbd>Ctrl</kbd> + roda</dt><dd>Zoom no ponto do mouse (ou pinça no touchpad)</dd>
+            <dt><kbd>?</kbd></dt><dd>Mostra esta lista durante a leitura</dd>
+            <dt><kbd>Esc</kbd></dt><dd>Volta para a ferramenta texto e fecha menus</dd>
+          </dl>
+        </details>
+      </section>
+    </main>
+
+    <!-- Barra flutuante de marcação -->
+    <div id="dock" class="dock doc-only" role="toolbar" aria-label="Ferramentas de marcação">
+      <button class="dockGrip" id="dockGrip" title="Arraste para mover a barra — encoste na lateral para deixá-la em pé (duplo clique: volta ao lugar)" aria-label="Mover a barra de ferramentas"><svg class="i"><use href="#i-grip"/></svg></button>
+      <button class="dockMini" id="dockMini" title="Mostrar as ferramentas (T)" aria-label="Mostrar as ferramentas"><span class="miniSwatch" id="miniSwatch"></span></button>
+      <div class="seg" id="tools">
+        <button class="btn icon" data-tool="text" title="Texto — selecione para grifar (V)"><svg class="i"><use href="#i-text"/></svg></button>
+        <button class="btn icon" data-tool="area" title="Área — marque uma região: PDFs escaneados, figuras, tabelas (A)"><svg class="i"><use href="#i-area"/></svg></button>
+        <button class="btn icon" data-tool="ink" title="Caneta — desenhe à mão livre (P)"><svg class="i"><use href="#i-pen"/></svg></button>
+        <button class="btn icon" data-tool="note" title="Nota — clique na página para deixar um post-it (C)"><svg class="i"><use href="#i-note"/></svg></button>
+      </div>
+      <span class="dockSep"></span>
+      <div class="seg" id="styles">
+        <button class="btn icon" data-style="fill" title="Estilo: marca-texto"><span class="st st-fill">ab</span></button>
+        <button class="btn icon" data-style="underline" title="Estilo: sublinhado"><span class="st st-u">ab</span></button>
+        <button class="btn icon" data-style="strike" title="Estilo: tachado"><span class="st st-s">ab</span></button>
+      </div>
+      <span class="dockSep"></span>
+      <div class="seg autoSeg">
+        <button class="btn icon" id="btnAuto" title="Grifar ao selecionar (G) — ligado, o texto selecionado é grifado na hora com a cor escolhida. Segure Alt ao soltar para só selecionar."><svg class="i"><use href="#i-highlighter"/></svg></button>
+      </div>
+      <div id="palette" title="Cores (teclas 1 a 6)"></div>
+      <span class="dockSep"></span>
+      <button class="btn icon dockToggle" id="dockToggle" title="Recolher a barra (T)" aria-label="Recolher a barra de ferramentas"><svg class="i"><use href="#i-shrink"/></svg></button>
+    </div>
+
+    <!-- Leitura em voz alta -->
+    <div id="ttsBar" class="ttsBar" hidden role="toolbar" aria-label="Leitura em voz alta"></div>
+    <!-- Simulado pausado: esconde a prova -->
+    <div id="examPause" hidden></div>
+    <!-- Progresso do OCR e avisos de tarefas longas -->
+    <div id="jobCard" class="jobCard" hidden role="status" aria-live="polite"></div>
+
+    <!-- Página e zoom -->
+    <div id="pager" class="dock doc-only">
+      <button class="btn icon sm" id="btnPrev" title="Página anterior (←)"><svg class="i"><use href="#i-left"/></svg></button>
+      <div class="pageBox"><input id="pageInput" type="number" min="1" value="1" aria-label="Página"><span id="pageCount">/ 0</span></div>
+      <button class="btn icon sm" id="btnNext" title="Próxima página (→)"><svg class="i"><use href="#i-right"/></svg></button>
+      <button class="btn icon sm" id="btnBookmark" title="Marcar esta página (B)"><svg class="i"><use href="#i-bookmark"/></svg></button>
+      <span class="dockSep"></span>
+      <button class="btn icon sm" id="btnZoomOut" title="Diminuir zoom (Ctrl −)"><svg class="i"><use href="#i-minus"/></svg></button>
+      <span id="zoomLabel">100%</span>
+      <button class="btn icon sm" id="btnZoomIn" title="Aumentar zoom (Ctrl +)"><svg class="i"><use href="#i-plus"/></svg></button>
+      <button class="btn icon sm" id="btnFit" title="Ajustar à largura (Ctrl 0)"><svg class="i"><use href="#i-fit"/></svg></button>
+      <span class="dockSep"></span>
+      <button class="btn icon sm" id="btnLayout" title="Modo de leitura"><svg class="i"><use href="#i-list"/></svg></button>
+    </div>
+    <!-- Régua de leitura -->
+    <div id="ruler" hidden aria-hidden="true"><div class="rTop"></div><div class="rBand"></div><div class="rBot"></div></div>
+    <!-- Timer do Focus por cima do PDF -->
+    <div id="focusFloat" class="focusFloat" hidden role="timer" aria-label="Timer do Focus"></div>
+  </div>
+
+  <aside id="split" hidden aria-label="Segundo PDF, lado a lado">
+    <div class="splitResize" id="splitResize" title="Arraste para mudar a largura"></div>
+    <div class="splitHead" id="splitHead"></div>
+    <div class="splitView" id="splitView"><div class="splitPages" id="splitPages"></div></div>
+  </aside>
+
+  <aside id="panel">
+    <div class="panelHead">
+      <h2>Grifos</h2>
+      <button class="btn icon sm" id="btnExportMd" title="Exportar resumo (.md)"><svg class="i"><use href="#i-download"/></svg></button>
+    </div>
+    <div id="statsBar"></div>
+    <div id="legend"></div>
+    <div class="hlSearch" id="hlSearchBox" hidden>
+      <svg class="i"><use href="#i-search"/></svg>
+      <input id="hlFilter" type="search" placeholder="Buscar nos grifos e notas" autocomplete="off" spellcheck="false" aria-label="Buscar nos grifos e notas">
+    </div>
+    <div id="hlList"></div>
+  </aside>
+  <aside id="examPanel" aria-label="Folha de respostas"></aside>
+</div>
+
+<dialog id="toolsDlg" aria-labelledby="toolsTitle">
+  <div class="helpHead">
+    <h2 id="toolsTitle">Ferramentas</h2>
+    <button class="btn icon sm" id="toolsClose" title="Fechar (Esc)" aria-label="Fechar"><svg class="i"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="toolGrid">
+    <button class="toolCard doc-only" data-tool-open="exam"><span class="toolIcon"><svg class="i"><use href="#i-exam"/></svg></span><strong>Modo simulado</strong><span>Folha de respostas, cronômetro, correção e cartões dos erros</span></button>
+    <button class="toolCard" data-tool-open="summary"><span class="toolIcon"><svg class="i"><use href="#i-book"/></svg></span><strong>Caderno de resumo</strong><span>Grifos e notas de um ou vários PDFs num PDF para revisar</span></button>
+    <button class="toolCard doc-only" data-tool-open="organize"><span class="toolIcon"><svg class="i"><use href="#i-pages"/></svg></span><strong>Organizar páginas</strong><span>Extrair um capítulo, girar, apagar e reordenar páginas</span></button>
+    <button class="toolCard" data-tool-open="combine"><span class="toolIcon"><svg class="i"><use href="#i-merge"/></svg></span><strong>Combinar PDFs</strong><span>Juntar aulas, provas ou capítulos num PDF só</span></button>
+    <button class="toolCard" data-tool-open="photos"><span class="toolIcon"><svg class="i"><use href="#i-camera"/></svg></span><strong>Criar PDF de fotos</strong><span>Fotos de lousa, caderno ou slides viram um PDF</span></button>
+    <button class="toolCard doc-only" data-tool-open="ocr"><span class="toolIcon"><svg class="i"><use href="#i-scan"/></svg></span><strong>Reconhecer texto (OCR)</strong><span>Para buscar e grifar em PDFs escaneados — offline</span></button>
+  </div>
+</dialog>
+
+<dialog id="picker" aria-labelledby="pickerTitle">
+  <div class="helpHead"><h2 id="pickerTitle">Documentos recentes</h2></div>
+  <div id="pickerBody"></div>
+  <div class="pickerFoot"><button class="btn outline" onclick="this.closest('dialog').close()">Cancelar</button><button class="btn primary" id="pickerOk">Adicionar</button></div>
+</dialog>
+
+<div id="sheet" class="sheet" hidden></div>
+<div id="examView" class="overlayView" hidden></div>
+
+<dialog id="lookDlg" aria-label="Aparência e leitura"></dialog>
+
+<dialog id="help" aria-labelledby="helpTitle">
+  <div class="helpHead">
+    <h2 id="helpTitle">Atalhos do teclado</h2>
+    <button class="btn icon sm" id="helpClose" title="Fechar (Esc)" aria-label="Fechar"><svg class="i"><use href="#i-x"/></svg></button>
+  </div>
+  <div id="helpBody"></div>
+</dialog>
+<div id="review" hidden></div>
+<div id="popup" hidden></div>
+<button id="focusExit" hidden><svg class="i"><use href="#i-x"/></svg>Sair do modo foco</button>
+<input type="file" id="fileInput" accept="application/pdf,.pdf" multiple hidden>
+<input type="file" id="splitFile" accept="application/pdf,.pdf" hidden>
+<input type="file" id="backupInput" accept=".json,application/json" hidden>
+<div id="dropOverlay"><div><svg class="i"><use href="#i-upload"/></svg>Solte o PDF para abrir</div></div>
+<div id="toast"></div>
+<div id="appVersion" aria-label="Versão do aplicativo"></div>
+
+<script src="lib/pdf.min.js"></script>
+<script src="lib/pdf.worker.embed.js"></script>
+<script src="lib/pdf-lib.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/dock.js"></script>
+<script src="js/sidebar.js"></script>
+<script src="js/search.js"></script>
+<script src="js/review.js"></script>
+<script src="js/export.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/tabs.js"></script>
+<script src="js/home.js"></script>
+<script src="js/ocr.js"></script>
+<script src="js/tools.js"></script>
+<script src="js/gabarito.js"></script>
+<script src="js/exam.js"></script>
+<script src="js/library.js"></script>
+<script src="js/today.js"></script>
+<script src="js/summary.js"></script>
+<script src="js/split.js"></script>
+<script src="js/tts.js"></script>
+<script src="js/focus.js"></script>
+<script src="js/look.js"></script>
+<script src="js/file.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/toolbar.js"></script>
+<script src="js/palette.js"></script>
+<script src="js/news.js"></script>
+<script src="js/touch.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Só para o computador (Windows): lançadores, atalhos e serviço local de backup/OCR
+*.ps1
+*.vbs
+*.cmd
+icone.ico
+# arquivos recebidos pelo "Abrir com" do Windows (podem conter PDFs pessoais)
+inbox/
+# não usado (o leitor usa a cópia embutida pdf.worker.embed.js)
+lib/pdf.worker.min.js
