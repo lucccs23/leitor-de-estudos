@@ -16,7 +16,7 @@ function renderBar(){
   if (linking) {
     bar.hidden = false; bar.className = 'linkBar linking';
     const txt = el('span', 'linkTxt');
-    txt.append(App.icon('link'), el('span', null, 'Vá até o destino (pode trocar de PDF) e toque em '), el('strong', null, 'Ligar aqui'));
+    txt.append(App.icon('link'), el('span', null, 'Vá até o destino (outra página ou outro PDF). Tocar num grifo antes liga direto a ele.'));
     bar.append(txt,
       App.btn('Ligar aqui', () => finishLink(), 'primary sm'),
       App.btn('Cancelar', () => { linking = null; renderBar(); }, 'sm'));
@@ -67,8 +67,8 @@ addEventListener('pointerdown', e => { if (linking && bar.contains(e.target)) se
 App.startLink = h => {
   App.closePopup();
   linking = { fp: state.fp, name: state.name, hid: h.id, page: App.anchorOf(h).page };
+  $('#toast').classList.remove('show');
   renderBar();
-  App.toast('Agora vá até o destino e toque em "Ligar aqui". Se tocar num grifo antes, a ligação vai até ele.');
 };
 // grava a ligação num grifo (do documento aberto ou de outro, direto no banco)
 async function setLink(fp, hid, link){

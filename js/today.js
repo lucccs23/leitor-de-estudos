@@ -202,7 +202,7 @@ function pomoMenu(anchor){
     const C = cfg();
     App.popMenu(anchor, [
       ...C.schemes.map(s => ({ label: schemeName(s), sub: `${(s.name || '').trim() ? s.focus + ' min · ' : ''}pausa de ${s.brk}`, icon: 'play', on: () => startScheme(s) })),
-      { label: 'Cronômetro', sub: 'conta para cima, sem pausa marcada', icon: 'clock', on: startSW },
+      { label: 'Cronômetro', sub: 'conta para cima', icon: 'clock', on: startSW },
       { sep: true },
       { label: 'Só uma pausa de 5 min', icon: 'pause', on: () => start('break', 5) },
       { label: 'Configurar esquemas…', icon: 'edit', on: openPomoSettings },

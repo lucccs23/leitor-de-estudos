@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.16.0';
+App.VERSION = '1.16.1';
 App.VERSION_DATE = '14/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -290,7 +290,7 @@ App.penMenu = anchor => App.popMenu(anchor, [
   ...Object.entries(PENS).map(([k, P]) => ({ label: P.label, icon: k === 'marker' ? 'highlighter' : 'pen', checked: state.pen === k && state.tool === 'ink', on: () => App.setPen(k) })),
   { sep: true },
   { label: 'Borracha', sub: 'E', icon: 'eraser', checked: state.tool === 'erase', on: () => App.setTool('erase') },
-  { label: state.penSeen ? 'Dedo também desenha' : 'Só a caneta stylus desenha', sub: state.penSeen ? 'hoje o dedo rola a página' : 'o dedo passa a rolar a página',
+  { label: state.penSeen ? 'Dedo também desenha' : 'Só a caneta desenha', sub: state.penSeen ? 'hoje: dedo rola' : 'dedo rola a página',
     icon: 'pointer', on: () => { state.penSeen = !state.penSeen; ls.set('le.penSeen', state.penSeen);
       App.toast(state.penSeen ? 'Só a caneta desenha; o dedo rola a página.' : 'O dedo também desenha.'); } },
 ], { title: 'Caneta' });

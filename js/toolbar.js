@@ -81,7 +81,7 @@ App.commandAvailable = c => !c.doc || doc();
 // ---------- Menus Exibir e Estudar ----------
 const MENUS = {
   view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', '-', 'look'] },
-  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'ai', 'aiPrompts', '-', 'plan', 'siglas', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr', '-', 'stats', 'pomoSettings'] },
+  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'siglas', '-', 'ai', 'aiPrompts', '-', 'plan', 'stats', 'pomoSettings', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr'] },
 };
 let openMenu = null;
 function menuItem(c){

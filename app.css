@@ -1427,3 +1427,28 @@ body[data-tool=erase] .drawLayer{pointer-events:auto;cursor:cell}
   .statsDlg .lookFoot .muted{display:none}
 }
 .focusFloat.sw .ffBar{display:none}
+
+/* =========================================================
+   v1.16.1 — ajustes de design depois das funções novas
+   ========================================================= */
+/* menus: o nome nunca é cortado; a descrição encolhe primeiro */
+.popItem > span:not(.popDot){flex:1 0 auto;max-width:100%}
+.popItem small{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;margin-left:auto;padding-left:8px}
+/* barra "Ligar aqui": uma linha, texto encolhe com reticências */
+.linkBar{white-space:nowrap}
+.linkTxt span{white-space:nowrap}
+.linkBar .btn{flex:none}
+@media (max-width:700px){
+  .linkBar{top:auto;bottom:118px;left:8px;right:8px;transform:none;max-width:none;justify-content:flex-end}
+  .linkTxt{flex:1;min-width:0}
+  .linkTxt>span{display:block}
+  /* timer flutuante compacto no celular: tempo + pausar + esconder */
+  .focusFloat{min-width:0;gap:6px;padding:5px 5px 7px 10px;border-radius:12px}
+  .ffTime{font-size:18px}
+  .ffLbl,.ffSkip,.ffActs .btn[title="Parar"]{display:none}
+  /* sem teclado: a lista de atalhos não faz sentido */
+  .touch .shortcuts{display:none}
+}
+.touch .shortcuts{display:none}
+/* barra "Ligar aqui" embaixo, acima da barra de páginas (não briga com o timer nem com os avisos do topo) */
+.linkBar{top:auto;bottom:132px}
