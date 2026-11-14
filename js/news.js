@@ -5,6 +5,8 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.18', title: 'Livros EPUB', items: ['No Vetra para Windows, abra livros .epub: o livro vira um PDF de tamanho de livro (A5), com capítulos, imagens e sumário, e todas as funções valem nele', 'Abrir o mesmo EPUB de novo reaproveita a conversão: os grifos continuam no lugar. Com a sincronização, o livro chega ao celular e ao tablet'] },
+  { v: '1.17.1', title: 'Tamanho da página à mão', items: ['Na barra de página, o botão de tamanho mostra o ajuste atual e abre o menu: à largura (Ctrl+0), página inteira (Ctrl+9), tamanho real 100% (Ctrl+1), modos de leitura e tela cheia', 'Vetra para Windows: instalador próprio, com atalho, ícone e "Abrir com" para PDFs'] },
   { v: '1.17', title: 'IA mais esperta', items: [
     'O pedido leva contexto: o capítulo, o texto em volta do trecho, suas notas da página e o significado das siglas (dá para desligar no menu da IA)',
     'Pergunte sobre o capítulo inteiro ou sobre um conjunto dos seus grifos (todos, por cor, do capítulo ou só os com nota)',

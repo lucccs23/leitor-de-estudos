@@ -379,14 +379,14 @@ addEventListener('visibilitychange', () => { if (document.hidden && dirHandle &&
 
 // ---------- Backup automático local (serviço do Windows instalado pelo "Instalar atalho") ----------
 // O serviço grava em Documentos\Leitor de Estudos\Backups: um arquivo por dia (últimos 30) + ultimo-backup.json.
-const LOCAL = 'http://127.0.0.1:47613';
+const localBase = () => 'http://127.0.0.1:' + (App.ls.get('le.svcPort', 47613) || 47613);
 let local = { ok: false, checked: false, pasta: '', ultimo: null }, lastLocal = 0, localT = null;
 const localToken = () => App.ls.get('le.bkToken', null);
 async function localFetch(path, opts){
   const t = localToken(); if (!t) throw new Error('sem senha');
   const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 20000);
   try {
-    const r = await fetch(`${LOCAL}${path}?t=${t}`, { cache: 'no-store', signal: ctrl.signal, ...opts });
+    const r = await fetch(`${localBase()}${path}?t=${t}`, { cache: 'no-store', signal: ctrl.signal, ...opts });
     const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.erro || r.status);
     return j;
   } finally { clearTimeout(to); }
@@ -398,7 +398,7 @@ App.localService = {
   post: (path, body, timeout = 60000) => {
     const t = localToken(); if (!t) return Promise.reject(new Error('sem senha'));
     const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), timeout);
-    return fetch(`${LOCAL}${path}?t=${t}`, { method: 'POST', body, cache: 'no-store', signal: ctrl.signal })
+    return fetch(`${localBase()}${path}?t=${t}`, { method: 'POST', body, cache: 'no-store', signal: ctrl.signal })
       .then(async r => { const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.erro || r.status); return j; })
       .finally(() => clearTimeout(to));
   },

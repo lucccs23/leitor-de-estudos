@@ -33,6 +33,9 @@ document.querySelectorAll('button[title]:not([aria-label])').forEach(b => {
 const params = new URLSearchParams(location.search);
 const bk = params.get('bk');
 if (bk && /^[a-f0-9]{32,128}$/i.test(bk)) ls.set('le.bkToken', bk);
+// porta do serviço local (o app instalado usa a sua, separada da versão de testes)
+const svc = +params.get('svc');
+if (svc >= 1024 && svc < 65536) ls.set('le.svcPort', svc);
 if (bk && !params.get('abrir')) history.replaceState(null, '', location.pathname);
 
 // versão (canto inferior direito da tela inicial e rodapé do menu ⋯)
@@ -62,6 +65,19 @@ if (inbox && /^[\w-]{6,64}$/.test(inbox)) {
   document.body.append(s);
 } else {
   App.restoreTabs();
+}
+
+// App instalado (Windows): PDFs abertos pelo "Abrir com" / arrastados para o ícone chegam por aqui
+if (window.vetraDesktop) {
+  document.documentElement.classList.add('desktop-app');
+  window.vetraDesktop.onOpenFile(async f => {
+    try {
+      const buf = f.data.buffer.slice(f.data.byteOffset, f.data.byteOffset + f.data.byteLength);
+      if (App.isEpub(f.name || '')) await App.openEpub(buf, f.name); else await App.loadDoc(buf, f.name || 'documento.pdf');
+    }
+    catch (e) { console.warn(e); App.toast('Não consegui abrir o arquivo.'); }
+  });
+  window.vetraDesktop.ready();
 }
 
 // gancho para testes automatizados

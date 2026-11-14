@@ -36,6 +36,8 @@
     <symbol id="i-right" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
     <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 14.5 6-6 6 6"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+    <symbol id="i-fitpage" viewBox="0 0 24 24"><rect x="6" y="3.5" width="12" height="17" rx="1.5"/><path d="M12 7v3M10.5 8.5 12 7l1.5 1.5M12 17v-3M10.5 15.5 12 17l1.5-1.5"/></symbol>
+    <symbol id="i-zoomreal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M8 10v5M7 10.5l1-.5M12.5 11.2v.1M12.5 14.2v.1M16 10v5M15 10.5l1-.5"/></symbol>
     <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 6v12M20 6v12M8 12h8M10.5 9.5 8 12l2.5 2.5M13.5 9.5 16 12l-2.5 2.5"/></symbol>
     <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9.5 19h5"/></symbol>
     <symbol id="i-area" viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M11 4h2M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 11v2M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M13 20h-2M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 13v-2"/></symbol>
@@ -326,7 +328,7 @@
       <button class="btn icon sm" id="btnZoomOut" title="Diminuir zoom (Ctrl −)"><svg class="i"><use href="#i-minus"/></svg></button>
       <span id="zoomLabel">100%</span>
       <button class="btn icon sm" id="btnZoomIn" title="Aumentar zoom (Ctrl +)"><svg class="i"><use href="#i-plus"/></svg></button>
-      <button class="btn icon sm" id="btnFit" title="Ajustar à largura (Ctrl 0)"><svg class="i"><use href="#i-fit"/></svg></button>
+      <button class="btn sm fitBtn" id="btnFit" title="Tamanho da página: à largura, página inteira, 100%" aria-label="Tamanho da página" aria-haspopup="menu"><svg class="i"><use href="#i-fit"/></svg><span id="fitLabel">Largura</span><svg class="i fitCaret"><use href="#i-down"/></svg></button>
       <span class="dockSep"></span>
       <button class="btn icon sm" id="btnLayout" title="Modo de leitura"><svg class="i"><use href="#i-list"/></svg></button>
     </div>
@@ -394,7 +396,7 @@
 <div id="review" hidden></div>
 <div id="popup" hidden></div>
 <button id="focusExit" hidden><svg class="i"><use href="#i-x"/></svg>Sair do modo foco</button>
-<input type="file" id="fileInput" accept="application/pdf,.pdf" multiple hidden>
+<input type="file" id="fileInput" accept="application/pdf,.pdf,application/epub+zip,.epub" multiple hidden>
 <input type="file" id="splitFile" accept="application/pdf,.pdf" hidden>
 <input type="file" id="backupInput" accept=".json,application/json" hidden>
 <div id="dropOverlay"><div><svg class="i"><use href="#i-upload"/></svg>Solte o PDF para abrir</div></div>
@@ -405,6 +407,7 @@
 <script src="lib/pdf.worker.embed.js"></script>
 <script src="lib/pdf-lib.min.js"></script>
 <script src="js/core.js"></script>
+<script src="js/epub.js"></script>
 <script src="js/dock.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/search.js"></script>

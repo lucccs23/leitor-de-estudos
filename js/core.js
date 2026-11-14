@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.17.0';
+App.VERSION = '1.18.0';
 App.VERSION_DATE = '14/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -306,9 +306,12 @@ App.setStyle = s => {
 
 // ---------- Abrir / fechar documentos ----------
 App.openFiles = async files => {
-  const list = [...files].filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
-  if (!list.length) { App.toast('Escolha um arquivo .pdf'); return; }
-  for (const f of list) await App.loadDoc(await f.arrayBuffer(), f.name);
+  const list = [...files].filter(f => /\.(pdf|epub)$/i.test(f.name) || f.type === 'application/pdf' || f.type === 'application/epub+zip');
+  if (!list.length) { App.toast('Escolha um arquivo .pdf ou .epub'); return; }
+  for (const f of list) {
+    if (App.isEpub?.(f)) await App.openEpub(await f.arrayBuffer(), f.name);
+    else await App.loadDoc(await f.arrayBuffer(), f.name);
+  }
 };
 
 // Barra de progresso fininha embaixo da barra superior
@@ -448,10 +451,12 @@ App.pruneFiles = async () => {
 // ---------- Zoom e navegação ----------
 // Layout: duas páginas lado a lado (spread) e/ou uma página por vez (paged: rolagem que encaixa na página)
 const layout = App.layout = { spread: false, paged: false, ...ls.get('le.layout', {}) };
+// ajuste da página: 'width' (à largura) ou 'page' (página inteira na tela)
+state.fitMode = ls.get('le.fitMode', 'width') === 'page' ? 'page' : 'width';
 function fitScale(){
   const p0 = state.pages[0], w = p0 ? p0.base.w : 612 * CSS_UNITS, h = p0 ? p0.base.h : 792 * CSS_UNITS;
   let s = (viewer.clientWidth - 48 - (layout.spread ? 22 : 0)) / (w * (layout.spread ? 2 : 1));
-  if (layout.paged) s = Math.min(s, (viewer.clientHeight - 32) / h); // página inteira na tela
+  if (layout.paged || state.fitMode === 'page') s = Math.min(s, (viewer.clientHeight - 32) / h); // página inteira na tela
   return Math.max(0.3, s);
 }
 App.setLayout = patch => {
@@ -467,7 +472,24 @@ App.setLayout = patch => {
 App.fitScale = fitScale;
 // "Ajustar": acompanha a largura da área de leitura (abrir painéis, redimensionar a janela)
 const autoScale = () => Math.min(fitScale(), layout.paged ? 4 : 2);
-App.fitWidth = () => { state.autoFit = true; App.setScale(autoScale()); };
+App.fitWidth = () => { state.fitMode = 'width'; ls.set('le.fitMode', 'width'); state.autoFit = true; App.setScale(autoScale()); };
+App.fitPage = () => { state.fitMode = 'page'; ls.set('le.fitMode', 'page'); state.autoFit = true; App.setScale(autoScale()); };
+App.actualSize = () => { if (!state.pdf) return; state.autoFit = false; App.setScale(1); };
+// menu do ajuste (barra de página): deixa claro qual está valendo
+App.fitMenu = anchor => {
+  const fitW = state.autoFit && state.fitMode === 'width', fitP = state.autoFit && state.fitMode === 'page';
+  App.popMenu(anchor, [
+    { label: 'Ajustar à largura', sub: 'Ctrl+0', icon: 'fit', checked: fitW, on: App.fitWidth },
+    { label: 'Página inteira', sub: 'Ctrl+9', icon: 'fitpage', checked: fitP, on: App.fitPage },
+    { label: 'Tamanho real (100%)', sub: 'Ctrl+1', icon: 'zoomreal', checked: !state.autoFit && Math.abs(state.scale - 1) < 0.01, on: App.actualSize },
+    { sep: true },
+    { label: 'Rolagem contínua', icon: 'list', checked: !layout.paged, on: () => App.setLayout({ paged: false }) },
+    { label: 'Página por página', icon: 'pages', checked: !!layout.paged, on: () => App.setLayout({ paged: true }) },
+    { label: 'Duas páginas lado a lado', icon: 'book', checked: !!layout.spread, on: () => App.setLayout({ spread: !layout.spread }) },
+    { sep: true },
+    { label: 'Modo de leitura (tela cheia)', sub: 'F', icon: 'focus', checked: document.body.classList.contains('focus'), on: App.toggleFocus },
+  ], { title: 'Tamanho da página', alignRight: true });
+};
 new ResizeObserver(() => {
   if (state.pdf && state.autoFit && Math.abs(autoScale() - state.scale) > 0.005) App.setScale(autoScale());
 }).observe($('#stage'));
@@ -491,6 +513,8 @@ App.setScale = (s, keepAnchor = true, at = null) => {
   } else pagesEl.style.width = '';
   $('#zoomLabel').textContent = Math.round(s * 100) + '%';
   $('#btnFit').classList.toggle('on', state.autoFit);
+  const fl = $('#fitLabel'); if (fl) fl.textContent = state.autoFit ? (state.fitMode === 'page' ? 'Página' : 'Largura') : Math.round(state.scale * 100) + '%';
+  const fu = $('#btnFit use'); if (fu) fu.setAttribute('href', state.autoFit && state.fitMode === 'page' ? '#i-fitpage' : '#i-fit');
   if (anchor) {
     viewer.scrollTop = anchor.p.el.offsetTop + anchor.ry * anchor.p.el.offsetHeight - anchor.oy;
     viewer.scrollLeft = anchor.p.el.offsetLeft + anchor.rx * anchor.p.el.offsetWidth - anchor.ox;
@@ -1426,6 +1450,8 @@ document.addEventListener('keydown', e => {
   if (mod && state.pdf && (k === '=' || k === '+')) { e.preventDefault(); App.zoomBy(1.15); return; }
   if (mod && state.pdf && k === '-') { e.preventDefault(); App.zoomBy(1 / 1.15); return; }
   if (mod && state.pdf && k === '0') { e.preventDefault(); App.fitWidth(); return; }
+  if (mod && state.pdf && k === '9') { e.preventDefault(); App.fitPage(); return; }
+  if (mod && state.pdf && k === '1') { e.preventDefault(); App.actualSize(); return; }
   const tag = e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') { if (k === 'Escape') e.target.blur(); return; }
   if (mod && k.toLowerCase() === 'z' && state.pdf) { e.preventDefault(); App.undo(); return; }
@@ -1477,7 +1503,7 @@ $('#btnNext').onclick = () => App.pageStep(1);
 pageInput.onchange = () => { App.goToPage(+pageInput.value); pageInput.blur(); };
 $('#btnZoomIn').onclick = () => App.zoomBy(1.15);
 $('#btnZoomOut').onclick = () => App.zoomBy(1 / 1.15);
-$('#btnFit').onclick = () => App.fitWidth();
+$('#btnFit').onclick = e => App.fitMenu(e.currentTarget);
 $('#btnAuto').onmousedown = e => e.preventDefault();
 $('#btnAuto').onclick = () => { App.setTool('text'); App.setAutoHL(!state.autoHL, true); };
 $('#btnPanel').onclick = App.togglePanel;

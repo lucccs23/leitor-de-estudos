@@ -1477,3 +1477,11 @@ body[data-tool=erase] .drawLayer{pointer-events:auto;cursor:cell}
   .aiRetTxt span{white-space:normal;font-size:12px;line-height:1.25}
   .aiReturn{white-space:normal;left:8px;right:8px;transform:none;max-width:none}
 }
+
+/* botão "Tamanho da página" na barra de página (como no Acrobat: ícone, nome e menu) */
+#btnFit.fitBtn{width:auto;gap:4px;padding:0 6px 0 7px;font-size:12.5px;font-weight:600;color:var(--text-2)}
+#btnFit.fitBtn .i{width:16px;height:16px}
+#btnFit.fitBtn .fitCaret{width:12px;height:12px;opacity:.7;margin-left:-1px}
+#btnFit.fitBtn.on{color:var(--accent)}
+#fitLabel{min-width:44px;text-align:left}
+@media (max-width:700px){ #fitLabel{display:none} #btnFit.fitBtn{padding:0 4px} }

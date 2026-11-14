@@ -36,6 +36,8 @@ const C = [
   { id: 'zoomIn', group: 'Exibir', label: 'Aumentar o zoom', icon: 'plus', key: 'Ctrl+=', doc: true, run: () => App.zoomBy(1.15) },
   { id: 'zoomOut', group: 'Exibir', label: 'Diminuir o zoom', icon: 'minus', key: 'Ctrl+−', doc: true, run: () => App.zoomBy(1 / 1.15) },
   { id: 'fit', group: 'Exibir', label: 'Ajustar à largura', icon: 'fit', key: 'Ctrl+0', doc: true, run: () => App.fitWidth() },
+  { id: 'fitPage', group: 'Exibir', label: 'Página inteira na tela', icon: 'fitpage', key: 'Ctrl+9', doc: true, run: () => App.fitPage(), on: () => !!(App.state.autoFit && App.state.fitMode === 'page') },
+  { id: 'actualSize', group: 'Exibir', label: 'Tamanho real (100%)', icon: 'zoomreal', key: 'Ctrl+1', doc: true, run: () => App.actualSize() },
   { id: 'dock', group: 'Exibir', label: 'Mostrar ou recolher as ferramentas de grifo', short: 'Ferramentas de grifo', icon: 'highlighter', key: 'T', doc: true, run: () => App.toggleDock?.() },
   { id: 'look', group: 'Exibir', label: 'Aparência e leitura…', short: 'Aparência', icon: 'palette', run: () => App.openLook() },
   // Estudar
@@ -83,7 +85,7 @@ App.commandAvailable = c => !c.doc || doc();
 
 // ---------- Menus Exibir e Estudar ----------
 const MENUS = {
-  view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', '-', 'look'] },
+  view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', 'fitPage', 'actualSize', '-', 'look'] },
   study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'siglas', '-', 'ai', 'aiChapter', 'aiHighlights', 'aiHistory', 'aiPrompts', '-', 'plan', 'stats', 'pomoSettings', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr'] },
 };
 let openMenu = null;

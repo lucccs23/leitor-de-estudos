@@ -7,7 +7,8 @@ const App = window.App;
 const { $, el, state, DB, safe, ls } = App;
 
 const FSA = 'showOpenFilePicker' in window;
-const PDF_TYPES = [{ description: 'Documento PDF', accept: { 'application/pdf': ['.pdf'] } }];
+const PDF_TYPES = [{ description: 'PDF ou livro EPUB', accept: { 'application/pdf': ['.pdf'], 'application/epub+zip': ['.epub'] } }];
+const SAVE_TYPES = [{ description: 'Documento PDF', accept: { 'application/pdf': ['.pdf'] } }];
 
 // ---------- Arquivo ligado a cada documento ----------
 const handleKey = fp => 'fh:' + fp;
@@ -19,6 +20,8 @@ App.fileOpenHandle = h => openHandle(h);
 async function openHandle(h){
   try {
     const f = await h.getFile();
+    // EPUB vira PDF: o "Salvar" não pode gravar por cima do livro original
+    if (App.isEpub?.(f)) return await App.openEpub(await f.arrayBuffer(), f.name);
     const ok = await App.loadDoc(await f.arrayBuffer(), f.name);
     if (ok && state.fp) await setHandle(state.fp, h);
     return ok;
@@ -40,7 +43,7 @@ App.openDrop = dt => {
   if (items.length && items[0].getAsFileSystemHandle) {
     const ps = items.map(it => it.getAsFileSystemHandle()); // precisa ser chamado durante o evento
     (async () => {
-      const hs = (await Promise.all(ps.map(p => p.catch(() => null)))).filter(h => h && h.kind === 'file' && /\.pdf$/i.test(h.name));
+      const hs = (await Promise.all(ps.map(p => p.catch(() => null)))).filter(h => h && h.kind === 'file' && /\.(pdf|epub)$/i.test(h.name));
       if (!hs.length) { App.openFiles(files); return; }
       for (const h of hs) await openHandle(h);
     })();
@@ -97,7 +100,7 @@ App.fileSaveAs = async () => {
   let handle;
   try {
     const cur = await getHandle(state.fp);
-    handle = await showSaveFilePicker({ suggestedName: state.name.replace(/\.pdf$/i, '') + '.pdf', types: PDF_TYPES, id: 'salvar-pdf', ...(cur ? { startIn: cur.handle } : {}) });
+    handle = await showSaveFilePicker({ suggestedName: state.name.replace(/\.pdf$/i, '') + '.pdf', types: SAVE_TYPES, id: 'salvar-pdf', ...(cur ? { startIn: cur.handle } : {}) });
   } catch (e) { if (e.name !== 'AbortError') App.toast('Não consegui abrir a janela de salvar.'); return; }
   busy = true; App.setLoading(0.3);
   try {

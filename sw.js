@@ -1,13 +1,13 @@
 /* Vetra — funcionamento offline.
    Guarda todos os arquivos do app no aparelho na instalação; depois tudo abre sem internet.
    Ao publicar uma versão nova, mude VERSION: os aparelhos baixam os arquivos novos e o app avisa. */
-const VERSION = '1.17.0';
+const VERSION = '1.18.0';
 const CACHE = 'leitor-' + VERSION;
 const FILES = [
   './', './index.html', './app.css', './manifest.webmanifest', './icone.png',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-192.png', './icons/icon-maskable-512.png',
   './lib/pdf.min.js', './lib/pdf.worker.embed.js', './lib/pdf-lib.min.js',
-  './js/core.js', './js/dock.js', './js/sidebar.js', './js/search.js', './js/review.js', './js/export.js', './js/stats.js',
+  './js/core.js', './js/epub.js', './js/dock.js', './js/sidebar.js', './js/search.js', './js/review.js', './js/export.js', './js/stats.js',
   './js/tabs.js', './js/home.js', './js/ocr.js', './js/tools.js', './js/gabarito.js', './js/exam.js', './js/library.js',
   './js/today.js', './js/summary.js', './js/split.js', './js/tts.js', './js/focus.js', './js/look.js', './js/file.js',
   './js/ai.js', './js/airespostas.js', './js/toolbar.js', './js/palette.js', './js/news.js', './js/estatisticas.js', './js/plan.js', './js/siglas.js', './js/links.js', './js/sync.js', './js/touch.js', './js/main.js',
