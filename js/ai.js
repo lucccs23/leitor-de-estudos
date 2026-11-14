@@ -49,7 +49,7 @@ async function send(prompt, opts = {}){
     copied = true;
   } catch (e) { console.warn('área de transferência', e); }
   const viaLink = P.prefill && encodeURIComponent(prompt).length <= MAX_URL;
-  window.open(P.url(viaLink ? prompt : ''), '_blank', 'noopener');
+  App.openExternal(P.url(viaLink ? prompt : ''));
   let msg;
   if (opts.image) msg = viaLink ? `Abrindo o ${P.name}: cole a imagem da questão (Ctrl+V) junto com o pedido.` : `Imagem copiada. No ${P.name}, cole (Ctrl+V) e escreva o que quer saber.`;
   else if (viaLink) msg = `Abrindo o ${P.name} com o pedido pronto.`;

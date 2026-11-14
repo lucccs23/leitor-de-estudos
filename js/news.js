@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.15.2', title: 'IA no seu navegador', items: ['No computador, "Perguntar à IA" abre o Claude, o ChatGPT ou o Gemini no Google Chrome (onde você já está logado), e não mais na janela do app', 'Ícone novo do Vetra, em alta resolução'] },
   { v: '1.15.1', title: 'Novo nome: Vetra', items: ['O Leitor de Estudos agora se chama Vetra. Seus PDFs, grifos e backups continuam todos aqui'] },
   { v: '1.15', title: 'Sincronizar, caneta melhor, plano de leitura e mais', items: [
     'Sincronizar aparelhos: computador, tablet e celular com os mesmos grifos, notas e PDFs (Configurações → Sincronizar aparelhos)',

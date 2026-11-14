@@ -403,6 +403,14 @@ App.localService = {
       .finally(() => clearTimeout(to));
   },
 };
+// links externos (IA, GitHub): no app do computador, abrem no Chrome (ou no navegador padrão) pelo serviço local
+App.openExternal = async url => {
+  if (!App.isWeb && (local.ok || await checkLocal())) {
+    try { await App.localService.post('/abrir', url, 8000); return true; } catch (e) { console.warn('abrir no navegador padrão', e); }
+  }
+  window.open(url, '_blank', 'noopener');
+  return true;
+};
 async function checkLocal(){
   if (App.isWeb) { local = { ok: false, checked: true }; renderBackupStatus(); return false; }
   try { const j = await localFetch('/status'); local = { ok: true, checked: true, pasta: j.pasta, ultimo: j.ultimo, arquivos: j.arquivos }; }

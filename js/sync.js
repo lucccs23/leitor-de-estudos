@@ -268,7 +268,7 @@ App.openSync = () => {
   body.append(el('p', 'muted small', 'Computador, tablet e celular ficam com os mesmos grifos, notas, marcadores, planos e progresso. A "nuvem" é um repositório particular no seu GitHub; ninguém mais vê.'));
   if (!ready()) {
     const steps = el('ol', 'syncSteps');
-    const li = (html, link, label) => { const l = el('li'); l.append(el('span', null, html)); if (link) { const a = el('a', null, label); a.href = link; a.target = '_blank'; a.rel = 'noopener'; l.append(' ', a); } steps.append(l); };
+    const li = (html, link, label) => { const l = el('li'); l.append(el('span', null, html)); if (link) { const a = el('a', null, label); a.href = link; a.target = '_blank'; a.rel = 'noopener'; a.onclick = e => { e.preventDefault(); App.openExternal(link); }; l.append(' ', a); } steps.append(l); };
     li('Crie um repositório PARTICULAR (Private), por exemplo "leitor-dados".', 'https://github.com/new', 'Criar repositório');
     li('Crie um token "fine-grained": em Repository access escolha "Only select repositories" → esse repositório; em Permissions → Repository permissions → Contents: "Read and write". Validade: a maior que quiser.', 'https://github.com/settings/personal-access-tokens/new', 'Criar token');
     li('Cole abaixo o nome do repositório e o token. Faça isso em cada aparelho (pode usar o mesmo token).');
