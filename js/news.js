@@ -5,6 +5,12 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.16', title: 'Timer próprio, em qualquer aparelho', items: [
+    'O Vetra tem o próprio timer: seus esquemas de pomodoro e um cronômetro, também no celular e no tablet',
+    'Timer flutuante na página sempre que o timer estiver ligado (arraste para onde quiser)',
+    'Estatísticas (Estudar → Estatísticas, ou em "Sua semana"): tempo lendo e de foco por dia, por disciplina e por PDF, seu melhor horário e as sessões do timer de todos os aparelhos',
+    'O Focus agora é independente. Quando quiser, ligue "Mandar o tempo para o Focus" nas Estatísticas, no computador: vai tudo, inclusive o que você fez no celular',
+  ] },
   { v: '1.15.2', title: 'IA no seu navegador', items: ['No computador, "Perguntar à IA" abre o Claude, o ChatGPT ou o Gemini no Google Chrome (onde você já está logado), e não mais na janela do app', 'Ícone novo do Vetra, em alta resolução'] },
   { v: '1.15.1', title: 'Novo nome: Vetra', items: ['O Leitor de Estudos agora se chama Vetra. Seus PDFs, grifos e backups continuam todos aqui'] },
   { v: '1.15', title: 'Sincronizar, caneta melhor, plano de leitura e mais', items: [

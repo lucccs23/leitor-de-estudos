@@ -52,7 +52,8 @@ const C = [
   { id: 'eraser', group: 'Estudar', label: 'Borracha', icon: 'eraser', key: 'E', doc: true, run: () => App.setTool('erase') },
   { id: 'searchAll', group: 'Estudar', label: 'Buscar em todos os PDFs', icon: 'search', key: 'Ctrl+Shift+F', run: () => App.searchAll('') },
   { id: 'bookmark', group: 'Estudar', label: 'Marcar esta página', icon: 'bookmark', key: 'B', doc: true, run: () => App.toggleBookmark() },
-  { id: 'pomo', group: 'Estudar', label: 'Pomodoro / Focus', short: 'Relógio', icon: 'clock', el: '#btnPomo', run: () => $('#btnPomo').click() },
+  { id: 'pomo', group: 'Estudar', label: 'Timer (pomodoro e cronômetro)', keywords: 'pomodoro cronômetro focus relógio', short: 'Timer', icon: 'clock', el: '#btnPomo', run: () => $('#btnPomo').click() },
+  { id: 'stats', group: 'Estudar', label: 'Estatísticas', keywords: 'tempo estudo sessões gráfico', icon: 'chart', run: () => App.openStats() },
   { id: 'pomoSettings', group: 'Estudar', label: 'Esquemas de foco…', icon: 'clock', run: () => App.openPomoSettings() },
   { id: 'tools', group: 'Ferramentas', label: 'Ferramentas (todas)', short: 'Ferramentas', icon: 'tools', key: 'O', el: '#btnTools', run: () => App.openTools() },
   { id: 'organize', group: 'Ferramentas', label: 'Organizar páginas', icon: 'pages', doc: true, run: toolOpen('organize') },
@@ -80,7 +81,7 @@ App.commandAvailable = c => !c.doc || doc();
 // ---------- Menus Exibir e Estudar ----------
 const MENUS = {
   view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', '-', 'look'] },
-  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'ai', 'aiPrompts', '-', 'plan', 'siglas', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr', '-', 'pomoSettings'] },
+  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'ai', 'aiPrompts', '-', 'plan', 'siglas', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr', '-', 'stats', 'pomoSettings'] },
 };
 let openMenu = null;
 function menuItem(c){

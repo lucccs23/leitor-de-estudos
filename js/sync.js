@@ -203,6 +203,18 @@ async function doSync({ manual } = {}){
     if (sch !== sBase.ch || !ssha) nsha = await putFile(sPath, enc.encode(JSON.stringify(mine)), ssha, `ajustes (${deviceName()})`);
     await safe(() => DB.put('meta', { key: 'sync:settings', sha: nsha, ch: sch }));
 
+    // sessões do timer (estatísticas): junta as de todos os aparelhos
+    if (App.timerSessions) {
+      const xPath = 'sessions.json', xsha = tree.get(xPath);
+      const xBase = await safe(() => DB.get('meta', 'sync:sessions'), null) || {};
+      let remote = [];
+      if (xsha && xsha !== xBase.sha) { remote = JSON.parse(dec.decode(await getBlob(xsha))); stats.sess = App.addSessions(remote); }
+      const all = App.timerSessions(), ch = H(all.map(x => x.id + ':' + (x.partial ? 1 : 0)));
+      let ssha = xsha;
+      if (ch !== xBase.ch || !xsha) ssha = await putFile(xPath, enc.encode(JSON.stringify(all)), xsha, `sessões do timer (${deviceName()})`);
+      await safe(() => DB.put('meta', { key: 'sync:sessions', sha: ssha, ch }));
+    }
+
     cfg.last = Date.now(); saveCfg();
     lastError = null; lastStats = stats;
     if (stats.down || stats.pdfDown) { App.renderHome?.(); App.emit('plan:changed'); }
@@ -229,6 +241,7 @@ const syncSummary = s => {
   if (s.up || s.pdfUp) parts.push('alterações deste aparelho enviadas');
   return parts.length ? 'Sincronizado: ' + parts.join('; ') + '.' : 'Tudo sincronizado.';
 };
+App.deviceName = () => deviceName();
 function deviceName(){ return ls.get('le.deviceName', null) || (App.isTouch ? (innerWidth > 700 ? 'tablet' : 'celular') : 'computador'); }
 
 // ---------- Automático ----------

@@ -3,6 +3,7 @@
 *.vbs
 *.cmd
 icone.ico
+vetra.ico
 # arquivos recebidos pelo "Abrir com" do Windows (podem conter PDFs pessoais)
 inbox/
 # não usado (o leitor usa a cópia embutida pdf.worker.embed.js)

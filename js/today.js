@@ -1,15 +1,19 @@
-/* "Hoje": meta diária de estudo, sequência de dias, revisões pendentes e pomodoro. */
+/* "Hoje": meta diária de estudo, sequência de dias, revisões pendentes e o timer do Vetra
+   (pomodoro com esquemas, cronômetro e timer flutuante na página). Funciona sozinho em qualquer aparelho. */
 (() => {
 'use strict';
 const App = window.App;
 const { $, el, state, ls } = App;
 
 // ---------- Pomodoro ----------
-// Estado no localStorage (vale para todas as janelas): { phase:'focus'|'break', len, end, paused, left, brk }
+// Estado no localStorage (vale para todas as janelas):
+//   pomodoro: { phase:'focus'|'break', len, end, paused, left, brk }
+//   cronômetro: { phase:'focus', sw:true, t0, paused, left }  (left = segundos contados, quando pausado)
 let P = ls.get('le.pomo', null);
 const save = () => ls.set('le.pomo', P);
-const secsLeft = () => !P ? 0 : P.paused ? P.left : Math.max(0, Math.round((P.end - Date.now()) / 1000));
-const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const isSW = () => !!(P && P.sw);
+const secsLeft = () => !P ? 0 : P.paused ? P.left : P.sw ? Math.round((Date.now() - P.t0) / 1000) : Math.max(0, Math.round((P.end - Date.now()) / 1000));
+const mmss = s => s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 App.pomoFocus = () => (!!P && P.phase === 'focus' && !P.paused) || !!App.focusRunningFocus?.();
 const todayCount = () => (ls.get('le.pomoDays', {})[App.dayKey()] || 0);
 
@@ -17,13 +21,27 @@ function start(phase, min, brk){
   P = { phase, len: min * 60, end: Date.now() + min * 60000, paused: false, brk: brk || (P && P.brk) || 5 };
   save(); render();
 }
+function startSW(){ P = { phase: 'focus', sw: true, t0: Date.now(), paused: false, left: 0 }; save(); render(); }
 function pauseResume(){
   if (!P) return;
-  if (P.paused) { P.end = Date.now() + P.left * 1000; P.paused = false; } else { P.left = secsLeft(); P.paused = true; }
+  if (P.paused) { if (P.sw) P.t0 = Date.now() - P.left * 1000; else P.end = Date.now() + P.left * 1000; P.paused = false; }
+  else { P.left = secsLeft(); P.paused = true; }
   save(); render();
 }
-function addMin(m){ if (!P) return; if (P.paused) P.left += m * 60; else P.end += m * 60000; P.len += m * 60; save(); render(); }
-function stop(){ P = null; save(); render(); }
+function addMin(m){ if (!P || P.sw) return; if (P.paused) P.left += m * 60; else P.end += m * 60000; P.len += m * 60; save(); render(); }
+function stop(){
+  if (P && P.sw) {
+    const s = secsLeft();
+    if (s >= 60) { App.recordSession?.('cronometro', Date.now() - s * 1000, s * 1000); App.toast(`Cronômetro parado: ${App.fmtDuration(s)} de foco`); }
+  } else if (P && P.phase === 'focus') {
+    // pomodoro interrompido: o tempo já feito também conta
+    const done = P.len - secsLeft();
+    if (done >= 60) App.recordSession?.('pomodoro', Date.now() - done * 1000, done * 1000).then(s => { if (s) { s.partial = true; ls.set('le.sessions', App.timerSessions()); } });
+  }
+  P = null; save(); render();
+}
+// encerra a etapa agora (o que foi feito do foco é o que conta)
+function endNow(){ if (!P || P.sw) return; if (P.phase === 'focus') P.done = P.len - secsLeft(); P.end = Date.now(); P.paused = false; save(); finish(); }
 
 // ---------- Esquemas de foco (configuráveis) ----------
 const DEFAULT_CFG = {
@@ -43,6 +61,9 @@ function finish(){
   const C = cfg();
   if (C.sound) beep(P.phase === 'focus');
   if (P.phase === 'focus') {
+    // vira uma sessão nas estatísticas (encerrado antes da hora: conta só o que passou)
+    const done = Math.max(0, P.done != null ? P.done : P.len);
+    App.recordSession?.('pomodoro', Date.now() - done * 1000, done * 1000);
     const days = ls.get('le.pomoDays', {}); const k = App.dayKey();
     days[k] = (days[k] || 0) + 1; ls.set('le.pomoDays', days);
     const n = days[k], long = C.longEvery > 0 && n % C.longEvery === 0;
@@ -153,49 +174,127 @@ function buildDlg(){
 }
 
 const chip = $('#btnPomo'), chipTime = $('#pomoTime');
-function render(){ renderChip(); renderPomoCard(); }
-// com o Focus conectado (e sem pomodoro próprio rodando), o relógio mostra o timer do Focus
-const useFocus = () => !P && !!App.focusConnected?.();
+function render(){ renderChip(); renderPomoCard(); renderFloat(); }
 function renderChip(){
-  if (useFocus()) { App.renderFocusChip(); return; }
-  chip.classList.remove('focusLinked');
   const s = secsLeft();
   chip.classList.toggle('running', !!P);
   chip.classList.toggle('brk', !!P && P.phase === 'break');
   chip.classList.toggle('paused', !!P && P.paused);
   chipTime.textContent = P ? mmss(s) : '';
-  chip.title = !P ? 'Pomodoro — blocos de foco com pausas' : `${P.phase === 'focus' ? 'Foco' : 'Pausa'}: faltam ${mmss(s)}${P.paused ? ' (pausado)' : ''}`;
+  chip.title = !P ? 'Timer — pomodoro ou cronômetro' : P.sw ? `Cronômetro: ${mmss(s)}${P.paused ? ' (pausado)' : ''}` : `${P.phase === 'focus' ? 'Foco' : 'Pausa'}: faltam ${mmss(s)}${P.paused ? ' (pausado)' : ''}`;
 }
 App.renderPomoChip = renderChip;
 setInterval(() => {
   if (!P) return;
-  if (!P.paused && secsLeft() <= 0) { finish(); return; }
+  if (!P.paused && !P.sw && secsLeft() <= 0) { finish(); return; }
   chipTime.textContent = mmss(secsLeft());
   const t = $('#todayPomo .pomoBig'); if (t) t.textContent = mmss(secsLeft());
+  tickFloat();
 }, 1000);
 
+const floatItem = () => ({ label: 'Timer flutuante na página', icon: 'clock', checked: floatOn(), on: toggleFloat });
+// itens extras do Focus (só no computador, com o Focus aberto): para onde vai o tempo de leitura
+const focusItems = anchor => (App.focusMenuItems ? App.focusMenuItems(anchor) : []);
 function pomoMenu(anchor){
   const n = todayCount();
-  const title = `Pomodoro · ${n} hoje`;
+  const title = `Timer · ${App.plural(n, 'pomodoro', 'pomodoros')} hoje`;
   if (!P) {
     const C = cfg();
     App.popMenu(anchor, [
       ...C.schemes.map(s => ({ label: schemeName(s), sub: `${(s.name || '').trim() ? s.focus + ' min · ' : ''}pausa de ${s.brk}`, icon: 'play', on: () => startScheme(s) })),
+      { label: 'Cronômetro', sub: 'conta para cima, sem pausa marcada', icon: 'clock', on: startSW },
       { sep: true },
-      { label: 'Só uma pausa de 5 min', icon: 'clock', on: () => start('break', 5) },
+      { label: 'Só uma pausa de 5 min', icon: 'pause', on: () => start('break', 5) },
       { label: 'Configurar esquemas…', icon: 'edit', on: openPomoSettings },
+      { label: 'Estatísticas', icon: 'chart', on: () => App.openStats?.() },
+      floatItem(),
+      ...focusItems(anchor),
     ], { title, alignRight: true });
   } else {
     App.popMenu(anchor, [
       { label: P.paused ? 'Continuar' : 'Pausar', icon: P.paused ? 'play' : 'pause', on: pauseResume },
-      { label: 'Mais 5 minutos', icon: 'plus', on: () => addMin(5) },
-      ...(P.phase === 'focus' ? [{ label: 'Encerrar e ir para a pausa', icon: 'check', on: () => { P.end = Date.now(); P.paused = false; save(); finish(); } }] : []),
+      ...(P.sw ? [] : [{ label: 'Mais 5 minutos', icon: 'plus', on: () => addMin(5) }]),
+      ...(P.phase === 'focus' && !P.sw ? [{ label: 'Encerrar e ir para a pausa', icon: 'check', on: endNow }] : []),
       { sep: true },
-      { label: 'Parar o pomodoro', icon: 'x', danger: true, on: stop },
-    ], { title: `${P.phase === 'focus' ? 'Foco' : 'Pausa'} · ${mmss(secsLeft())}`, alignRight: true });
+      { label: P.sw ? 'Parar o cronômetro' : 'Parar o pomodoro', icon: 'x', danger: true, on: stop },
+      floatItem(),
+      ...focusItems(anchor),
+    ], { title: `${P.sw ? 'Cronômetro' : P.phase === 'focus' ? 'Foco' : 'Pausa'} · ${mmss(secsLeft())}`, alignRight: true });
   }
 }
-chip.onclick = () => (useFocus() ? App.focusMenu(chip) : pomoMenu(chip));
+App.pomoMenu = pomoMenu;
+chip.onclick = () => pomoMenu(chip);
+
+// ---------- Timer flutuante sobre o PDF (aparece com o timer ligado) ----------
+const fl = $('#focusFloat');
+const floatOn = () => ls.get('le.focusFloat', true);
+function toggleFloat(){ ls.set('le.focusFloat', !floatOn()); renderFloat(); App.toast(floatOn() ? 'Timer flutuante na página ligado' : 'Timer flutuante escondido (o relógio da barra continua)'); }
+App.toggleFocusFloat = toggleFloat;
+let flBuilt = false;
+function buildFloat(){
+  fl.innerHTML = '';
+  const dot = el('span', 'ffDot');
+  const info = el('div', 'ffInfo');
+  const lbl = el('button', 'ffLbl'); lbl.type = 'button'; lbl.title = 'Opções do timer';
+  lbl.onclick = e => { e.stopPropagation(); pomoMenu(lbl); };
+  info.append(el('div', 'ffTime'), lbl);
+  const acts = el('div', 'ffActs');
+  acts.append(App.ibtn('play', null, pauseResume, 'sm ffPlay', 'Pausar / continuar'),
+    App.ibtn('right', null, endNow, 'sm ffSkip', 'Pular para a próxima etapa'),
+    App.ibtn('x', null, stop, 'sm', 'Parar'),
+    App.ibtn('shrink', null, toggleFloat, 'sm ffClose', 'Esconder o timer flutuante'));
+  const bar = el('div', 'ffBar'); bar.append(el('i'));
+  fl.append(dot, info, acts, bar);
+  flBuilt = true;
+}
+function renderFloat(){
+  const show = !!P && !!state.pdf && floatOn();
+  fl.hidden = !show;
+  if (!show) return;
+  if (!flBuilt) { buildFloat(); placeFloat(); }
+  fl.classList.toggle('brk', P.phase === 'break');
+  fl.classList.toggle('paused', !!P.paused);
+  fl.classList.toggle('sw', !!P.sw);
+  const play = fl.querySelector('.ffPlay');
+  play.replaceChildren(App.icon(P.paused ? 'play' : 'pause')); play.title = P.paused ? 'Continuar' : 'Pausar';
+  fl.querySelector('.ffSkip').hidden = !!P.sw;
+  fl.querySelector('.ffLbl').textContent = (P.sw ? 'cronômetro' : P.phase === 'focus' ? 'foco' : 'pausa') + (P.paused ? ' · pausado' : '');
+  tickFloat();
+}
+function tickFloat(){
+  if (fl.hidden || !P) return;
+  const s = secsLeft();
+  fl.querySelector('.ffTime').textContent = mmss(s);
+  fl.querySelector('.ffBar i').style.width = P.sw ? '0%' : Math.round(100 * Math.max(0, Math.min(1, 1 - s / Math.max(1, P.len)))) + '%';
+}
+// arrastável; a posição fica guardada (em frações da área do PDF)
+function placeFloat(){
+  const pos = ls.get('le.focusFloatPos', null), st = $('#stage');
+  if (!pos) { fl.style.left = ''; fl.style.top = ''; fl.classList.remove('moved'); return; }
+  const x = Math.max(8, Math.min(st.clientWidth - fl.offsetWidth - 8, pos.x * st.clientWidth));
+  const y = Math.max(8, Math.min(st.clientHeight - fl.offsetHeight - 8, pos.y * st.clientHeight));
+  fl.style.left = x + 'px'; fl.style.top = y + 'px'; fl.classList.add('moved');
+}
+fl.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || e.target.closest('button')) return;
+  e.preventDefault();
+  const st = $('#stage').getBoundingClientRect(), r = fl.getBoundingClientRect();
+  const ox = e.clientX - r.left, oy = e.clientY - r.top;
+  fl.setPointerCapture(e.pointerId); fl.classList.add('dragging');
+  const move = ev => {
+    const x = Math.max(8, Math.min(st.width - r.width - 8, ev.clientX - st.left - ox));
+    const y = Math.max(8, Math.min(st.height - r.height - 8, ev.clientY - st.top - oy));
+    fl.style.left = x + 'px'; fl.style.top = y + 'px'; fl.classList.add('moved');
+  };
+  const up = () => {
+    fl.removeEventListener('pointermove', move); fl.removeEventListener('pointerup', up); fl.classList.remove('dragging');
+    ls.set('le.focusFloatPos', { x: parseFloat(fl.style.left) / st.width, y: parseFloat(fl.style.top) / st.height });
+  };
+  fl.addEventListener('pointermove', move); fl.addEventListener('pointerup', up);
+});
+fl.addEventListener('dblclick', e => { if (e.target.closest('button')) return; ls.set('le.focusFloatPos', null); placeFloat(); });
+addEventListener('resize', () => { if (!fl.hidden) placeFloat(); });
+App.on('doc:loaded', renderFloat); App.on('doc:closed', renderFloat);
 render();
 
 // ---------- Cartão "Hoje" ----------
@@ -264,13 +363,12 @@ App.renderToday = docs => {
 };
 function renderPomoInto(pb){
   pb.innerHTML = '';
-  if (useFocus()) { App.renderFocusPomo(pb); return; }
   if (!P) {
-    const b = App.ibtn('play', 'Começar pomodoro', () => pomoMenu(b), 'outline sm');
-    b.title = 'Blocos de foco com pausas — escolha um esquema'; pb.append(b);
+    const b = App.ibtn('play', 'Começar o timer', () => pomoMenu(b), 'outline sm');
+    b.title = 'Pomodoro (blocos de foco com pausas) ou cronômetro'; pb.append(b);
   } else {
     pb.classList.toggle('brk', P.phase === 'break');
-    pb.append(el('span', 'pomoBig', mmss(secsLeft())), el('span', 'muted small', (P.phase === 'focus' ? 'foco' : 'pausa') + (P.paused ? ' · pausado' : '')));
+    pb.append(el('span', 'pomoBig', mmss(secsLeft())), el('span', 'muted small', (P.sw ? 'cronômetro' : P.phase === 'focus' ? 'foco' : 'pausa') + (P.paused ? ' · pausado' : '')));
     const acts = el('div', 'pomoActs');
     acts.append(App.ibtn(P.paused ? 'play' : 'pause', null, pauseResume, 'sm', P.paused ? 'Continuar' : 'Pausar'), App.ibtn('x', null, stop, 'sm', 'Parar'));
     pb.append(acts);

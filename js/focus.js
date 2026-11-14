@@ -1,7 +1,9 @@
-/* Ponte com o Focus (o app de pomodoro e estatísticas): só dentro deste computador.
-   - o relógio da barra mostra e controla o timer do Focus;
-   - o tempo de leitura vira sessão no Focus, na área/tema ligados ao PDF;
-   - PDFs ligados a um tema aparecem nas anotações do tema, e o Focus pode pedir para abri-los aqui. */
+/* Focus (o app de pomodoro e estatísticas do computador) — OPCIONAL e independente.
+   O Vetra tem o próprio timer (pomodoro e cronômetro) e funciona igual no PC, no tablet e no celular.
+   No computador, se o Focus estiver aberto, ele só recebe em segundo plano:
+   - o tempo de leitura, como sessões na área/tema ligados ao PDF (dá para desligar);
+   - os PDFs ligados a um tema (aparecem nas anotações do tema; o Focus pode pedir para abri-los aqui).
+   Fechado ou ausente, nada muda no Vetra; o tempo fica guardado e vai quando o Focus abrir. */
 (() => {
 'use strict';
 const App = window.App;
@@ -42,149 +44,33 @@ async function poll(){
     const j = await call('/status');
     const was = F.on;
     Object.assign(F, { on: true, fail: 0, st: j.state || null, subjects: j.subjects || [], modes: j.modes || [] });
-    if (!was) { ls.set('le.focusSeen', Date.now()); App.toast('Conectado ao Focus'); flush(); }
+    if (!was) { ls.set('le.focusSeen', Date.now()); flush(); }
     for (const o of j.open || []) openRequest(o);
   } catch {
     if (++F.fail >= 2 && F.on) { F.on = false; F.st = null; }
   }
   render();
-  // conectado: 1 s (relógio ao vivo); já usou o Focus: 6 s; nunca usou: 10 s; janela escondida: mais devagar
-  const idle = ls.get('le.focusSeen', 0) ? 6000 : 10000;
-  pollT = setTimeout(poll, F.on ? (document.hidden ? 5000 : 1000) : (document.hidden ? idle * 3 : idle));
+  // conectado: a cada 5 s (pedidos para abrir PDFs); sem Focus: 15 s; janela escondida: mais devagar
+  pollT = setTimeout(poll, (F.on ? 5000 : 15000) * (document.hidden ? 3 : 1));
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 App.focusPoll = poll;
 
 async function cmd(c){
   try { await call('/command', c); } catch { App.toast('O Focus não respondeu.'); }
-  setTimeout(poll, 150);
 }
+function render(){}
 
-// ---------- Relógio da barra ----------
-const chip = $('#btnPomo'), chipTime = $('#pomoTime');
-App.renderFocusChip = () => {
-  const s = F.st || {};
-  chip.classList.toggle('running', !!s.started);
-  chip.classList.toggle('brk', !!s.started && !s.focus);
-  chip.classList.toggle('paused', !!s.started && !s.running);
-  chip.classList.add('focusLinked');
-  chipTime.textContent = s.started ? s.text : '';
-  chip.title = s.started ? `Focus: ${s.text} · ${s.running ? s.label : 'pausado'}${s.task ? ' — ' + s.task : ''}` : 'Focus conectado — clique para iniciar o timer';
-};
-function render(){
-  if (!F.on) chip.classList.remove('focusLinked');
-  App.renderPomoChip?.();
-  if (!state.pdf) App.renderPomoCard?.();
-  renderFloat();
-}
-
-// ---------- Timer flutuante sobre o PDF ----------
-const fl = $('#focusFloat');
-const floatOn = () => ls.get('le.focusFloat', true);
-App.toggleFocusFloat = () => { ls.set('le.focusFloat', !floatOn()); renderFloat(); App.toast(floatOn() ? 'Timer do Focus na página' : 'Timer flutuante escondido (volta pelo relógio da barra)'); };
-let flBuilt = false;
-function buildFloat(){
-  fl.innerHTML = '';
-  const dot = App.el('span', 'ffDot');
-  const info = App.el('div', 'ffInfo');
-  const lbl = App.el('button', 'ffLbl'); lbl.type = 'button'; lbl.title = 'Trocar o modo (Pomodoro, pausas, Cronômetro…)';
-  lbl.onclick = e => { e.stopPropagation(); App.focusModeMenu(lbl); };
-  info.append(App.el('div', 'ffTime'), lbl);
-  const play = App.ibtn('play', null, () => cmd('toggle'), 'sm ffPlay', 'Iniciar / pausar');
-  const acts = App.el('div', 'ffActs');
-  acts.append(play, App.ibtn('right', null, () => cmd('skip'), 'sm', 'Pular'), App.ibtn('expand', null, () => cmd('show'), 'sm', 'Abrir o Focus'), App.ibtn('x', null, App.toggleFocusFloat, 'sm ffClose', 'Esconder'));
-  const bar = App.el('div', 'ffBar'); bar.append(App.el('i'));
-  fl.append(dot, info, acts, bar);
-  flBuilt = true;
-}
-function renderFloat(){
-  const show = F.on && !!state.pdf && floatOn();
-  fl.hidden = !show;
-  if (!show) return;
-  if (!flBuilt) { buildFloat(); placeFloat(); }
-  const s = F.st || {};
-  fl.classList.toggle('brk', !!s.started && !s.focus);
-  fl.classList.toggle('paused', !!s.started && !s.running);
-  fl.querySelector('.ffTime').textContent = s.started ? s.text : (s.text || 'Focus');
-  fl.querySelector('.ffLbl').textContent = s.started ? (s.running ? s.label : 'pausado') + (s.task ? ' · ' + s.task : '') : 'pronto para começar';
-  const play = fl.querySelector('.ffPlay');
-  play.replaceChildren(App.icon(s.running ? 'pause' : 'play')); play.title = s.running ? 'Pausar' : (s.started ? 'Continuar' : 'Iniciar');
-  fl.querySelector('.ffBar i').style.width = (s.started && s.progress >= 0 ? Math.round(s.progress * 100) : 0) + '%';
-}
-// arrastável; a posição fica guardada (em frações da área do PDF)
-function placeFloat(){
-  const pos = ls.get('le.focusFloatPos', null), st = $('#stage');
-  if (!pos) { fl.style.left = ''; fl.style.top = ''; fl.classList.remove('moved'); return; }
-  const x = Math.max(8, Math.min(st.clientWidth - fl.offsetWidth - 8, pos.x * st.clientWidth));
-  const y = Math.max(8, Math.min(st.clientHeight - fl.offsetHeight - 8, pos.y * st.clientHeight));
-  fl.style.left = x + 'px'; fl.style.top = y + 'px'; fl.classList.add('moved');
-}
-fl.addEventListener('pointerdown', e => {
-  if (e.button !== 0 || e.target.closest('button')) return;
-  e.preventDefault();
-  const st = $('#stage').getBoundingClientRect(), r = fl.getBoundingClientRect();
-  const ox = e.clientX - r.left, oy = e.clientY - r.top;
-  fl.setPointerCapture(e.pointerId); fl.classList.add('dragging');
-  const move = ev => {
-    const x = Math.max(8, Math.min(st.width - r.width - 8, ev.clientX - st.left - ox));
-    const y = Math.max(8, Math.min(st.height - r.height - 8, ev.clientY - st.top - oy));
-    fl.style.left = x + 'px'; fl.style.top = y + 'px'; fl.classList.add('moved');
-  };
-  const up = () => {
-    fl.removeEventListener('pointermove', move); fl.removeEventListener('pointerup', up); fl.classList.remove('dragging');
-    ls.set('le.focusFloatPos', { x: parseFloat(fl.style.left) / st.width, y: parseFloat(fl.style.top) / st.height });
-  };
-  fl.addEventListener('pointermove', move); fl.addEventListener('pointerup', up);
-});
-fl.addEventListener('dblclick', e => { if (e.target.closest('button')) return; ls.set('le.focusFloatPos', null); placeFloat(); });
-addEventListener('resize', () => { if (!fl.hidden) placeFloat(); });
-App.on('doc:loaded', renderFloat); App.on('doc:closed', renderFloat);
-
-// modos do Focus (Pomodoro, pausas, Cronômetro e os timers personalizados): escolher já começa a contar
-const modeItems = () => {
-  const s = F.st || {};
-  return (F.modes || []).map(m => ({
-    label: m.label, icon: m.id === 'stopwatch' ? 'clock' : m.focus ? 'play' : 'pause',
-    sub: m.id === 'stopwatch' ? 'conta para cima' : m.min ? `${m.min} min` : undefined,
-    checked: s.modeId === m.id,
-    on: () => cmd('mode:' + m.id),
-  }));
-};
-App.focusModeMenu = anchor => {
-  const s = F.st || {};
-  const warn = s.started ? ' · o atual é salvo' : '';
-  App.popMenu(anchor, modeItems(), { title: 'Modo do Focus' + warn, alignRight: true });
-};
-App.focusMenu = anchor => {
-  const s = F.st || {};
-  const modes = modeItems();
-  const items = [
-    { label: s.running ? 'Pausar' : (s.started ? 'Continuar' : 'Iniciar'), icon: s.running ? 'pause' : 'play', on: () => cmd('toggle') },
-    { label: 'Pular', icon: 'right', on: () => cmd('skip') },
-  ];
-  if (s.started) items.push({ label: 'Parar e salvar', icon: 'check', on: () => cmd('stop') });
-  if (modes.length) items.push({ sep: true }, { label: 'Trocar o modo', sub: (modes.find(m => m.checked) || {}).label, icon: 'list', on: () => App.focusModeMenu(anchor) });
-  items.push({ sep: true }, { label: 'Abrir o Focus', icon: 'expand', on: () => cmd('show') },
-    { label: 'Timer flutuante na página', icon: 'clock', checked: floatOn(), on: App.toggleFocusFloat },
-    { label: 'Mini-timer do Focus', sub: 'por cima de tudo', icon: 'shrink', on: () => cmd('mini') });
-  if (state.pdf) {
-    const link = linkCache.get(state.fp);
-    items.push({ sep: true }, { label: 'Leitura vai para', sub: linkLabel(link), icon: 'link', on: () => pickLink(anchor) });
-  }
-  App.popMenu(anchor, items, { title: s.started ? `Focus · ${s.text}${s.running ? '' : ' (pausado)'}` : 'Focus conectado', alignRight: true });
-};
-
-// controles no cartão "Hoje"
-App.renderFocusPomo = pb => {
-  const s = F.st || {};
-  if (s.started) {
-    pb.classList.toggle('brk', !s.focus);
-    pb.append(App.el('span', 'pomoBig', s.text), App.el('span', 'muted small', `Focus · ${s.running ? s.label.toLowerCase() : 'pausado'}`));
-  } else pb.append(App.ibtn('play', 'Iniciar no Focus', () => cmd('toggle'), 'outline sm'), App.el('span', 'muted small', 'timer do Focus'));
-  const acts = App.el('div', 'pomoActs');
-  if (s.started) acts.append(App.ibtn(s.running ? 'pause' : 'play', null, () => cmd('toggle'), 'sm', s.running ? 'Pausar' : 'Continuar'), App.ibtn('right', null, () => cmd('skip'), 'sm', 'Pular'));
-  acts.append(App.ibtn('expand', null, () => cmd('show'), 'sm', 'Abrir o Focus'));
-  pb.append(acts);
+// ---------- Itens do Focus no menu do timer (só aparecem com o Focus aberto neste computador) ----------
+const sendOn = () => App.focusLinkOn ? App.focusLinkOn() : false; // desligado por padrão: cada app por si
+App.focusMenuItems = anchor => {
+  if (!F.on) return [];
+  const items = [{ sep: true }];
+  if (state.pdf) items.push({ label: 'Tempo de leitura no Focus', sub: sendOn() ? linkLabel(linkCache.get(state.fp)) : 'desligado', icon: 'link', on: () => pickLink(anchor) });
+  else items.push({ label: 'Mandar o tempo para o Focus', sub: sendOn() ? 'ligado' : 'desligado', icon: 'link', checked: sendOn(),
+    on: () => { App.setFocusLink(!sendOn()); App.toast(sendOn() ? 'O tempo de leitura e do timer vai para o Focus' : 'Nada mais vai para o Focus'); } });
+  items.push({ label: 'Abrir o Focus', icon: 'expand', on: () => cmd('show') });
+  return items;
 };
 
 // ---------- PDF ↔ área/tema do Focus ----------
@@ -212,6 +98,7 @@ function linkLabel(link){
 }
 async function setLink(fp, name, link){
   if (!(await App.patchDoc(fp, { focus: link }))) return;
+  if (!sendOn() && !(link && link.off)) App.setFocusLink(true);
   linkCache.set(fp, link);
   // tema: o PDF aparece nas anotações do tema no Focus (sem tema: tira de onde estava)
   try { await call('/link', { fp, name, topicId: link && !link.off ? link.topicId : null, page: state.fp === fp ? state.currentPage : 1 }); } catch {}
@@ -231,7 +118,9 @@ function pickLink(anchor){
     } }));
   if (!items.length) items.push({ label: `Nenhuma ${F.labels.s} no Focus ainda`, icon: 'x', on: () => {} });
   items.push({ sep: true }, { label: `Sem ${F.labels.s} (só o tempo)`, icon: 'clock', on: () => setLink(fp, name, { subjectId: null, topicId: null }) },
-    { label: 'Não registrar este PDF no Focus', icon: 'x', on: () => setLink(fp, name, { off: true }) });
+    { label: 'Não registrar este PDF no Focus', icon: 'x', on: () => setLink(fp, name, { off: true }) },
+    { label: sendOn() ? 'Não mandar a leitura de nenhum PDF' : 'Voltar a mandar a leitura ao Focus', icon: sendOn() ? 'x' : 'check',
+      on: () => { App.setFocusLink(!sendOn()); App.toast(sendOn() ? 'O tempo de leitura e do timer vai para o Focus' : 'Nada mais vai para o Focus'); } });
   App.popMenu(anchor, items, { title: `Registrar a leitura de "${App.baseName(name)}" em`, alignRight: true });
 }
 App.focusPickLink = pickLink;
@@ -243,7 +132,8 @@ let queue = ls.get('le.focusQueue', []).filter(x => x && x.id);
 let cur = null;
 const saveQueue = () => ls.set('le.focusQueue', queue.slice(-300));
 setInterval(() => {
-  if (!state.pdf || !App.isStudying?.() || App.focusRunningFocus()) return;
+  // com o timer do Vetra em foco, o tempo vai como sessão do timer (não conta em dobro)
+  if (App.isWeb || !sendOn() || !state.pdf || !App.isStudying?.() || App.pomoFocus?.()) return;
   const now = Date.now();
   if (!cur || cur.fp !== state.fp || now - cur.end > 5 * 60000) {
     cur = { id: App.uid(), fp: state.fp, name: state.name, start: now - TICK, end: now - TICK, ms: 0, sent: 0 };
@@ -253,10 +143,22 @@ setInterval(() => {
   saveQueue();
 }, TICK);
 let flushing = false;
+// sessões do timer (deste e dos outros aparelhos, pela sincronização) ainda não mandadas ao Focus
+let sentIds = new Set(ls.get('le.focusSentSessions', []));
+const pendingTimer = () => (App.timerSessions ? App.timerSessions() : []).filter(x => !sentIds.has(x.id) && x.start >= (ls.get('le.focusLinkSince', 0) || 0));
+App.focusPending = () => pendingTimer().length + queue.filter(x => x.dirty && x.ms >= 60000).length;
+App.on('focuslink:changed', () => { if (sendOn() && !ls.get('le.focusLinkSince', 0)) ls.set('le.focusLinkSince', Date.now() - 30 * 86400000); });
 async function flush(){
-  if (!F.on || flushing) return;
+  if (!F.on || flushing || !sendOn()) return;
   flushing = true;
   try {
+    for (const t of pendingTimer()) {
+      const link = t.fp ? await linkFor(t.fp) : null;
+      if (link && link.off) { sentIds.add(t.id); continue; }
+      await call('/session', { id: 'vetra-' + t.id, start: t.start, ms: t.ms, subjectId: link ? link.subjectId : null, topicId: link ? link.topicId : null,
+        title: (t.kind === 'cronometro' ? 'Cronômetro' : 'Pomodoro') + (t.name ? ' · ' + App.baseName(t.name) : '') });
+      sentIds.add(t.id); ls.set('le.focusSentSessions', [...sentIds].slice(-6000));
+    }
     for (const q of queue.filter(x => x.dirty && x.ms >= 60000)) {
       const link = await linkFor(q.fp);
       if (link && link.off) { q.dirty = false; q.dropped = true; continue; }
@@ -273,6 +175,7 @@ async function flush(){
 setInterval(flush, 60000);
 App.focusFlush = flush;
 App.on('doc:closed', () => { cur = null; flush(); });
+App.on('sessions:changed', () => flush());
 App.on('doc:loaded', ({ fp }) => { linkCache.delete(fp); flush(); });
 addEventListener('beforeunload', () => saveQueue());
 App.focusQueue = () => queue;
