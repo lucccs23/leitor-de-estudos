@@ -1298,3 +1298,76 @@ body{padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area
   #palette{gap:4px}
   #dockToggle{display:none}
 }
+
+/* =========================================================
+   v1.15 — caneta (espessura, marca-texto, borracha)
+   ========================================================= */
+#penSeg{display:none}
+body[data-tool=ink] #penSeg,body[data-tool=erase] #penSeg{display:flex}
+body[data-tool=ink] #styles,body[data-tool=erase] #styles{display:none}
+body[data-tool=erase] .drawLayer{pointer-events:auto;cursor:cell}
+.penLine{display:block;width:20px;height:var(--pw,3px);border-radius:99px;background:currentColor}
+#btnPenOpts.marker .penLine{height:9px;border-radius:2px;opacity:.55}
+.inkLayer path.marker,.drawLayer path.marker{stroke:var(--c);stroke-opacity:.45;stroke-linecap:butt}
+[data-page=invert] .inkLayer path.marker{stroke-opacity:.6}
+
+/* =========================================================
+   v1.15 — plano, siglas, atalhos da IA, ligações, Markdown, sincronização
+   ========================================================= */
+.planDlg,.siglasDlg,.aiPromptsDlg,.mdDlg,.syncDlg{width:min(560px,94vw)}
+.planRow{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0 12px}
+.planField{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+.planField .pomoNum{width:96px}
+.planField .planDate{width:150px}
+.planChap{width:100%;height:36px;padding:0 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px;margin-bottom:10px}
+.planPreview{margin:4px 0 0;padding:10px 12px;border-radius:10px;background:var(--hover);font-size:13.5px}
+.todayPlans{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.planRowBtn{display:flex;flex-direction:column;gap:5px;width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:11px;background:var(--surface);color:var(--text);text-align:left;cursor:pointer;font:inherit}
+.planRowBtn:hover{background:var(--hover)}
+.planTop{display:flex;justify-content:space-between;gap:10px;font-size:13.5px}
+.planTop .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.planCount{flex:none;font-size:12.5px;color:var(--muted)}
+.planRowBtn.ok .planCount{color:#2f8f4e;font-weight:600}
+.planRowBtn.late .muted{color:#c0392b}
+.planBar{display:block;height:5px;border-radius:99px;background:var(--hover);overflow:hidden}
+.planBar>span{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.siglaLine{display:flex;align-items:baseline;gap:4px;max-width:320px;padding:4px 6px 8px;font-size:13px;line-height:1.35;border-bottom:1px solid var(--border);margin-bottom:6px}
+.siglaLine strong{flex:none}
+.siglaLine span{flex:1}
+.siglaSrc{flex:none;border:none;background:none;color:var(--accent);font:inherit;font-size:12px;cursor:pointer;padding:0 2px}
+.siglaSearch{width:100%;margin:2px 0 10px}
+.siglaList{display:flex;flex-direction:column;gap:2px;max-height:56vh;overflow:auto}
+.siglaRow{display:grid;grid-template-columns:72px 1fr auto;gap:10px;align-items:baseline;padding:7px 8px;border:none;border-radius:8px;background:none;color:var(--text);text-align:left;font:inherit;font-size:13.5px;cursor:pointer}
+.siglaRow:hover{background:var(--hover)}
+.siglaRow strong{font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.aiPromptCard{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px}
+.aiPromptTop{display:flex;gap:6px;align-items:center}
+.aiPromptTop .pomoName{flex:1}
+.aiPromptText{width:100%;min-height:62px;resize:vertical;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;line-height:1.4}
+.mdScope{display:flex;flex-direction:column;gap:6px;margin:6px 0 14px}
+.mdOpt{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:5px 0;font-size:13.5px;cursor:pointer}
+.mdOpt small{flex-basis:100%;padding-left:26px;margin-top:-3px}
+.mdOpt .mdSubj{width:auto;flex:1;min-width:140px;margin:0}
+.hl.has-link>div:last-child::after{content:'';position:absolute;right:-6px;bottom:-6px;width:11px;height:11px;border-radius:50%;background:var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1'/%3E%3C/svg%3E") center/8px no-repeat;box-shadow:0 0 0 1.5px #fff}
+.linkBar{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:6px 6px 6px 12px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);box-shadow:var(--shadow-lg);font-size:13px}
+.linkBar.back{padding:4px}
+.linkTxt{display:flex;align-items:center;gap:6px;min-width:0}
+.linkTxt .i{flex:none;color:var(--accent)}
+.linkTxt span{overflow:hidden;text-overflow:ellipsis}
+@media (max-width:600px){ .linkTxt>span{display:none} }
+.syncSteps{margin:0 0 14px;padding-left:20px;font-size:13.5px;line-height:1.5}
+.syncSteps li{margin-bottom:6px}
+.syncSteps a{color:var(--accent);font-weight:600}
+.syncField{margin-bottom:10px}
+.syncField .pomoName{width:100%}
+.syncStatus{margin:10px 0 0;padding:10px 12px;border-radius:10px;background:var(--hover);font-size:13px}
+.syncStatus.err{background:rgba(192,57,43,.12);color:#c0392b}
+.syncBadge .i{transition:transform .3s}
+.syncBadge.busy .i{animation:spin 1s linear infinite}
+.syncBadge.err{color:#c0392b}
+@keyframes spin{to{transform:rotate(-360deg)}}
+/* celular: com a caneta ou a borracha, "Área" e "Nota" saem para caber borracha e espessura */
+@media (max-width:700px){
+  body[data-tool=ink] #tools [data-tool=area],body[data-tool=ink] #tools [data-tool=note],
+  body[data-tool=erase] #tools [data-tool=area],body[data-tool=erase] #tools [data-tool=note]{display:none}
+}

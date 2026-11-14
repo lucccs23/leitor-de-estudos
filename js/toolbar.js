@@ -44,6 +44,12 @@ const C = [
   { id: 'summary', group: 'Estudar', label: 'Caderno de resumo (PDF)', short: 'Caderno de resumo', icon: 'book', run: () => App.openSummary() },
   { id: 'ai', group: 'Estudar', label: 'Perguntar à IA', icon: 'ai', doc: true, el: '#btnAi', run: a => App.aiOpen ? App.aiOpen(a) : $('#btnAi').click() },
   { id: 'search', group: 'Estudar', label: 'Buscar neste PDF', icon: 'search', key: 'Ctrl+F', doc: true, el: '#btnSearch', run: () => App.openSearch() },
+  { id: 'plan', group: 'Estudar', label: 'Plano de leitura…', short: 'Plano', keywords: 'meta prazo páginas por dia', icon: 'target', doc: true, run: () => App.openPlan() },
+  { id: 'siglas', group: 'Estudar', label: 'Siglas deste PDF', short: 'Siglas', keywords: 'abreviações glossário', icon: 'list', doc: true, run: () => App.openSiglas() },
+  { id: 'aiPrompts', group: 'Estudar', label: 'Atalhos da IA…', keywords: 'prompts pedidos', icon: 'ai', run: () => App.openAiPrompts() },
+  { id: 'markdown', group: 'Arquivo', label: 'Exportar resumo em texto (.md)', short: 'Markdown', keywords: 'obsidian notion', icon: 'markdown', run: () => App.exportMd() },
+  { id: 'pen', group: 'Estudar', label: 'Caneta', keywords: 'desenhar escrever stylus', icon: 'pen', key: 'P', doc: true, run: () => App.setTool('ink') },
+  { id: 'eraser', group: 'Estudar', label: 'Borracha', icon: 'eraser', key: 'E', doc: true, run: () => App.setTool('erase') },
   { id: 'searchAll', group: 'Estudar', label: 'Buscar em todos os PDFs', icon: 'search', key: 'Ctrl+Shift+F', run: () => App.searchAll('') },
   { id: 'bookmark', group: 'Estudar', label: 'Marcar esta página', icon: 'bookmark', key: 'B', doc: true, run: () => App.toggleBookmark() },
   { id: 'pomo', group: 'Estudar', label: 'Pomodoro / Focus', short: 'Relógio', icon: 'clock', el: '#btnPomo', run: () => $('#btnPomo').click() },
@@ -57,6 +63,7 @@ const C = [
   { id: 'customize', group: 'Configurações', label: 'Personalizar a barra…', icon: 'pin', run: () => App.customizeToolbar() },
   { id: 'shortcuts', group: 'Configurações', label: 'Atalhos do teclado', icon: 'keyboard', key: 'F1', run: () => App.openHelp() },
   { id: 'backupNow', group: 'Configurações', label: 'Fazer backup agora', icon: 'cloud', run: () => App.backupNow?.() },
+  { id: 'sync', group: 'Configurações', label: 'Sincronizar aparelhos…', short: 'Sincronizar', keywords: 'nuvem celular tablet github', icon: 'restore', run: () => App.openSync() },
   { id: 'news', group: 'Configurações', label: 'Novidades', icon: 'news', run: () => App.openNews?.() },
 ];
 App.commands = C;
@@ -73,7 +80,7 @@ App.commandAvailable = c => !c.doc || doc();
 // ---------- Menus Exibir e Estudar ----------
 const MENUS = {
   view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', '-', 'look'] },
-  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'ai', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr', '-', 'pomoSettings'] },
+  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'ai', 'aiPrompts', '-', 'plan', 'siglas', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr', '-', 'pomoSettings'] },
 };
 let openMenu = null;
 function menuItem(c){

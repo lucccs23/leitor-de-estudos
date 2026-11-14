@@ -19,8 +19,10 @@ if (canSW) {
     reg.addEventListener('updatefound', () => offer(reg.installing));
     setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
   }).catch(e => console.warn('modo offline', e));
+  // só recarrega ao trocar de versão (na 1ª visita o app passa a funcionar offline sem recarregar a página)
+  const hadController = !!navigator.serviceWorker.controller;
   let reloading = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (reloading) return; reloading = true; location.reload(); });
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (reloading || !hadController) return; reloading = true; location.reload(); });
 }
 function updateBar(worker){
   if ($('#updateBar')) return;

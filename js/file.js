@@ -230,7 +230,7 @@ async function openMenu(){
   sub.append(
     item('pdf', 'Cópia do PDF com grifos', '', App.savePdf, { disabled: !doc, sub: 'vai para Downloads' }),
     item('book', 'Caderno de resumo (PDF)', '', () => App.openSummary?.(), { sub: 'grifos de um ou vários PDFs' }),
-    item('markdown', 'Resumo em texto (.md)', '', App.exportMd, { disabled: !doc }),
+    item('markdown', 'Resumo em texto (.md)', '', App.exportMd, { sub: 'Obsidian, Notion — um PDF ou uma disciplina' }),
     item('cards', 'Anki', '', () => App.exportAnki(), { disabled: !doc }),
   );
   exp.append(expBtn, sub);

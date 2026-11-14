@@ -39,6 +39,8 @@
     <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 6v12M20 6v12M8 12h8M10.5 9.5 8 12l2.5 2.5M13.5 9.5 16 12l-2.5 2.5"/></symbol>
     <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9.5 19h5"/></symbol>
     <symbol id="i-area" viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M11 4h2M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 11v2M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M13 20h-2M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 13v-2"/></symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M8.5 20h11"/><path d="m4.6 15.2 9.9-9.9a2 2 0 0 1 2.8 0l2.4 2.4a2 2 0 0 1 0 2.8L12 18.2a2 2 0 0 1-1.4.6H8.4a2 2 0 0 1-1.4-.6l-2.4-2.4a2 2 0 0 1 0-2.8z"/><path d="m9 10.8 5.2 5.2"/></symbol>
+    <symbol id="i-pointer" viewBox="0 0 24 24"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-.5a1.5 1.5 0 0 1 3 0v1m0 0a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-4.6-2.2L4.6 15.4a1.5 1.5 0 0 1 2.3-1.9L9 15.5"/></symbol>
     <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m14.5 7.5 3 3"/></symbol>
     <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14A1.5 1.5 0 0 1 20.5 6v9a1.5 1.5 0 0 1-1.5 1.5h-6L8 20.5v-4H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5z"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V6A2 2 0 0 0 13.5 4H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></symbol>
@@ -144,6 +146,7 @@
         <button data-act="help"><svg class="i"><use href="#i-keyboard"/></svg><span>Atalhos do teclado<small>Tecla ? ou F1</small></span></button>
         <button data-act="keepimg"><svg class="i"><use href="#i-check" id="keepImgIcon"/></svg><span>Manter imagens originais no escuro<small id="keepImgLabel">Ligado — radiografias e fotos não ficam invertidas</small></span></button>
         <div class="menuLabel">Backup</div>
+        <button data-act="sync"><svg class="i"><use href="#i-restore"/></svg><span>Sincronizar aparelhos<small>Computador, tablet e celular com os mesmos grifos</small></span></button>
         <button data-act="localbk"><svg class="i"><use href="#i-check"/></svg><span>Backup automático no computador<small id="localBackupLabel">Verificando…</small></span></button>
         <button data-act="backup"><svg class="i"><use href="#i-download"/></svg><span>Exportar backup para um arquivo<small>Para levar para outro computador</small></span></button>
         <button data-act="restore"><svg class="i"><use href="#i-restore"/></svg><span>Restaurar backup…<small>Os automáticos ficam em Documentos\Leitor de Estudos\Backups</small></span></button>
@@ -288,6 +291,10 @@
         <button class="btn icon" data-tool="note" title="Nota — clique na página para deixar um post-it (C)"><svg class="i"><use href="#i-note"/></svg></button>
       </div>
       <span class="dockSep"></span>
+      <div class="seg" id="penSeg">
+        <button class="btn icon" data-tool="erase" title="Borracha — apaga traços da caneta (E)" aria-label="Borracha"><svg class="i"><use href="#i-eraser"/></svg></button>
+        <button class="btn icon" id="btnPenOpts" title="Espessura da caneta" aria-label="Espessura da caneta"><span class="penLine"></span></button>
+      </div>
       <div class="seg" id="styles">
         <button class="btn icon" data-style="fill" title="Estilo: marca-texto"><span class="st st-fill">ab</span></button>
         <button class="btn icon" data-style="underline" title="Estilo: sublinhado"><span class="st st-u">ab</span></button>
@@ -422,6 +429,10 @@
 <script src="js/toolbar.js"></script>
 <script src="js/palette.js"></script>
 <script src="js/news.js"></script>
+<script src="js/plan.js"></script>
+<script src="js/siglas.js"></script>
+<script src="js/links.js"></script>
+<script src="js/sync.js"></script>
 <script src="js/touch.js"></script>
 <script src="js/main.js"></script>
 </body>

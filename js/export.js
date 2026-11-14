@@ -12,7 +12,7 @@ menu.addEventListener('click', e => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
   menu.hidden = true;
   ({ backup: App.exportBackup,
-     restore: () => $('#backupInput').click(), look: () => App.openLook?.(), toolbar: () => App.customizeToolbar?.(), install: () => App.installApp?.(), news: () => App.openNews?.(), summary: () => App.openSummary?.(), auto: App.setupAutoBackup, help: App.openHelp, localbk: App.backupNow,
+     restore: () => $('#backupInput').click(), look: () => App.openLook?.(), toolbar: () => App.customizeToolbar?.(), install: () => App.installApp?.(), news: () => App.openNews?.(), sync: () => App.openSync?.(), summary: () => App.openSummary?.(), auto: App.setupAutoBackup, help: App.openHelp, localbk: App.backupNow,
      keepimg: () => { const on = !App.ls.get('le.keepImages', true); App.setKeepImages(on); renderKeepImg();
        App.toast(on ? 'Modo escuro: imagens com as cores originais' : 'Modo escuro: imagens invertidas junto com a página'); } })[b.dataset.act]?.();
 });
@@ -35,26 +35,102 @@ $('#backupInput').onchange = async () => {
 const docName = () => App.baseName(state.name);
 const pageOf = h => App.anchorOf(h).page;
 
-// ---------- Markdown ----------
-App.exportMd = () => {
-  if (!state.highlights.length && !state.bookmarks.length) { App.toast('Ainda não há grifos para exportar.'); return; }
-  let md = `# ${docName()} — grifos\n\n_Exportado em ${new Date().toLocaleString('pt-BR')}_\n`;
-  if (state.bookmarks.length) {
-    md += `\n## Marcadores\n\n`;
-    for (const b of [...state.bookmarks].sort((a, c) => a.page - c.page)) md += `- p. ${b.page}${b.title ? ' — ' + b.title : ''}\n`;
+// ---------- Markdown (Obsidian, Notion…) ----------
+// por capítulo (sumário do PDF) quando existir; de um PDF, de uma disciplina inteira ou de todos
+const oneLine = t => String(t || '').replace(/\s*\n+\s*/g, ' ').trim();
+async function chaptersFor(rec){
+  if (rec.fp === state.fp) return App.chapters ? App.chapters() : [];
+  const f = await safe(() => DB.get('files', rec.fp), null);
+  if (!f || !window.pdfjsLib) return [];
+  let pdf = null;
+  try { pdf = await pdfjsLib.getDocument({ data: new Uint8Array(f.data.slice(0)) }).promise; return await App.chapters(pdf); }
+  catch { return []; } finally { pdf && pdf.destroy(); }
+}
+function mdDoc(rec, chaps, opt, level){
+  const H = n => '#'.repeat(level + n) + ' ';
+  const hls = App.sortedHighlights((rec.highlights || []).map(App.normHl)).filter(h => !h.q);
+  const bms = [...(rec.bookmarks || [])].sort((a, c) => a.page - c.page);
+  if (!hls.length && !bms.length) return '';
+  let md = '';
+  if (bms.length && opt.bookmarks) {
+    md += `\n${H(1)}Marcadores\n\n`;
+    for (const b of bms) md += `- p. ${b.page}${b.title ? ' — ' + b.title : ''}\n`;
   }
-  let last = null, drawings = 0;
-  for (const h of App.sortedHighlights(state.highlights)) {
+  let lastChap, lastPage = null, drawings = 0;
+  const useChaps = opt.chapters && chaps.length > 1;
+  for (const h of hls) {
     if (h.kind === 'ink') { drawings++; continue; }
-    const pg = pageOf(h);
-    if (pg !== last) { md += `\n## Página ${pg}\n\n`; last = pg; }
-    if (h.kind === 'note') { md += `- 📝 **Nota:** ${h.note.replace(/\n+/g, ' ')}\n`; continue; }
-    const body = h.text || (h.kind === 'area' ? '_(região marcada — imagem)_' : '');
-    md += `- **[${App.labelOf(h.color)}]** ${body}\n`;
-    if (h.note) md += `  - *Nota:* ${h.note.replace(/\n+/g, ' ')}\n`;
+    const pg = App.anchorOf(h).page;
+    if (useChaps) {
+      const c = App.chapterOf(chaps, pg);
+      const key = c ? c.title + c.page : '';
+      if (key !== lastChap) { md += `\n${H(1)}${c ? c.title : 'Antes do primeiro capítulo'}\n\n`; lastChap = key; }
+    } else if (pg !== lastPage) { md += `\n${H(1)}Página ${pg}\n\n`; lastPage = pg; }
+    const ref = useChaps ? ` _(p. ${pg})_` : '';
+    if (h.kind === 'note') { if (h.note.trim()) md += `- 📝 **Nota:** ${oneLine(h.note)}${ref}\n`; continue; }
+    const body = h.text ? oneLine(h.text) : (h.kind === 'area' ? '_(figura)_' : '');
+    md += `- **[${App.labelOf(h.color)}]** ${body}${ref}\n`;
+    if (h.img && opt.images) md += `\n  ![figura, p. ${pg}](${h.img})\n\n`;
+    if (h.note) md += `  - *Nota:* ${oneLine(h.note)}\n`;
+    if (h.link) md += `  - 🔗 ligado a ${h.link.fp === rec.fp ? 'p. ' + h.link.page : `${App.baseName(h.link.name)}, p. ${h.link.page}`}\n`;
   }
-  if (drawings) md += `\n_${drawings} desenho(s) à mão não incluído(s) — use "Salvar PDF com grifos" para levá-los._\n`;
-  App.download(md, `${docName()} - grifos.md`, 'text/markdown');
+  if (drawings) md += `\n_${App.plural(drawings, 'desenho à mão não incluído', 'desenhos à mão não incluídos')} — use "Salvar PDF com grifos" para levá-los._\n`;
+  return md;
+}
+App.buildMarkdown = async (recs, opt, title) => {
+  const many = recs.length > 1 || !!opt.perDoc;
+  let md = `# ${title}\n\n_Exportado do Leitor de Estudos em ${new Date().toLocaleString('pt-BR')}_\n`;
+  let n = 0;
+  for (const rec of recs) {
+    const chaps = opt.chapters ? await chaptersFor(rec) : [];
+    const part = mdDoc(rec, chaps, opt, many ? 2 : 1);
+    if (!part) continue;
+    n++;
+    md += many ? `\n## ${App.baseName(rec.name)}\n${part}` : part;
+  }
+  return n ? md : null;
+};
+App.exportMd = async () => {
+  if (state.fp) await App.saveDoc();
+  const docs = (await safe(() => DB.all('docs'), [])).filter(d => d.hasFile && ((d.highlights || []).length || (d.bookmarks || []).length));
+  const subjects = [...new Set(docs.map(d => d.subject).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const dlg = App.dialog('mdDlg', 'pomoDlg mdDlg'); dlg.setAttribute('aria-label', 'Exportar em Markdown');
+  dlg.innerHTML = '';
+  const head = el('div', 'helpHead');
+  head.append(el('h2', null, 'Resumo em texto (.md)'), App.ibtn('x', null, () => dlg.close(), 'sm', 'Fechar (Esc)'));
+  const body = el('div', 'pomoBody');
+  body.append(el('p', 'muted small', 'Arquivo de texto com seus grifos e notas, para abrir no Obsidian, Notion, Google Docs ou qualquer editor.'));
+  const radio = (val, label, checked, extra) => {
+    const w = el('label', 'mdOpt'); const r = el('input'); r.type = 'radio'; r.name = 'mdScope'; r.value = val; r.checked = checked;
+    w.append(r, el('span', null, label)); if (extra) w.append(extra); return w;
+  };
+  const subjSel = el('select', 'planChap mdSubj');
+  subjects.forEach(s => subjSel.append(new Option(s, s)));
+  const scope = el('div', 'mdScope');
+  if (state.fp) scope.append(radio('doc', `Este PDF (${App.baseName(state.name)})`, true));
+  if (subjects.length) scope.append(radio('subj', 'Uma disciplina inteira:', !state.fp, subjSel));
+  scope.append(radio('all', `Todos os PDFs com grifos (${docs.length})`, !state.fp && !subjects.length));
+  subjSel.onchange = () => { scope.querySelector('input[value=subj]').checked = true; };
+  const check = (label, on, sub) => { const w = el('label', 'mdOpt'); const c = el('input'); c.type = 'checkbox'; c.checked = on; w.append(c, el('span', null, label)); if (sub) w.append(el('small', 'muted', sub)); return [w, c]; };
+  const [cw, chap] = check('Organizar por capítulo', true, 'usa o sumário do PDF; sem sumário, fica por página');
+  const [iw, img] = check('Incluir as figuras recortadas', false, 'o arquivo fica maior; o Obsidian mostra as imagens');
+  const [bw, bm] = check('Incluir os marcadores', true);
+  body.append(scope, cw, iw, bw);
+  const foot = el('div', 'lookFoot');
+  foot.append(el('span'), App.btn('Exportar', async () => {
+    const sc = (scope.querySelector('input[name=mdScope]:checked') || {}).value || 'all';
+    let recs, title;
+    if (sc === 'doc') { recs = [{ fp: state.fp, name: state.name, highlights: state.highlights, bookmarks: state.bookmarks }]; title = App.baseName(state.name) + ' — grifos'; }
+    else if (sc === 'subj') { recs = docs.filter(d => d.subject === subjSel.value); title = subjSel.value; }
+    else { recs = docs; title = 'Meus grifos'; }
+    recs.sort((a, c) => a.name.localeCompare(c.name, 'pt-BR'));
+    const md = await App.buildMarkdown(recs, { chapters: chap.checked, images: img.checked, bookmarks: bm.checked, perDoc: sc !== 'doc' }, title);
+    if (!md) { App.toast('Ainda não há grifos para exportar aí.'); return; }
+    dlg.close();
+    App.download(md, `${title.replace(/[\\/:*?"<>|]/g, '-')}.md`, 'text/markdown');
+  }, 'primary'));
+  dlg.append(head, body, foot);
+  if (!dlg.open) dlg.showModal();
 };
 
 // ---------- Anki ----------
@@ -104,7 +180,7 @@ App.buildPdfBytes = async () => {
     const col = App.colorOf(h.color);
     const dict = {
       Type: 'Annot', F: 4,
-      C: rgb(h.kind === 'ink' || (h.kind === 'text' && h.style !== 'fill') ? col.ink : col.hex),
+      C: rgb((h.kind === 'ink' && !h.marker) || (h.kind === 'text' && h.style !== 'fill') ? col.ink : col.hex),
       T: PDFHexString.fromText(OWN),
       NM: PDFHexString.fromText(h.id + '-' + part.page),
     };
@@ -122,6 +198,7 @@ App.buildPdfBytes = async () => {
       dict.Subtype = 'Ink';
       dict.InkList = part.paths.map(pts => pts.flatMap(([x, y]) => { const [px, py] = P(x, y); xs.push(px); ys.push(py); return [px, py]; }));
       dict.BS = { W: +((h.width || 2.4) * 0.75).toFixed(2), S: 'S' };
+      if (h.marker) dict.CA = 0.4;
     } else {
       const q = [];
       for (const r of part.rects) {

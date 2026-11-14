@@ -185,11 +185,20 @@ App.on('doc:loaded', async ({ fp }) => {
   await new Promise(r => setTimeout(r, 1500));
   if (state.fp !== fp || !state.pdf) return;
   const cur = await getIndex(fp);
-  if (cur && cur.pages.length === state.pdf.numPages && cur.ocrN === ocrCount(state.ocr)) return;
-  const token = state.token, pdf = state.pdf, ocr = state.ocr;
-  const pages = await extractText(pdf, ocr, () => state.token === token);
-  if (pages) await saveIndex(fp, pages, ocr);
+  if (cur && cur.pages.length === state.pdf.numPages && cur.ocrN === ocrCount(state.ocr)) { App.emit('index:ready', { fp }); return; }
+  await App.buildTextIndex();
 });
+App.getTextIndex = getIndex;
+// índice do documento aberto (agora)
+App.buildTextIndex = async () => {
+  const fp = state.fp, token = state.token, pdf = state.pdf, ocr = state.ocr;
+  if (!pdf) return null;
+  const pages = await extractText(pdf, ocr, () => state.token === token);
+  if (!pages) return null;
+  const rec = await saveIndex(fp, pages, ocr);
+  App.emit('index:ready', { fp });
+  return rec;
+};
 App.on('ocr:done', () => { if (state.fp) { idxCache.delete(state.fp); safe(() => DB.del('meta', 'tx:' + state.fp)); } });
 // limpeza (uma vez por sessão): índices de PDFs que saíram da lista não ocupam mais espaço
 setTimeout(async () => {

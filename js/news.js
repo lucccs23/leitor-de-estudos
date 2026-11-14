@@ -5,6 +5,16 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.15', title: 'Sincronizar, caneta melhor, plano de leitura e mais', items: [
+    'Sincronizar aparelhos: computador, tablet e celular com os mesmos grifos, notas e PDFs (Configurações → Sincronizar aparelhos)',
+    'Caneta: espessuras, marca-texto à mão e borracha (E). Com caneta stylus, só ela desenha e o dedo rola a página',
+    'Plano de leitura (Estudar): "estas páginas até tal dia" vira páginas por dia no cartão Hoje',
+    'Siglas: selecione uma sigla para ver o significado; a lista fica em Estudar → Siglas deste PDF',
+    'Ligar trechos: no balão do grifo, ligue a outra página ou outro PDF e volte com um toque',
+    'Atalhos da IA editáveis, com novos: explicar simples, traduzir e comparar em tabela',
+    'Figuras recortadas com a ferramenta Área em resolução maior, com botão para copiar',
+    'Resumo em Markdown por capítulo, de um PDF ou de uma disciplina inteira (Obsidian, Notion)',
+  ] },
   { v: '1.13', title: 'Barra nova e personalizável', items: [
     'Menus Arquivo, Exibir e Estudar no canto de cima, como nos leitores de PDF',
     'A barra mostra só o que você escolher: Configurações → Personalizar a barra (ou botão direito na barra). Arraste funções para a barra, reordene e tire',
