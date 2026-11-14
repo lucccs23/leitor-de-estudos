@@ -228,7 +228,7 @@ async function generate(openIt){
     const t = `Caderno de resumo · ${i + 1} de ${n}`;
     p.drawText(t, { x: W - M - F.widthOfTextAtSize(t, 8.5), y: 28, size: 8.5, font: F, color: muted });
   });
-  pdf.setTitle('Caderno de resumo'); pdf.setCreator('Leitor de Estudos');
+  pdf.setTitle('Caderno de resumo'); pdf.setCreator('Vetra');
   const bytes = await pdf.save();
   const base = groups.length === 1 ? App.baseName(groups[0].doc.name) : 'vários PDFs';
   const fname = `Resumo - ${base}.pdf`;

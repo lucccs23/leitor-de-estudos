@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.15.1', title: 'Novo nome: Vetra', items: ['O Leitor de Estudos agora se chama Vetra. Seus PDFs, grifos e backups continuam todos aqui'] },
   { v: '1.15', title: 'Sincronizar, caneta melhor, plano de leitura e mais', items: [
     'Sincronizar aparelhos: computador, tablet e celular com os mesmos grifos, notas e PDFs (Configurações → Sincronizar aparelhos)',
     'Caneta: espessuras, marca-texto à mão e borracha (E). Com caneta stylus, só ela desenha e o dedo rola a página',

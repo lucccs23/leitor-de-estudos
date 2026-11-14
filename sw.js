@@ -1,7 +1,7 @@
-/* Leitor de Estudos — funcionamento offline.
+/* Vetra — funcionamento offline.
    Guarda todos os arquivos do app no aparelho na instalação; depois tudo abre sem internet.
    Ao publicar uma versão nova, mude VERSION: os aparelhos baixam os arquivos novos e o app avisa. */
-const VERSION = '1.15.0';
+const VERSION = '1.15.1';
 const CACHE = 'leitor-' + VERSION;
 const FILES = [
   './', './index.html', './app.css', './manifest.webmanifest', './icone.png',
@@ -28,7 +28,7 @@ self.addEventListener('message', e => { if (e.data === 'atualizar') self.skipWai
 self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
   if (url.origin !== location.origin) return; // sites externos (IA etc.) seguem direto
-  // "Compartilhar → Leitor de Estudos" no Android: guarda o PDF e abre o app
+  // "Compartilhar → Vetra" no Android: guarda o PDF e abre o app
   if (req.method === 'POST' && url.pathname.endsWith('/compartilhar')) {
     e.respondWith((async () => {
       const form = await req.formData();

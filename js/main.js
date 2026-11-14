@@ -36,8 +36,8 @@ if (bk && /^[a-f0-9]{32,128}$/i.test(bk)) ls.set('le.bkToken', bk);
 if (bk && !params.get('abrir')) history.replaceState(null, '', location.pathname);
 
 // versão (canto inferior direito da tela inicial e rodapé do menu ⋯)
-document.getElementById('appVersion').textContent = `Leitor de Estudos v${App.VERSION}`;
-document.getElementById('menuVersion').textContent = `Leitor de Estudos v${App.VERSION} · atualizado em ${App.VERSION_DATE}`;
+document.getElementById('appVersion').textContent = `Vetra v${App.VERSION}`;
+document.getElementById('menuVersion').textContent = `Vetra v${App.VERSION} · atualizado em ${App.VERSION_DATE}`;
 
 App.initBackup();
 App.renderHome();

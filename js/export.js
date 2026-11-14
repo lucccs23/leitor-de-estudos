@@ -79,7 +79,7 @@ function mdDoc(rec, chaps, opt, level){
 }
 App.buildMarkdown = async (recs, opt, title) => {
   const many = recs.length > 1 || !!opt.perDoc;
-  let md = `# ${title}\n\n_Exportado do Leitor de Estudos em ${new Date().toLocaleString('pt-BR')}_\n`;
+  let md = `# ${title}\n\n_Exportado do Vetra em ${new Date().toLocaleString('pt-BR')}_\n`;
   let n = 0;
   for (const rec of recs) {
     const chaps = opt.chapters ? await chaptersFor(rec) : [];
@@ -155,7 +155,7 @@ const rgb = hex => [1, 3, 5].map(i => +(parseInt(hex.slice(i, i + 2), 16) / 255)
 // Gera o PDF com os grifos como marcações comuns (aparecem em qualquer leitor), o texto do OCR invisível
 // e uma cópia dos dados do leitor dentro do arquivo (assim os grifos voltam se o PDF for aberto em outro PC).
 // O identificador do PDF é mantido, então o arquivo salvo continua ligado aos mesmos grifos aqui.
-const OWN = 'Leitor de Estudos';
+const OWN = 'Vetra';
 App.OWN_ANNOT = OWN;
 App.buildPdfBytes = async () => {
   const { PDFDocument, PDFHexString, PDFName, PDFString, PDFDict } = PDFLib;
@@ -167,7 +167,7 @@ App.buildPdfBytes = async () => {
     for (let i = annots.size() - 1; i >= 0; i--) {
       const a = annots.lookupMaybe ? annots.lookupMaybe(i, PDFDict) : annots.lookup(i);
       const t = a && a.lookup && a.lookup(PDFName.of('T'));
-      if (t && t.decodeText && t.decodeText() === OWN) annots.remove(i);
+      if (t && t.decodeText && App.isOwnAuthor(t.decodeText())) annots.remove(i);
     }
   }
   const vps = new Map();
@@ -288,7 +288,7 @@ function mergeById(a = [], b = []){
 App.importBackup = async file => {
   let data;
   try { data = JSON.parse(await file.text()); } catch { App.toast('Esse arquivo não é um backup válido.'); return; }
-  if (!data || data.app !== 'leitor-de-estudos' || !Array.isArray(data.docs)) { App.toast('Esse arquivo não é um backup do Leitor de Estudos.'); return; }
+  if (!data || data.app !== 'leitor-de-estudos' || !Array.isArray(data.docs)) { App.toast('Esse arquivo não é um backup do Vetra.'); return; }
   await App.saveDoc();
   let nDocs = 0, nHl = 0;
   for (const d of data.docs) {
@@ -429,7 +429,7 @@ async function writeLocal(force){
   }
 }
 App.backupNow = async () => {
-  if (!local.ok && !(await checkLocal())) { App.toast('O serviço de backup não está rodando. Abra o leitor pelo atalho "Leitor de Estudos".'); return; }
+  if (!local.ok && !(await checkLocal())) { App.toast('O serviço de backup não está rodando. Abra o Vetra pelo atalho "Vetra".'); return; }
   if (await writeLocal(true)) App.toast('Backup feito em ' + local.pasta);
 };
 let localSavedT;
@@ -458,7 +458,7 @@ function renderBackupStatus(){
     dot.className = 'statusDot ok'; dot.title = 'Backup automático ligado';
   } else if (local.checked) {
     ll.textContent = 'Parado — abra o leitor pelo atalho para ativar';
-    hint.textContent = 'O backup automático está parado. Abra o leitor pelo atalho "Leitor de Estudos" (ou rode "Instalar atalho" de novo) para ativá-lo.';
+    hint.textContent = 'O backup automático está parado. Abra o Vetra pelo atalho "Vetra" (ou rode "Instalar atalho" de novo) para ativá-lo.';
     dot.className = 'statusDot off'; dot.title = 'Backup automático parado';
   }
   // cópia extra numa pasta escolhida (ex.: OneDrive)

@@ -1,6 +1,6 @@
 {
-  "name": "Leitor de Estudos",
-  "short_name": "Leitor",
+  "name": "Vetra",
+  "short_name": "Vetra",
   "description": "Leia, grife e revise seus PDFs. Funciona offline; tudo fica salvo no aparelho.",
   "lang": "pt-BR",
   "start_url": "./",

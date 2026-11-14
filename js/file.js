@@ -1,6 +1,6 @@
 /* Menu "Arquivo" (canto superior esquerdo): abrir, salvar, salvar como, exportar, imprimir, propriedades,
    recentes. "Salvar" grava os grifos no próprio arquivo (quando ele foi aberto por aqui) — fica legível em
-   qualquer leitor de PDF, e os grifos continuam editáveis no Leitor de Estudos. */
+   qualquer leitor de PDF, e os grifos continuam editáveis no Vetra. */
 (() => {
 'use strict';
 const App = window.App;
@@ -66,7 +66,7 @@ async function adopt(bytes, name){
   state.bytes = buf;
   await safe(() => DB.put('files', { fp: state.fp, data: buf }));
   if (name && name !== state.name) {
-    state.name = name; document.title = name + ' — Leitor de Estudos';
+    state.name = name; document.title = name + ' — Vetra';
     App.renameTab?.(state.fp, name);
     await App.saveDoc();
   }

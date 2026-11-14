@@ -57,7 +57,7 @@ App.runOcr = async (opts = {}) => {
   }
   if (!App.localService.ok() && !(await App.localService.check())) {
     showCard('Reconhecer texto precisa do serviço local', null, [
-      el('span', 'muted small', 'Abra o leitor pelo atalho "Leitor de Estudos" (ou rode "Instalar atalho" de novo) e tente outra vez.'),
+      el('span', 'muted small', 'Abra o Vetra pelo atalho "Vetra" (ou rode "Instalar atalho" de novo) e tente outra vez.'),
       btn('Ok', hideCard, 'sm outline'),
     ]);
     return;

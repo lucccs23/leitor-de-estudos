@@ -27,7 +27,7 @@ if (canSW) {
 function updateBar(worker){
   if ($('#updateBar')) return;
   const b = el('div', 'pomoAlert'); b.id = 'updateBar'; b.setAttribute('role', 'status');
-  b.append(App.icon('download'), el('span', null, 'Há uma versão nova do Leitor de Estudos.'));
+  b.append(App.icon('download'), el('span', null, 'Há uma versão nova do Vetra.'));
   const acts = el('div', 'pomoAlertActs');
   acts.append(App.btn('Depois', () => b.remove(), 'sm'), App.btn('Atualizar', async () => { await App.saveDoc(); worker.postMessage('atualizar'); }, 'primary sm'));
   b.append(acts); document.body.append(b);
@@ -38,7 +38,7 @@ if (App.isWeb && navigator.storage && navigator.storage.persist) navigator.stora
 // instalar o app (Chrome no Android mostra o pedido; aqui fica um botão também)
 let installEvt = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; document.documentElement.classList.add('can-install'); });
-addEventListener('appinstalled', () => { installEvt = null; document.documentElement.classList.remove('can-install'); App.toast('Leitor de Estudos instalado'); });
+addEventListener('appinstalled', () => { installEvt = null; document.documentElement.classList.remove('can-install'); App.toast('Vetra instalado'); });
 App.installApp = async () => {
   if (!installEvt) { App.toast('No Chrome: menu ⋮ → "Instalar app" (ou "Adicionar à tela inicial").'); return; }
   installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null;
@@ -50,7 +50,7 @@ App.canInstall = () => !!installEvt;
 if (App.isWeb || App.isTouch) {
   const lead = document.querySelector('.hero .lead'), dz = document.querySelector('.dzText span');
   if (lead) lead.textContent = 'Leia, grife e revise seus PDFs. Tudo fica salvo neste aparelho, mesmo sem internet.';
-  if (dz) dz.textContent = 'Escolha um PDF do aparelho ou use "Compartilhar → Leitor de Estudos" em outro app';
+  if (dz) dz.textContent = 'Escolha um PDF do aparelho ou use "Compartilhar → Vetra" em outro app';
 }
 
 // ---------- PDFs recebidos pelo "Compartilhar" (WhatsApp, Drive, Arquivos…) ----------

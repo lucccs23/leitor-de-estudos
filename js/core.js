@@ -1,9 +1,9 @@
-/* Núcleo do Leitor de Estudos: estado, armazenamento, renderização, grifos e interação. */
+/* Núcleo do Vetra: estado, armazenamento, renderização, grifos e interação. */
 (() => {
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.15.0';
+App.VERSION = '1.15.1';
 App.VERSION_DATE = '14/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -388,7 +388,7 @@ App.loadDoc = async (buf, name) => {
   pagesEl.innerHTML = '';
   state.pages = sizes.map((s, i) => makePage(i + 1, s));
   document.body.classList.add('has-doc');
-  document.title = name + ' — Leitor de Estudos';
+  document.title = name + ' — Vetra';
   $('#pageCount').textContent = '/ ' + pdf.numPages; pageInput.max = pdf.numPages;
 
   state.autoFit = rec.autoFit !== false || !rec.scale;
@@ -399,7 +399,7 @@ App.loadDoc = async (buf, name) => {
   const lp = state.pages[(rec.lastPage || 1) - 1];
   if (lp && rec.lastFrac > 0) { viewer.scrollTop = lp.el.offsetTop + rec.lastFrac * lp.el.offsetHeight; updateCurrentPage(); }
   App.emit('doc:loaded', { fp, name, rec });
-  if (imported) App.toast(`Este PDF trouxe ${state.highlights.length} grifo(s) salvos pelo Leitor de Estudos`);
+  if (imported) App.toast(`Este PDF trouxe ${state.highlights.length} grifo(s) salvos pelo Vetra`);
   viewer.focus({ preventScroll: true });
   App.setLoading(null);
   return true;
@@ -426,7 +426,7 @@ App.closeDoc = async () => {
   if (state.pdf) state.pdf.destroy();
   Object.assign(state, { pdf:null, fp:null, name:'', bytes:null, pages:[], highlights:[], bookmarks:[], textCache:new Map(), stats:{ time:{}, visited:[] }, thumb:null, ocr:{}, exams:[] });
   pagesEl.innerHTML = ''; document.body.classList.remove('has-doc');
-  document.title = 'Leitor de Estudos'; viewer.scrollTop = 0;
+  document.title = 'Vetra'; viewer.scrollTop = 0;
   App.emit('doc:closed');
   App.emit('home:show');
 };
@@ -597,8 +597,10 @@ function unloadPage(p){
 
 // página com marcações gravadas pelo leitor (Arquivo → Salvar): elas já aparecem como grifos editáveis,
 // então o PDF.js não as desenha de novo
+// marcações gravadas por este app (o nome antigo "Leitor de Estudos" continua valendo para PDFs salvos antes)
+App.isOwnAuthor = s => s === 'Vetra' || s === 'Leitor de Estudos';
 App.hasOwnAnnots = async page => {
-  try { return (await page.getAnnotations()).some(a => a.titleObj && a.titleObj.str === 'Leitor de Estudos'); } catch { return false; }
+  try { return (await page.getAnnotations()).some(a => a.titleObj && App.isOwnAuthor(a.titleObj.str)); } catch { return false; }
 };
 
 // ---------- Imagens preservadas no modo escuro ----------
