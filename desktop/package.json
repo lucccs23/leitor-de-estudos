@@ -1,0 +1,71 @@
+{
+  "name": "vetra",
+  "productName": "Vetra",
+  "version": "1.18.1",
+  "description": "Vetra — leia, grife e estude seus PDFs",
+  "main": "electron/main.js",
+  "private": true,
+  "author": "Vetra",
+  "scripts": {
+    "copiar": "node build/copiar-app.js",
+    "start": "node build/copiar-app.js && electron .",
+    "dist": "node build/copiar-app.js && electron-builder --win"
+  },
+  "build": {
+    "appId": "app.vetra.leitor",
+    "productName": "Vetra",
+    "copyright": "Vetra",
+    "files": [
+      "app/**",
+      "electron/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "app/servico-backup.ps1"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "fileAssociations": [
+      {
+        "ext": "pdf",
+        "name": "Documento PDF",
+        "description": "Documento PDF (Vetra)",
+        "role": "Viewer",
+        "icon": "build/icon.ico"
+      },
+      {
+        "ext": "epub",
+        "name": "Livro EPUB",
+        "description": "Livro EPUB (Vetra)",
+        "role": "Viewer",
+        "icon": "build/icon.ico"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Vetra-Instalador-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Vetra",
+      "uninstallDisplayName": "Vetra",
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "language": "1046"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  }
+}

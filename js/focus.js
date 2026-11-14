@@ -43,13 +43,12 @@ async function poll(){
   try {
     const j = await call('/status');
     const was = F.on;
-    Object.assign(F, { on: true, fail: 0, st: j.state || null, subjects: j.subjects || [], modes: j.modes || [] });
-    if (!was) { ls.set('le.focusSeen', Date.now()); flush(); }
+    Object.assign(F, { on: true, fail: 0, st: j.state || null, subjects: j.subjects || [] });
+    if (!was) flush();
     for (const o of j.open || []) openRequest(o);
   } catch {
     if (++F.fail >= 2 && F.on) { F.on = false; F.st = null; }
   }
-  render();
   // conectado: a cada 5 s (pedidos para abrir PDFs); sem Focus: 15 s; janela escondida: mais devagar
   pollT = setTimeout(poll, (F.on ? 5000 : 15000) * (document.hidden ? 3 : 1));
 }
@@ -59,7 +58,6 @@ App.focusPoll = poll;
 async function cmd(c){
   try { await call('/command', c); } catch { App.toast('O Focus não respondeu.'); }
 }
-function render(){}
 
 // ---------- Itens do Focus no menu do timer (só aparecem com o Focus aberto neste computador) ----------
 const sendOn = () => App.focusLinkOn ? App.focusLinkOn() : false; // desligado por padrão: cada app por si

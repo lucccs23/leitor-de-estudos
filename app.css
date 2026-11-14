@@ -455,7 +455,7 @@ body.has-doc #home{display:none}
 #home h2{font-size:12px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:0 0 12px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;box-shadow:var(--shadow-sm)}
 .cardHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.cardHead h2{margin:0!important}
+.cardHead h2{margin:0!important;display:flex;align-items:center;gap:8px}
 .emptyCard{display:flex;gap:12px;align-items:flex-start;padding:18px;border-radius:var(--r-lg);background:var(--surface);border:1px dashed var(--border-strong);color:var(--muted);font-size:13.5px}
 .emptyCard p{margin:0}
 .emptyCard .i{color:var(--accent);margin-top:1px}
@@ -485,7 +485,6 @@ body.has-doc #home{display:none}
 .dl.today{color:var(--accent);font-weight:700}
 .dv{font-size:10.5px;color:var(--muted);min-height:14px;font-variant-numeric:tabular-nums}
 .homeBackup{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
-.cardHead h2{display:flex;align-items:center;gap:8px}
 .statusDot{width:8px;height:8px;border-radius:50%;background:var(--border-strong);flex:none}
 .statusDot.ok{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
 .statusDot.off{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 22%,transparent)}
@@ -698,9 +697,6 @@ body.exam-paused #dock,body.exam-paused #pager{visibility:hidden}
 .resTop{display:flex;align-items:center;gap:22px}
 .resInfo h2{margin:0 0 4px}
 .resInfo p{margin:2px 0}
-.ring{width:118px;height:118px;flex:none}
-.ringBg{fill:none;stroke:var(--active);stroke-width:11}
-.ringFg{fill:none;stroke:var(--accent);stroke-width:11;stroke-linecap:round;transition:stroke-dasharray .6s}
 .ringText{font:700 24px var(--font-display);fill:var(--text)}
 .resStats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:20px}
 .resStat{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--border);text-align:center}
@@ -752,8 +748,8 @@ body:has(#examView:not([hidden])) #dropOverlay{display:none!important}
 .popTitle{font-size:11px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px 6px}
 .popItem{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 10px;border:none;background:none;border-radius:var(--r-sm);color:var(--text);font-weight:500}
 .popItem:hover{background:var(--hover)}
-.popItem > span:not(.popDot){flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.popItem small{color:var(--muted);font-size:12px;font-weight:400;white-space:nowrap}
+.popItem > span:not(.popDot){flex:1 0 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} /* o nome nunca é cortado antes da descrição */
+.popItem small{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;margin-left:auto;padding-left:8px;color:var(--muted);font-size:12px;font-weight:400;white-space:nowrap}
 .popItem .i{width:16px;height:16px;color:var(--text-2)}
 .popItem .popCheck{color:var(--accent)}
 .popItem.on{color:var(--accent)}
@@ -804,7 +800,7 @@ body.lib-searching .homeGrid,body.lib-searching .dropzone,body.lib-searching .sh
 .goalBtn{height:26px!important;font-size:12px!important;color:var(--muted)!important;font-weight:550}
 .todayMain{display:flex;align-items:center;gap:16px}
 .ringWrap{position:relative;width:68px;height:68px;flex:none}
-.ring{width:100%;height:100%;transform:rotate(-90deg)}
+.ring{width:100%;height:100%;flex:none;transform:rotate(-90deg)}
 .ring circle{fill:none;stroke-width:7;stroke-linecap:round}
 .ringBg{stroke:var(--active)}
 .ringFg{stroke:var(--accent);transition:stroke-dasharray .5s ease}
@@ -888,8 +884,6 @@ body.split-on #btnSplit{background:var(--accent-soft);color:var(--accent)}
 @container (max-width:640px){ .ttsSel.voice{display:none} }
 
 /* Focus conectado: o relógio da barra mostra o timer do Focus */
-.pomoChip.focusLinked:not(.running){color:var(--accent)}
-.pomoChip.focusLinked:not(.running)::after{content:'';position:absolute;right:6px;top:7px;width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 2px var(--surface)}
 .pomoChip{position:relative}
 
 /* =========================================================
@@ -1014,7 +1008,7 @@ body.tb-auto.has-doc.tb-show #toolbar{transform:none;box-shadow:var(--shadow-lg)
 .hlColorGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .hlColor{display:flex;align-items:center;gap:9px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-2);font-size:13px;cursor:pointer;min-width:0}
 .hlColor span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hlColor input{width:30px;height:24px;padding:0;border:none;background:none;cursor:pointer;flex:none}
+.hlColor input[type=color]{width:30px;height:24px;padding:0;border:none;background:none;cursor:pointer;flex:none}
 .hlPresets{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
 .hlPresets .btn.outline{margin-top:0}
 .tbGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:0 12px}
@@ -1101,7 +1095,6 @@ body.tb-compact .fileBtn{height:30px;padding:0 9px}
    ========================================================= */
 dialog:focus{outline:none}
 /* 1) nome das cores: o campo de texto não herda a largura do seletor de cor */
-.hlColor input[type=color]{width:30px;height:24px;padding:0;border:none;background:none;cursor:pointer;flex:none}
 .hlColor input.hlName{width:auto;flex:1;height:30px;padding:0 10px;background:var(--input);border:1px solid var(--border);border-radius:7px;cursor:text}
 /* 3) bolinha de "não salvo" sem encostar no texto */
 .fileBtn{padding-right:16px}
@@ -1349,12 +1342,11 @@ body[data-tool=erase] .drawLayer{pointer-events:auto;cursor:cell}
 .mdOpt small{flex-basis:100%;padding-left:26px;margin-top:-3px}
 .mdOpt .mdSubj{width:auto;flex:1;min-width:140px;margin:0}
 .hl.has-link>div:last-child::after{content:'';position:absolute;right:-6px;bottom:-6px;width:11px;height:11px;border-radius:50%;background:var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1'/%3E%3C/svg%3E") center/8px no-repeat;box-shadow:0 0 0 1.5px #fff}
-.linkBar{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:6px 6px 6px 12px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);box-shadow:var(--shadow-lg);font-size:13px}
+.linkBar{position:absolute;left:50%;bottom:132px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:6px 6px 6px 12px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);box-shadow:var(--shadow-lg);font-size:13px;white-space:nowrap} /* embaixo, acima da barra de páginas */
 .linkBar.back{padding:4px}
 .linkTxt{display:flex;align-items:center;gap:6px;min-width:0}
 .linkTxt .i{flex:none;color:var(--accent)}
-.linkTxt span{overflow:hidden;text-overflow:ellipsis}
-@media (max-width:600px){ .linkTxt>span{display:none} }
+.linkTxt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .syncSteps{margin:0 0 14px;padding-left:20px;font-size:13.5px;line-height:1.5}
 .syncSteps li{margin-bottom:6px}
 .syncSteps a{color:var(--accent);font-weight:600}
@@ -1431,12 +1423,6 @@ body[data-tool=erase] .drawLayer{pointer-events:auto;cursor:cell}
 /* =========================================================
    v1.16.1 — ajustes de design depois das funções novas
    ========================================================= */
-/* menus: o nome nunca é cortado; a descrição encolhe primeiro */
-.popItem > span:not(.popDot){flex:1 0 auto;max-width:100%}
-.popItem small{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;margin-left:auto;padding-left:8px}
-/* barra "Ligar aqui": uma linha, texto encolhe com reticências */
-.linkBar{white-space:nowrap}
-.linkTxt span{white-space:nowrap}
 .linkBar .btn{flex:none}
 @media (max-width:700px){
   .linkBar{top:auto;bottom:118px;left:8px;right:8px;transform:none;max-width:none;justify-content:flex-end}
@@ -1450,8 +1436,6 @@ body[data-tool=erase] .drawLayer{pointer-events:auto;cursor:cell}
   .touch .shortcuts{display:none}
 }
 .touch .shortcuts{display:none}
-/* barra "Ligar aqui" embaixo, acima da barra de páginas (não briga com o timer nem com os avisos do topo) */
-.linkBar{top:auto;bottom:132px}
 
 /* =========================================================
    v1.17 — IA: guardar respostas e histórico
