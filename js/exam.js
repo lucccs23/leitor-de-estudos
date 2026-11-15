@@ -265,7 +265,7 @@ function setupCard(v, det){
     };
     state.exams.push(e); save();
     hideView(); enterMode(e);
-    App.toast('Boa prova! Clique na alternativa (ou A–E) para marcar · botão direito (ou Shift+letra) risca · X dúvida · Z chute · J/K navegam.');
+    App.toast('Boa prova! Clique na alternativa (ou A–E) para marcar · clique duplo, botão direito ou Shift+letra risca · X dúvida · Z chute · J/K navegam.');
   }, 'primary');
   actions.append(start, btn('Fechar', hideView));
   c.append(actions); v.append(c);
@@ -398,7 +398,7 @@ function renderPanel(){
   }
   panel.append(head);
   const legend = el('div', 'exLegend');
-  legend.textContent = ex.finished ? 'Verde: acerto · vermelho: erro · contorno: gabarito' : 'Clique na alternativa (na prova ou aqui) · botão direito risca · ⚑ dúvida · ~ chute';
+  legend.textContent = ex.finished ? 'Verde: acerto · vermelho: erro · contorno: gabarito' : 'Clique na alternativa (na prova ou aqui) · clique duplo ou botão direito risca · ⚑ dúvida · ~ chute';
   panel.append(legend);
   // filtros: revisar só o que falta antes de entregar
   const fl = el('div', 'exFilters'); fl.id = 'exFilters';
@@ -462,6 +462,14 @@ function qRow(q){
   for (const L of letters(ex)) {
     const b = el('button', 'bubble', L); b.dataset.l = L;
     b.onclick = e2 => { if (e2.altKey) toggleElim(q, L); else setAnswer(q, L); };
+    // clique duplo na bolinha risca, sem perder a resposta que já estava marcada
+    let antes = null;
+    b.onmousedown = e2 => { if (e2.detail === 1 && ex) antes = ex.answers[q] || null; };
+    b.ondblclick = e2 => {
+      e2.preventDefault(); if (!ex || ex.finished) return;
+      if (antes && antes !== L) ex.answers[q] = antes; else delete ex.answers[q];
+      toggleElim(q, L); paintRow(null, q);
+    };
     b.oncontextmenu = e2 => { e2.preventDefault(); toggleElim(q, L); };
     bub.append(b);
   }
@@ -612,7 +620,7 @@ async function buildAlts(e){
       const m = it.str.trim().match(/^\(?([A-Ea-e])\s*[).\-–]/) || (/^[A-Ea-e]$/.test(it.str.trim()) ? [0, it.str.trim()] : null);
       if (!m || m[1].toUpperCase() !== L[want] || it.x > lineStart + 0.07) continue;
       if (found.length && it.y <= found[found.length - 1].y + 0.002) continue;
-      found.push({ L: L[want], page: reg.page, x: it.x, y: it.y, h: it.h }); want++;
+      found.push({ L: L[want], page: reg.page, x: it.x, y: it.y, h: it.h, w: it.w, s: it.str.trim() }); want++;
       if (want >= L.length) break;
     }
     if (found.length < 2) continue;
@@ -620,29 +628,60 @@ async function buildAlts(e){
     const m = {};
     found.forEach((f, i) => {
       const nx = found[i + 1];
-      m[f.L] = { page: f.page, x: +(f.x - 0.006).toFixed(4), y: +(f.y - 0.003).toFixed(4), x1: +Math.min(Rr.x + Rr.w, 0.99).toFixed(4), y1: +((nx ? nx.y - 0.002 : bottom + 0.004)).toFixed(4), lh: f.h };
+      const yEnd = nx ? nx.y - 0.002 : bottom + 0.004;
+      // linhas de texto da alternativa: agrupa os pedaços pela altura
+      const lines = [];
+      for (const it of inReg) {
+        if (it.y < f.y - 0.002 || it.y >= yEnd - 0.001) continue;
+        const ln = lines.find(l => Math.abs(l.y - it.y) < f.h * 0.5);
+        if (ln) { ln.x0 = Math.min(ln.x0, it.x); ln.x1 = Math.max(ln.x1, it.x + it.w); }
+        else lines.push({ y: it.y, h: it.h, x0: it.x, x1: it.x + it.w });
+      }
+      // largura só da letra ("C)"): quando o pedaço traz a alternativa inteira, estima pela proporção
+      const lw = f.s.length <= 3 ? f.w : f.w * (2.2 / Math.max(3, f.s.length));
+      m[f.L] = { page: f.page, x: +(f.x - 0.006).toFixed(4), y: +(f.y - 0.003).toFixed(4), x1: +Math.min(Rr.x + Rr.w, 0.99).toFixed(4), y1: +yEnd.toFixed(4), lh: f.h,
+        lx: f.x, ly: f.y, lw, lines: lines.sort((p2, o) => p2.y - o.y).map(l => ({ y: +l.y.toFixed(4), h: +l.h.toFixed(4), x0: +l.x0.toFixed(4), x1: +l.x1.toFixed(4) })) };
     });
     out[a.q] = m;
   }
   return out;
 }
 function renderAlts(){
-  $$('.altBox').forEach(b => b.remove());
+  $$('.altBox,.altMark,.altStrike').forEach(b => b.remove());
   if (!ex) return;
   for (const [q, m] of Object.entries(altMap)) for (const [Lt, r] of Object.entries(m)) {
     const p = state.pages[r.page - 1]; if (!p) continue;
     let layer = p.el.querySelector('.qLayer');
     if (!layer) { layer = el('div', 'qLayer'); p.el.append(layer); }
-    const b = el('div', 'altBox'); b.dataset.q = q; b.dataset.l = Lt;
-    b.style.cssText = `left:${r.x * 100}%;top:${r.y * 100}%;width:${(r.x1 - r.x) * 100}%;height:${(r.y1 - r.y) * 100}%;--lh:${(r.lh / (r.y1 - r.y)) * 100}%`;
-    layer.prepend(b);
+    const tag = e2 => { e2.dataset.q = q; e2.dataset.l = Lt; return e2; };
+    // área de clique (invisível)
+    const b = tag(el('div', 'altBox'));
+    b.style.cssText = `left:${r.x * 100}%;top:${r.y * 100}%;width:${(r.x1 - r.x) * 100}%;height:${(r.y1 - r.y) * 100}%`;
+    // quadradinho com a letra (cobre o "C)" do PDF quando marcada; contorno leve ao passar o mouse)
+    const asp = p.base.w / p.base.h, lx = r.lx ?? r.x + 0.006, ly = r.ly ?? r.y + 0.003, lw = Math.max(r.lw ?? 0, r.lh * 0.85 / asp);
+    const hH = r.lh * 1.5, wW = Math.max(lw + r.lh * 0.5 / asp, hH / asp);
+    const cx = lx + lw / 2, cy = ly + r.lh * 0.5;
+    const mk = tag(el('div', 'altMark'));
+    mk.style.cssText = `left:${(cx - wW / 2) * 100}%;top:${(cy - hH / 2) * 100}%;width:${wW * 100}%;height:${hH * 100}%`;
+    mk.append(el('span', null, Lt));
+    // linhas do texto: esmaecem e ganham o traço quando a alternativa é riscada
+    const st = tag(el('div', 'altStrike'));
+    const textStart = lx + lw + 0.006; // a letra ("A)") fica de fora: só o texto esmaece e é riscado
+    for (const ln0 of r.lines || [{ y: ly, h: r.lh, x0: lx, x1: r.x1 }]) {
+      const ln = { ...ln0 };
+      if (Math.abs(ln.y - ly) < r.lh * 0.5) ln.x0 = Math.max(ln.x0, textStart);
+      if (ln.x1 - ln.x0 < 0.01) continue;
+      const i = el('i'); i.style.cssText = `left:${(ln.x0 - 0.002) * 100}%;width:${(ln.x1 - ln.x0 + 0.005) * 100}%;top:${(ln.y - ln.h * 0.12) * 100}%;height:${ln.h * 1.24 * 100}%`;
+      st.append(i);
+    }
+    layer.prepend(b, mk, st);
   }
   for (const q of Object.keys(altMap)) paintAlts(+q);
 }
 function paintAlts(q){
   if (!ex || !altMap[q]) return;
   const a = ex.answers[q], elim = ex.elim[q] || [], k = ex.finished && ex.key ? ex.key[q] : null;
-  $$(`.altBox[data-q="${q}"]`).forEach(b => {
+  $$(`.altBox[data-q="${q}"],.altMark[data-q="${q}"],.altStrike[data-q="${q}"]`).forEach(b => {
     const L = b.dataset.l;
     b.classList.toggle('sel', a === L);
     b.classList.toggle('elim', elim.includes(L));
@@ -661,16 +700,40 @@ function altAt(e2){
 // clique simples (sem arrastar para selecionar texto) marca; o botão direito risca
 let downAt = null;
 viewer.addEventListener('pointerdown', e2 => { downAt = { x: e2.clientX, y: e2.clientY }; }, true);
+// um clique marca; dois cliques (ou toques) rápidos riscam. O 1º clique espera um instante para saber se vem o 2º.
+const DOUBLE_MS = 320;
+let lastTap = null, tapT = null;
+const sameAlt = (a, b) => a && b && a.q === b.q && a.L === b.L;
+// o 2º clique rápido não seleciona a palavra (o navegador faria isso no clique duplo)
+viewer.addEventListener('mousedown', e2 => {
+  if (!ex || ex.finished || paused || e2.button !== 0 || state.tool !== 'text') return;
+  if (e2.detail >= 2 || (lastTap && Date.now() - lastTap.t < DOUBLE_MS)) { const hit = altAt(e2); if (hit) e2.preventDefault(); }
+}, true);
 viewer.addEventListener('click', e2 => {
   if (!ex || ex.finished || paused || e2.button !== 0 || App.examViewOpen || state.tool !== 'text') return;
   if (downAt && Math.hypot(e2.clientX - downAt.x, e2.clientY - downAt.y) > 5) return;
+  const hit = altAt(e2); if (!hit) { lastTap = null; return; }
+  const now = Date.now();
+  if (lastTap && sameAlt(lastTap, hit) && now - lastTap.t < DOUBLE_MS) {
+    // clique duplo: risca (e não marca)
+    clearTimeout(tapT); tapT = null; lastTap = null;
+    getSelection().removeAllRanges();
+    toggleElim(hit.q, hit.L);
+    setTimeout(() => App.closePopup(), 30);
+    return;
+  }
   if (App.hasSelection()) return;
-  const hit = altAt(e2); if (!hit) return;
-  if (curQ !== hit.q) { curQ = hit.q; markCurrent(true); }
-  holdScrollUntil = Date.now() + 700;
-  const adv = ex.autoAdvance; ex.autoAdvance = false; // na própria prova não pula de lugar
-  setAnswer(hit.q, hit.L); ex.autoAdvance = adv;
-  setTimeout(() => App.closePopup(), 30);
+  lastTap = { ...hit, t: now };
+  clearTimeout(tapT);
+  tapT = setTimeout(() => {
+    tapT = null;
+    if (!ex || ex.finished) return;
+    if (curQ !== hit.q) { curQ = hit.q; markCurrent(true); }
+    holdScrollUntil = Date.now() + 700;
+    const adv = ex.autoAdvance; ex.autoAdvance = false; // na própria prova não pula de lugar
+    setAnswer(hit.q, hit.L); ex.autoAdvance = adv;
+    App.closePopup();
+  }, DOUBLE_MS);
 });
 // passar o mouse: destaca só a alternativa embaixo do cursor
 let hovT = 0, hovEl = null;
@@ -678,7 +741,7 @@ viewer.addEventListener('mousemove', e2 => {
   if (!ex || ex.finished || paused || state.tool !== 'text' || e2.buttons) { if (hovEl) { hovEl.classList.remove('hov'); hovEl = null; document.body.classList.remove('alt-hover'); } return; }
   const now = performance.now(); if (now - hovT < 40) return; hovT = now;
   const hit = altAt(e2);
-  const b = hit ? $(`.altBox[data-q="${hit.q}"][data-l="${hit.L}"]`) : null;
+  const b = hit ? $(`.altMark[data-q="${hit.q}"][data-l="${hit.L}"]`) : null;
   if (b === hovEl) return;
   if (hovEl) hovEl.classList.remove('hov');
   hovEl = b; if (b) b.classList.add('hov');
