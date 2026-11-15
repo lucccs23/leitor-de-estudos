@@ -63,10 +63,15 @@ App.cycleTab = dir => {
   const n = tabs[((i < 0 ? 0 : i + dir) + tabs.length) % tabs.length];
   if (n) switchTo(n.fp);
 };
+// ao abrir o Vetra: começa sempre na página inicial. As abas da última vez vão para "abas fechadas"
+// (Ctrl+Shift+T reabre), e os PDFs continuam na lista da página inicial.
 App.restoreTabs = async () => {
-  render();
-  const a = App.ls.get('le.activeTab', null);
-  if (a && tabs.find(t => t.fp === a)) await switchTo(a);
+  if (tabs.length) {
+    const closed = App.ls.get('le.closedTabs', []).filter(c => !tabs.some(t => t.fp === c.fp));
+    App.ls.set('le.closedTabs', [...closed, ...tabs].slice(-10));
+    tabs = [];
+  }
+  render(); save();
 };
 
 App.on('doc:loaded', ({ fp, name }) => {

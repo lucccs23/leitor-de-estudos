@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.19.7', title: 'Começa na página inicial', items: ['O Vetra abre sempre na página inicial, em vez de reabrir o último PDF. Quer voltar ao que estava lendo? Clique nele na lista ou use Ctrl+Shift+T'] },
   { v: '1.19.6', title: 'Painel de grifos só quando você pede', items: ['O painel de grifos não abre mais sozinho nos PDFs: use o botão do painel na barra ou a tecla H', 'Arraste os botões da barra de cima para o lado e solte onde quiser: a nova ordem fica salva'] },
   { v: '1.19.5', title: 'Atualizações ao abrir', items: ['Nova opção em Ajuda → "Procurar sempre ao abrir o Vetra": confere se há versão nova toda vez que o programa abre (sem ela, confere uma vez por dia)', 'Simulado: botão Parar ao lado do pausar — sair e continuar depois, ou cancelar', 'Ao sair, o PDF abre normal para leitura; o botão vira "Continuar simulado" e retoma direto de onde parou'] },
   { v: '1.19.4', title: 'Simulado mais fluido', items: ['Clicar na alternativa marca na hora (antes havia uma pequena espera); o clique duplo continua riscando', 'Dá para ocultar a folha de respostas durante a prova: botão da barra ou tecla F (o Vetra lembra a escolha)', 'A busca na barra ficou só com a lupa: clique nela (ou Ctrl+K) para buscar ou achar qualquer função'] },
