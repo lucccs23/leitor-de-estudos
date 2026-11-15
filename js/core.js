@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.19.7';
+App.VERSION = '1.20.0';
 App.VERSION_DATE = '14/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -183,7 +183,7 @@ const state = App.state = {
   filter:new Set(), selected:null, token:0, textCache:new Map(), lastInk:null,
 };
 const labels = App.labels = ls.get('le.labels', {});
-App.colorOf = id => App.COLORS.find(c => c.id === id) || App.COLORS[0];
+App.colorOf = id => (typeof id === 'string' && id[0] === '#') ? { id, hex: id, ink: id, name: 'Cor personalizada' } : (App.COLORS.find(c => c.id === id) || App.COLORS[0]);
 App.labelOf = id => (labels[id] || '').trim() || App.colorOf(id).name;
 App.saveLabels = () => ls.set('le.labels', labels);
 const normHl = App.normHl = h => { h.kind = h.kind || 'text'; h.style = h.style || 'fill'; h.note = h.note || ''; h.text = h.text || ''; return h; };
@@ -223,8 +223,10 @@ themeBtn.onclick = () => applyTheme(nextTheme(), true);
 // ---------- Paleta, ferramentas e estilos ----------
 App.buildPalette = () => {
   const pal = $('#palette'); pal.innerHTML = '';
+  const penMode = state.tool === 'ink' || state.tool === 'lasso';
+  const cur = state.tool === 'ink' ? App.penColor() : state.tool === 'lasso' ? null : state.color;
   App.COLORS.forEach((c, i) => {
-    const b = el('button', 'swatch' + (state.color === c.id ? ' current' : ''));
+    const b = el('button', 'swatch' + (cur === c.id ? ' current' : ''));
     b.style.setProperty('--c', c.hex);
     b.title = `${App.labelOf(c.id)} (${i + 1})`;
     b.setAttribute('aria-label', `Cor ${App.labelOf(c.id)}`);
@@ -232,8 +234,12 @@ App.buildPalette = () => {
     b.onclick = () => pickColor(c.id);
     pal.appendChild(b);
   });
+  if (penMode) App.penPaletteExtras?.(pal, cur);
 };
+App.pickColor = id => pickColor(id);
 function pickColor(id){
+  if (state.tool === 'lasso') { App.lassoRecolor?.(id); return; }
+  if (state.tool === 'ink') { App.setPenColor(state.pen, id); return; }
   if (hasSelection()) { createHighlight(id); return; }
   state.color = id; ls.set('le.color', id);
   App.buildPalette();
@@ -262,38 +268,46 @@ App.setTool = t => {
   if (changed && t === 'ink') App.toast(App.isTouch ? 'Caneta: desenhe sobre a página. A borracha e a espessura ficam ao lado.' : 'Caneta: desenhe sobre a página (Ctrl+Z desfaz, Esc volta ao texto)');
   if (changed && t === 'note') App.toast('Nota: clique na página onde quer deixar a nota (Esc volta ao texto)');
   if (changed && t === 'erase') App.toast(App.isTouch ? 'Borracha: passe sobre os traços da caneta para apagá-los' : 'Borracha: passe sobre os traços da caneta para apagá-los (Ctrl+Z desfaz)');
+  if (changed && t === 'lasso') App.toast('Laço: contorne os traços da caneta para selecionar — depois arraste, mude a cor, duplique ou apague');
+  App.updatePenBtn?.();
+  App.emit('tool:changed', t);
 };
-// ---------- Caneta: espessura, marca-texto e caneta stylus ----------
+// ---------- Caneta: caneta e marca-texto (cada um com cor e espessura próprias) e caneta stylus ----------
 const PENS = App.PENS = {
-  fine:   { label: 'Fina', w: 1.3 },
-  mid:    { label: 'Média', w: 2.4 },
-  bold:   { label: 'Grossa', w: 4.5 },
-  marker: { label: 'Marca-texto à mão', w: 14, marker: true },
+  pen:    { label: 'Caneta', min: 0.6, max: 9, def: 2.4 },
+  marker: { label: 'Marca-texto', min: 5, max: 28, def: 14, marker: true },
 };
-state.pen = PENS[ls.get('le.pen', 'mid')] ? ls.get('le.pen', 'mid') : 'mid';
+{ // versões antigas guardavam fina/média/grossa
+  const old = ls.get('le.pen', 'pen'), W = { fine: 1.3, mid: 2.4, bold: 4.5 };
+  if (W[old]) { if (ls.get('le.penW', null) == null) ls.set('le.penW', W[old]); ls.set('le.pen', 'pen'); }
+}
+state.pen = PENS[ls.get('le.pen', 'pen')] ? ls.get('le.pen', 'pen') : 'pen';
+const penKey = (k, what) => `le.${k === 'marker' ? 'marker' : 'pen'}${what}`;
+App.penWidth = (k = state.pen) => { const P = PENS[k]; const w = +ls.get(penKey(k, 'W'), P.def); return Math.max(P.min, Math.min(P.max, w || P.def)); };
+App.setPenWidth = (k, w) => { ls.set(penKey(k, 'W'), +(+w).toFixed(2)); App.updatePenBtn(); };
+App.penColor = (k = state.pen) => ls.get(penKey(k, 'Color'), null) || (k === 'marker' ? (App.COLORS[0] && App.COLORS[0].id) : state.color);
+App.setPenColor = (k, c) => { ls.set(penKey(k, 'Color'), c); App.buildPalette(); App.updatePenBtn(); };
+App.curPen = () => ({ w: App.penWidth(), marker: state.pen === 'marker', color: App.penColor() });
 // com caneta stylus (S Pen etc.): só a caneta desenha, o dedo rola a página
 state.penSeen = ls.get('le.penSeen', false);
 App.setPen = id => {
   if (!PENS[id]) return;
   state.pen = id; ls.set('le.pen', id);
-  if (state.tool !== 'ink') App.setTool('ink');
-  App.updatePenBtn();
+  if (state.tool !== 'ink') App.setTool('ink'); else { App.buildPalette(); App.updatePenBtn(); }
 };
 App.updatePenBtn = () => {
+  const ink = state.tool === 'ink';
+  $$('[data-penkind]').forEach(b => b.classList.toggle('on', ink && b.dataset.penkind === state.pen));
   const b = $('#btnPenOpts'); if (!b) return;
-  const P = PENS[state.pen];
-  b.style.setProperty('--pw', Math.max(2, Math.min(10, P.w * 1.5)) + 'px');
-  b.classList.toggle('marker', !!P.marker);
-  b.title = `Caneta: ${P.label} — escolher a espessura`;
+  const erase = state.tool === 'erase';
+  const P = PENS[state.pen], w = App.penWidth();
+  b.classList.toggle('marker', ink && !!P.marker);
+  b.classList.toggle('eraserOpts', erase);
+  b.style.setProperty('--pw', (erase ? Math.max(3, Math.min(14, ls.get('le.eraseSize', 18) / 2.5)) : Math.max(2, Math.min(12, w * (P.marker ? 0.55 : 1.5)))) + 'px');
+  b.style.setProperty('--pc', erase ? 'currentColor' : App.colorOf(App.penColor()).ink);
+  b.title = erase ? 'Borracha: modo e tamanho' : `${P.label}: espessura`;
 };
-App.penMenu = anchor => App.popMenu(anchor, [
-  ...Object.entries(PENS).map(([k, P]) => ({ label: P.label, icon: k === 'marker' ? 'highlighter' : 'pen', checked: state.pen === k && state.tool === 'ink', on: () => App.setPen(k) })),
-  { sep: true },
-  { label: 'Borracha', sub: 'E', icon: 'eraser', checked: state.tool === 'erase', on: () => App.setTool('erase') },
-  { label: state.penSeen ? 'Dedo também desenha' : 'Só a caneta desenha', sub: state.penSeen ? 'hoje: dedo rola' : 'dedo rola a página',
-    icon: 'pointer', on: () => { state.penSeen = !state.penSeen; ls.set('le.penSeen', state.penSeen);
-      App.toast(state.penSeen ? 'Só a caneta desenha; o dedo rola a página.' : 'O dedo também desenha.'); } },
-], { title: 'Caneta' });
+App.penMenu = anchor => App.penOptions?.(anchor);
 addEventListener('pointerdown', e => {
   if (e.pointerType !== 'pen' || state.penSeen) return;
   state.penSeen = true; ls.set('le.penSeen', true);
@@ -379,7 +393,7 @@ App.loadDoc = async (buf, name) => {
     ocr: rec.ocr || {}, exams: rec.exams || [],
     textCache: new Map(), currentPage: 1, lastInk: null, thumb: rec.thumb || null,
   });
-  undoStack.length = 0;
+  undoStack.length = 0; redoStack.length = 0; updUndo();
   Object.values(legendChips).forEach(c => c.classList.remove('on'));
   const hf = $('#hlFilter'); if (hf) hf.value = '';
 
@@ -769,16 +783,21 @@ App.textRects = (pt, start, end) => {
 };
 
 // ---------- Grifos ----------
-const undoStack = [];
-function snapshot(){ undoStack.push(JSON.stringify(state.highlights)); if (undoStack.length > 50) undoStack.shift(); }
+const undoStack = [], redoStack = [];
+const updUndo = () => { const u = $('#btnUndo'), r = $('#btnRedo'); if (u) u.disabled = !undoStack.length; if (r) r.disabled = !redoStack.length; };
+App.updateUndoBtns = updUndo;
+function snapshot(){ undoStack.push(JSON.stringify(state.highlights)); if (undoStack.length > 80) undoStack.shift(); redoStack.length = 0; updUndo(); }
 App.snapshot = snapshot;
-App.undo = () => {
-  if (!undoStack.length) { App.toast('Nada para desfazer'); return; }
-  state.highlights = JSON.parse(undoStack.pop()).map(normHl);
+function restoreFrom(from, to, msg){
+  to.push(JSON.stringify(state.highlights));
+  state.highlights = JSON.parse(from.pop()).map(normHl);
   state.lastInk = null; closePopup();
-  renderAllAnnots(); App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed');
-  App.toast('Desfeito');
-};
+  renderAllAnnots(); App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed'); App.emit('undo:changed');
+  updUndo();
+  App.toast(msg);
+}
+App.undo = () => { if (!undoStack.length) { App.toast('Nada para desfazer'); return; } restoreFrom(undoStack, redoStack, 'Desfeito — Ctrl+Y refaz'); };
+App.redo = () => { if (!redoStack.length) { App.toast('Nada para refazer'); return; } restoreFrom(redoStack, undoStack, 'Refeito'); };
 
 function hasSelection(){
   const s = getSelection();
@@ -879,12 +898,12 @@ function commitInk(p, pts){
   const now = Date.now();
   const rounded = pts.map(([x, y]) => [+x.toFixed(4), +y.toFixed(4)]);
   const li = state.lastInk;
-  const P = PENS[state.pen] || PENS.mid;
-  let h = li && state.highlights.includes(li.h) && li.page === p.num && li.h.color === state.color && (li.h.width || 2.4) === P.w && !!li.h.marker === !!P.marker && now - li.t < 2500 ? li.h : null;
+  const P = App.curPen();
+  let h = li && state.highlights.includes(li.h) && li.page === p.num && li.h.color === P.color && (li.h.width || 2.4) === P.w && !!li.h.marker === P.marker && now - li.t < 2500 ? li.h : null;
   snapshot();
   if (h) h.parts[0].paths.push(rounded);
   else {
-    h = { id: uid(), kind: 'ink', style: 'fill', color: state.color, text: '', note: '', width: P.w, parts: [{ page: p.num, paths: [rounded] }], created: now };
+    h = { id: uid(), kind: 'ink', style: 'fill', color: P.color, text: '', note: '', width: P.w, parts: [{ page: p.num, paths: [rounded] }], created: now };
     if (P.marker) h.marker = true;
     state.highlights.push(h);
   }
@@ -969,8 +988,10 @@ function renderPageAnnots(p){
       continue;
     }
     if (h.kind === 'ink') {
-      for (const pts of part.paths) {
+      const pi = h.parts.indexOf(part);
+      for (const [k, pts] of part.paths.entries()) {
         const path = document.createElementNS(SVGNS, 'path');
+        path.dataset.k = pi + ':' + k;
         path.setAttribute('d', pathD(pts, p.base));
         path.setAttribute('stroke-width', h.width || 2.4);
         if (h.marker) path.classList.add('marker');
@@ -993,7 +1014,8 @@ function renderPageAnnots(p){
     p.hl.appendChild(g);
   }
 }
-const renderAllAnnots = App.renderAllAnnots = () => state.pages.forEach(renderPageAnnots);
+const renderAllAnnots = App.renderAllAnnots = () => { state.pages.forEach(renderPageAnnots); App.emit('page:annots'); };
+App.renderPageAnnots = p => { renderPageAnnots(p); App.emit('page:annots', p); };
 function refreshHighlight(h){
   new Set(h.parts.map(x => x.page)).forEach(n => renderPageAnnots(state.pages[n - 1]));
   App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed');
@@ -1142,7 +1164,7 @@ function closePopup(){
   // nota que ficou vazia some sozinha
   if (sel && sel.kind === 'note' && !sel.note.trim()) {
     state.highlights = state.highlights.filter(h => h !== sel);
-    undoStack.pop(); refreshHighlight(sel);
+    undoStack.pop(); updUndo(); refreshHighlight(sel);
   }
 }
 App.closePopup = closePopup;
@@ -1313,10 +1335,11 @@ pagesEl.addEventListener('pointerdown', e => {
   if (state.tool === 'note') { createNote(p, start); return; }
   dl.setPointerCapture(e.pointerId);
   // com caneta stylus, o dedo só rola a página
-  if (e.pointerType === 'touch' && state.penSeen && (state.tool === 'ink' || state.tool === 'erase')) {
+  if (e.pointerType === 'touch' && state.penSeen && (state.tool === 'ink' || state.tool === 'erase' || state.tool === 'lasso')) {
     drawing = { type: 'pan', sx: e.clientX, sy: e.clientY, st: viewer.scrollTop, sl: viewer.scrollLeft, cx: e.clientX, cy: e.clientY };
     return;
   }
+  if (state.tool === 'lasso') { drawing = App.lassoStart ? App.lassoStart(p, rect, start, dl, e) : null; return; }
   if (state.tool === 'erase') {
     drawing = { type: 'erase', p, rect, erased: false, cx: e.clientX, cy: e.clientY, last: start };
     eraseAt(drawing, start);
@@ -1332,10 +1355,10 @@ pagesEl.addEventListener('pointerdown', e => {
     const svg = document.createElementNS(SVGNS, 'svg');
     svg.setAttribute('viewBox', `0 0 ${p.base.w} ${p.base.h}`); svg.setAttribute('preserveAspectRatio', 'none');
     const path = document.createElementNS(SVGNS, 'path');
-    const P = PENS[state.pen] || PENS.mid;
+    const P = App.curPen(), pc = App.colorOf(P.color);
     path.setAttribute('stroke-width', P.w);
     if (P.marker) path.classList.add('marker');
-    path.style.setProperty('--c', col.hex); path.style.setProperty('--ci', col.ink);
+    path.style.setProperty('--c', pc.hex); path.style.setProperty('--ci', pc.ink);
     svg.appendChild(path); dl.appendChild(svg);
     drawing = { type: 'ink', p, rect, pts: [start], svg, path, cx: e.clientX, cy: e.clientY };
     path.setAttribute('d', pathD(drawing.pts, p.base));
@@ -1346,6 +1369,7 @@ pagesEl.addEventListener('pointermove', e => {
   const d = drawing;
   if (d.type === 'pan') { viewer.scrollTop = d.st - (e.clientY - d.sy); viewer.scrollLeft = d.sl - (e.clientX - d.sx); return; }
   const pt = normPt(e, d.rect);
+  if (d.type === 'ext') { d.move(pt, e); return; }
   if (d.type === 'erase') {
     // passa também pelos pontos entre um movimento e outro (gesto rápido)
     const [lx, ly] = d.last, dx = (pt[0] - lx) * d.rect.width, dy = (pt[1] - ly) * d.rect.height;
@@ -1365,14 +1389,36 @@ pagesEl.addEventListener('pointermove', e => {
   }
 });
 // borracha: apaga o traço inteiro da caneta que estiver sob o dedo/caneta
+// apaga só o pedaço do traço que fica dentro do círculo da borracha (o resto vira traços separados)
+function cutPath(pts, x, y, r, b){
+  const out = []; let cur = [], changed = false;
+  for (const a of pts) {
+    const ax = a[0] * b.w, ay = a[1] * b.h;
+    if (Math.hypot(ax - x, ay - y) <= r) { changed = true; if (cur.length > 1) out.push(cur); cur = []; continue; }
+    if (cur.length) { const pv = cur[cur.length - 1]; if (distSeg(x, y, pv[0] * b.w, pv[1] * b.h, ax, ay) <= r) { changed = true; if (cur.length > 1) out.push(cur); cur = []; } }
+    cur.push(a);
+  }
+  if (cur.length > 1 || (cur.length === 1 && pts.length === 1)) out.push(cur);
+  return changed ? out : null;
+}
 function eraseAt(d, [x, y]){
   const p = d.p, b = p.base, tol = 9 / Math.max(0.5, state.scale);
+  const partial = ls.get('le.eraseMode', 'stroke') === 'area', rr = ls.get('le.eraseSize', 18) / 2 / Math.max(0.3, state.scale);
   let changed = false;
   for (const h of [...state.highlights]) {
     if (h.kind !== 'ink') continue;
     let hit = false;
     for (const part of h.parts) {
       if (part.page !== p.num) continue;
+      if (partial) {
+        const r = rr + (h.width || 2.4) / 2;
+        let any = false; const next = [];
+        for (const pts of part.paths) { const cut = cutPath(pts, x * b.w, y * b.h, r, b); if (cut) { any = true; next.push(...cut); } else next.push(pts); }
+        if (!any) continue;
+        if (!d.erased && !changed) snapshot();
+        part.paths = next; changed = hit = true;
+        continue;
+      }
       const w = (h.width || 2.4) / 2 + tol;
       const keep = part.paths.filter(pts => {
         for (let k = 0; k < pts.length; k++) {
@@ -1394,6 +1440,7 @@ function finishDrawing(e, cancel){
   if (!drawing) return;
   const d = drawing; drawing = null;
   if (d.type === 'pan') return;
+  if (d.type === 'ext') { d.end(e, cancel); return; }
   if (d.type === 'erase') { if (d.erased) { App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed'); } return; }
   (d.box || d.svg).remove();
   if (cancel) return;
@@ -1454,7 +1501,8 @@ document.addEventListener('keydown', e => {
   if (mod && state.pdf && k === '1') { e.preventDefault(); App.actualSize(); return; }
   const tag = e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') { if (k === 'Escape') e.target.blur(); return; }
-  if (mod && k.toLowerCase() === 'z' && state.pdf) { e.preventDefault(); App.undo(); return; }
+  if (mod && k.toLowerCase() === 'z' && state.pdf) { e.preventDefault(); e.shiftKey ? App.redo() : App.undo(); return; }
+  if (mod && k.toLowerCase() === 'y' && state.pdf) { e.preventDefault(); App.redo(); return; }
   if (mod || e.altKey) return;
   const K = k.toLowerCase();
   if (k === '?') { e.preventDefault(); App.openHelp(); return; }
@@ -1488,7 +1536,7 @@ document.addEventListener('keydown', e => {
   if (k === 'ArrowLeft' && noHScroll) { e.preventDefault(); App.pageStep(-1); return; }
   const actions = {
     h: App.togglePanel, s: () => App.toggleSide?.(), f: App.toggleFocus, r: () => App.openReview?.(),
-    b: () => App.toggleBookmark?.(), t: () => App.toggleDock?.(), g: () => { App.setTool('text'); App.setAutoHL(!state.autoHL, true); }, v: () => App.setTool('text'), a: () => App.setTool('area'), p: () => App.setTool('ink'), c: () => App.setTool('note'), e: () => App.setTool('erase'),
+    b: () => App.toggleBookmark?.(), t: () => App.toggleDock?.(), g: () => { App.setTool('text'); App.setAutoHL(!state.autoHL, true); }, v: () => App.setTool('text'), a: () => App.setTool('area'), p: () => App.setPen('pen'), m: () => App.setPen('marker'), c: () => App.setTool('note'), e: () => App.setTool('erase'),
     o: () => App.openTools?.(), l: () => App.toggleSplit?.(),
   };
   if (actions[K]) { e.preventDefault(); actions[K](); }
@@ -1510,6 +1558,10 @@ $('#btnPanel').onclick = App.togglePanel;
 $('#btnFocus').onclick = App.toggleFocus;
 $$('button[data-tool]').forEach(b => { b.onclick = () => App.setTool(b.dataset.tool); });
 $('#btnPenOpts').onclick = e => App.penMenu(e.currentTarget);
+$('#btnUndo').onclick = () => App.undo();
+$('#btnRedo').onclick = () => App.redo();
+$$('[data-penkind]').forEach(b => { b.onclick = () => App.setPen(b.dataset.penkind); });
+updUndo();
 App.updatePenBtn();
 $$('[data-style]').forEach(b => { b.onmousedown = e => e.preventDefault(); b.onclick = () => App.setStyle(b.dataset.style); });
 

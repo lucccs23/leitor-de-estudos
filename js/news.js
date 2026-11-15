@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.20.0', title: 'Caneta de caderno digital', items: ['Caneta e marca-texto viraram botões próprios, cada um com sua cor e espessura (P e M)', 'Espessura numa barrinha com prévia do traço', 'Borracha: apagar o traço inteiro ou só onde passar (com tamanho ajustável) e "apagar tudo desta página"', 'Laço: contorne traços para arrastar, mudar a cor, duplicar ou apagar', 'Botões de desfazer e refazer (Ctrl+Z e Ctrl+Y)', 'Cores personalizadas: o + na paleta da caneta abre qualquer cor'] },
   { v: '1.19.7', title: 'Começa na página inicial', items: ['O Vetra abre sempre na página inicial, em vez de reabrir o último PDF. Quer voltar ao que estava lendo? Clique nele na lista ou use Ctrl+Shift+T'] },
   { v: '1.19.6', title: 'Painel de grifos só quando você pede', items: ['O painel de grifos não abre mais sozinho nos PDFs: use o botão do painel na barra ou a tecla H', 'Arraste os botões da barra de cima para o lado e solte onde quiser: a nova ordem fica salva'] },
   { v: '1.19.5', title: 'Atualizações ao abrir', items: ['Nova opção em Ajuda → "Procurar sempre ao abrir o Vetra": confere se há versão nova toda vez que o programa abre (sem ela, confere uma vez por dia)', 'Simulado: botão Parar ao lado do pausar — sair e continuar depois, ou cancelar', 'Ao sair, o PDF abre normal para leitura; o botão vira "Continuar simulado" e retoma direto de onde parou'] },
