@@ -1586,3 +1586,7 @@ body.exam:not(.exam-review):not(.exam-paused) .textLayer{cursor:default}
 .aboutActs{display:flex;flex-wrap:wrap;gap:6px}
 /* "Início": só um ícone, e só com um PDF aberto (o nome Vetra já está na janela) */
 .homeBtn{width:36px;height:36px;margin-right:2px}
+
+/* simulado guardado: o botão vira "Continuar simulado" */
+#btnExam.resume,#btnExamResume{color:var(--accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent)}
+#examBar .exStop:hover{color:var(--danger)}

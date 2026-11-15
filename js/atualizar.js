@@ -76,7 +76,7 @@ App.openAbout = () => {
   const li = (k, v) => { const l = el('li'); l.append(el('span', 'muted', k), el('span', null, v)); info.append(l); };
   li('Seus dados', D || !App.isWeb ? 'ficam neste computador' : 'ficam neste aparelho');
   if (D) li('Backups automáticos', 'Documentos\\Vetra\\Backups');
-  li('Atualizações', D ? 'Ajuda → Procurar atualizações (ou sozinho, uma vez por dia)' : 'automáticas ao abrir o app');
+  li('Atualizações', D ? (ls.get('le.updOnOpen', false) ? 'procura sempre que o Vetra abre' : 'Ajuda → Procurar atualizações (ou sozinho, uma vez por dia)') : 'automáticas ao abrir o app');
   body.append(info);
   const acts = el('div', 'aboutActs');
   acts.append(App.ibtn('download', 'Procurar atualizações', () => { dlg.close(); App.checkUpdates(true); }, 'primary sm'),
@@ -87,6 +87,19 @@ App.openAbout = () => {
   if (!dlg.open) dlg.showModal();
 };
 
-// Vetra instalado: confere sozinho uma vez por dia, alguns segundos depois de abrir
-if (D) setTimeout(() => { if (ls.get('le.updChecked', '') !== App.dayKey() && navigator.onLine) App.checkUpdates(false); }, 8000);
+// Ajuda → "Procurar sempre ao abrir o Vetra": confere toda vez que o programa abre (senão, uma vez por dia)
+App.toggleUpdOnOpen = () => {
+  const on = !ls.get('le.updOnOpen', false);
+  ls.set('le.updOnOpen', on);
+  App.toast(on ? 'O Vetra vai procurar atualizações sempre que for aberto.' : (D ? 'O Vetra volta a procurar atualizações uma vez por dia.' : 'Pronto: o navegador continua atualizando o Vetra sozinho.'));
+  if (on && navigator.onLine) App.checkUpdates(false);
+};
+// ao abrir: alguns segundos depois (para não atrasar a abertura)
+{
+  const sempre = !!ls.get('le.updOnOpen', false);
+  if (D || sempre) setTimeout(() => {
+    if (!navigator.onLine) return;
+    if (sempre || ls.get('le.updChecked', '') !== App.dayKey()) App.checkUpdates(false);
+  }, sempre ? 3000 : 8000);
+}
 })();

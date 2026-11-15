@@ -152,7 +152,64 @@ document.addEventListener('keydown', e => {
 }, true);
 const field = (label, ctrl, hint) => { const f = el('div', 'exField'); f.append(el('label', 'exLabel', label), ctrl); if (hint) f.append(hint); return f; };
 
-App.openExam = async () => {
+// botão "Simulado": com um simulado guardado, retoma direto; senão abre a configuração
+App.openExam = () => {
+  if (!state.pdf) { App.toast('Abra a prova (PDF) primeiro.'); return; }
+  if (ex && !ex.finished) { App.toast('O simulado já está em andamento.'); return; }
+  const running = activeExam();
+  if (running) { resume(running); return; }
+  return App.openExamSetup();
+};
+function resume(e){
+  hideView();
+  delete e.left; enterMode(e); save();
+  App.toast(`Simulado retomado: ${Object.keys(e.answers).length} de ${e.n} respondidas · ${fmtClock(e.elapsed)}${e.timeLimit ? ' de ' + fmtClock(e.timeLimit) : ''}.`);
+}
+// parar: sair guardando tudo (continua depois) ou cancelar de vez
+function stopMenu(anchor){
+  if (!ex || ex.finished) return;
+  const n = Object.keys(ex.answers).length;
+  App.popMenu(anchor, [
+    { icon: 'pause', label: 'Sair e continuar depois', sub: 'guarda respostas e tempo', on: leaveExam },
+    { icon: 'trash', label: 'Cancelar simulado', sub: n ? `apaga ${n} resposta${n > 1 ? 's' : ''}` : 'apaga este simulado', danger: true, on: cancelExam },
+  ], { title: 'Parar o simulado', alignRight: true });
+}
+function leaveExam(){
+  if (!ex || ex.finished) return;
+  const e = ex; e.left = true; save();
+  exitMode(); App.scheduleRender();
+  App.toast(`Simulado guardado (${Object.keys(e.answers).length} de ${e.n}). Para voltar, clique em "Continuar simulado".`);
+}
+function cancelExam(){
+  if (!ex || ex.finished) return;
+  const n = Object.keys(ex.answers).length;
+  if (n && !confirm(`Cancelar o simulado? As ${n} respostas marcadas serão apagadas.`)) return;
+  const e = ex; state.exams = state.exams.filter(x => x !== e);
+  exitMode(true); save(); App.scheduleRender();
+  App.toast('Simulado cancelado.');
+}
+App.leaveExam = leaveExam;
+function updateExamBtn(){
+  const b = $('#btnExam'); if (!b) return;
+  const running = state.pdf ? activeExam() : null;
+  b.replaceChildren(App.icon('exam'), document.createTextNode(running ? 'Continuar simulado' : 'Simulado'));
+  b.title = running ? `Continuar o simulado guardado (${Object.keys(running.answers).length} de ${running.n} respondidas)` : 'Modo simulado: folha de respostas, cronômetro e correção';
+  b.classList.toggle('resume', !!running);
+  // se o botão Simulado não está na barra, um "Continuar simulado" aparece sozinho enquanto houver simulado guardado
+  let chip = $('#btnExamResume');
+  const need = !!running && !ex && !b.closest('#tbPins');
+  if (need && !chip) {
+    chip = el('button', 'btn soft doc-only noExam resume'); chip.id = 'btnExamResume'; chip.type = 'button';
+    chip.onclick = () => App.openExam();
+    $('#tbPins')?.before(chip);
+  }
+  if (chip) {
+    chip.hidden = !need;
+    if (need) { chip.replaceChildren(App.icon('exam'), document.createTextNode('Continuar simulado')); chip.title = b.title; }
+  }
+}
+App.updateExamBtn = updateExamBtn;
+App.openExamSetup = async () => {
   if (!state.pdf) { App.toast('Abra a prova (PDF) primeiro.'); return; }
   if (ex && !ex.finished) { App.toast('O simulado já está em andamento.'); return; }
   showView(v => { const c = el('div', 'rvCard exCard'); c.append(el('h2', null, 'Modo simulado'), el('p', 'muted', 'Analisando a prova…')); v.append(c); });
@@ -169,8 +226,8 @@ function setupCard(v, det){
     const answered = Object.keys(running.answers).length;
     box.append(el('div', null, `Você tem um simulado em andamento: ${answered} de ${running.n} respondidas · ${fmtClock(running.elapsed)}${running.timeLimit ? ' de ' + fmtClock(running.timeLimit) : ''}.`));
     const row = el('div', 'exRow');
-    row.append(btn('Continuar', () => { hideView(); enterMode(running); }, 'primary'),
-      btn('Descartar', () => { if (confirm('Descartar o simulado em andamento? As respostas dele serão apagadas.')) { state.exams = state.exams.filter(e => e !== running); save(); App.openExam(); } }, 'outline danger'));
+    row.append(btn('Continuar', () => resume(running), 'primary'),
+      btn('Descartar', () => { if (confirm('Descartar o simulado em andamento? As respostas dele serão apagadas.')) { state.exams = state.exams.filter(e => e !== running); save(); updateExamBtn(); App.openExamSetup(); } }, 'outline danger'));
     box.append(row); c.append(box);
   }
   // questões
@@ -286,6 +343,7 @@ function enterMode(e){
   if (!e.finished) { lastTick = Date.now(); tickT = setInterval(tick, 1000); goToQuestion(curQ, true); }
   App.scheduleRender();
   buildAlts(e).then(m => { if (ex === e) { altMap = m; renderAlts(); } });
+  updateExamBtn();
 }
 function exitMode(silent){
   clearInterval(tickT); tickT = null;
@@ -295,6 +353,7 @@ function exitMode(silent){
   pause.hidden = true; bar.innerHTML = ''; panel.innerHTML = '';
   $$('.qLayer').forEach(l => l.remove());
   altMap = {}; sheetFilter = 'all';
+  updateExamBtn();
 }
 App.exitExam = () => exitMode();
 const firstOpenQuestion = e => { for (let q = 1; q <= e.n; q++) if (!e.answers[q]) return q; return 1; };
@@ -328,7 +387,7 @@ function setPaused(on, silent){
   paused = on; lastTick = Date.now();
   document.body.classList.toggle('exam-paused', on);
   pause.hidden = !on;
-  if (on) { pause.innerHTML = ''; const b = el('div', 'pauseCard'); b.append(App.icon('pause'), el('h2', null, 'Simulado pausado'), el('p', 'muted', `${fmtClock(ex.elapsed)} até agora · a prova fica escondida enquanto estiver pausado`), btn('Continuar (P)', () => setPaused(false), 'primary lg')); pause.append(b); }
+  if (on) { pause.innerHTML = ''; const b = el('div', 'pauseCard'); b.append(App.icon('pause'), el('h2', null, 'Simulado pausado'), el('p', 'muted', `${fmtClock(ex.elapsed)} até agora · a prova fica escondida enquanto estiver pausado`), btn('Continuar (P)', () => setPaused(false), 'primary lg'), btn('Sair e continuar depois', leaveExam, 'outline')); pause.append(b); }
   renderBar(); save();
   if (!on && !silent) viewer.focus({ preventScroll: true });
 }
@@ -366,8 +425,9 @@ function renderBar(){
   }
   const clock = el('span', 'examChip'); clock.id = 'examClock'; clock.title = 'Tempo de prova';
   const pb = App.ibtn(paused ? 'play' : 'pause', null, () => setPaused(!paused), 'sm', paused ? 'Continuar (P)' : 'Pausar (P)');
+  const stop = App.ibtn('stop', null, e2 => stopMenu(e2.currentTarget), 'sm exStop', 'Parar: sair e continuar depois, ou cancelar o simulado');
   const deliverBtn = App.ibtn('check', 'Entregar', () => deliver(false), 'sm primary');
-  bar.append(clock, pb, deliverBtn);
+  bar.append(clock, pb, stop, deliverBtn);
   updateClock();
 }
 function updateClock(){
@@ -1168,7 +1228,8 @@ async function makeErrorCards(e){
 App.on('doc:loaded', () => {
   exitMode(true); detectCache = null;
   const running = activeExam();
-  if (running) { enterMode(running); setPaused(true, true); }
+  if (running && !running.left) { enterMode(running); setPaused(true, true); }
+  updateExamBtn();
 });
 App.on('doc:closed', () => exitMode(true));
 App.on('exams:reload', () => {

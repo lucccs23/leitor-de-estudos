@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.19.5', title: 'Atualizações ao abrir', items: ['Nova opção em Ajuda → "Procurar sempre ao abrir o Vetra": confere se há versão nova toda vez que o programa abre (sem ela, confere uma vez por dia)', 'Simulado: botão Parar ao lado do pausar — sair e continuar depois, ou cancelar', 'Ao sair, o PDF abre normal para leitura; o botão vira "Continuar simulado" e retoma direto de onde parou'] },
   { v: '1.19.4', title: 'Simulado mais fluido', items: ['Clicar na alternativa marca na hora (antes havia uma pequena espera); o clique duplo continua riscando', 'Dá para ocultar a folha de respostas durante a prova: botão da barra ou tecla F (o Vetra lembra a escolha)', 'A busca na barra ficou só com a lupa: clique nela (ou Ctrl+K) para buscar ou achar qualquer função'] },
   { v: '1.19.3', title: 'Menu Ajuda', items: ['Novo menu Ajuda na barra de cima (como nos programas de PDF): Procurar atualizações, Novidades, Atalhos do teclado e Sobre o Vetra. Quando há versão nova, ele ganha um pontinho', 'No lugar do logo, um botão de Início (casinha) aparece quando um PDF está aberto', 'O cartão de Backup não mostra mais "parado" enquanto o backup ainda está ligando'] },
   { v: '1.19.2', title: 'Marcação como no papel', items: ['No simulado, a alternativa marcada ganha um círculo azul-caneta em volta da letra e a riscada um traço de lápis — sem cores de certo/errado até você corrigir', 'Clique duplo (ou dois toques) na alternativa risca; o botão direito continua riscando também'] },

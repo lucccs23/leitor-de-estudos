@@ -43,6 +43,7 @@ const C = [
   // Estudar
   { id: 'review', group: 'Estudar', label: 'Revisar grifos', short: 'Revisar', icon: 'cards', key: 'R', doc: true, el: '#btnReview', run: () => App.openReview() },
   { id: 'exam', group: 'Estudar', label: 'Modo simulado', short: 'Simulado', icon: 'exam', doc: true, el: '#btnExam', run: () => App.openExam() },
+  { id: 'examNew', group: 'Estudar', label: 'Novo simulado / configurar…', keywords: 'prova gabarito tempo', icon: 'exam', doc: true, run: () => App.openExamSetup() },
   { id: 'summary', group: 'Estudar', label: 'Caderno de resumo (PDF)', short: 'Caderno de resumo', icon: 'book', run: () => App.openSummary() },
   { id: 'ai', group: 'Estudar', label: 'Perguntar à IA', icon: 'ai', doc: true, el: '#btnAi', run: a => App.aiOpen ? App.aiOpen(a) : $('#btnAi').click() },
   { id: 'search', group: 'Estudar', label: 'Buscar neste PDF', icon: 'search', key: 'Ctrl+F', doc: true, el: '#btnSearch', run: () => App.openSearch() },
@@ -71,6 +72,7 @@ const C = [
   { id: 'shortcuts', group: 'Ajuda', label: 'Atalhos do teclado', icon: 'keyboard', key: 'F1', run: () => App.openHelp() },
   { id: 'backupNow', group: 'Configurações', label: 'Fazer backup agora', icon: 'cloud', run: () => App.backupNow?.() },
   { id: 'sync', group: 'Configurações', label: 'Sincronizar aparelhos…', short: 'Sincronizar', keywords: 'nuvem celular tablet github', icon: 'restore', run: () => App.openSync() },
+  { id: 'updOnOpen', group: 'Ajuda', label: 'Procurar sempre ao abrir o Vetra', keywords: 'atualização automática iniciar', icon: 'clock', run: () => App.toggleUpdOnOpen?.(), on: () => !!ls.get('le.updOnOpen', false) },
   { id: 'updates', group: 'Ajuda', label: 'Procurar atualizações…', badge: () => App.updateInfo && App.updateInfo.temNova ? 'nova' : '', label2: 'Procurar atualizações', keywords: 'versão nova atualizar', icon: 'download', run: () => (App.checkUpdates ? App.checkUpdates(true) : App.toast('No celular e no site, o Vetra se atualiza sozinho.')) },
   { id: 'news', group: 'Ajuda', label: 'Novidades', icon: 'news', run: () => App.openNews?.() },
 ];
@@ -88,8 +90,8 @@ App.commandAvailable = c => !c.doc || doc();
 // ---------- Menus Exibir e Estudar ----------
 const MENUS = {
   view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', 'fitPage', 'actualSize', '-', 'look'] },
-  help: { btn: '#btnHelpMenu', box: '#helpMenu', items: ['updates', '-', 'news', 'shortcuts', '-', 'about'] },
-  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'siglas', '-', 'ai', 'aiChapter', 'aiHighlights', 'aiHistory', 'aiPrompts', '-', 'plan', 'stats', 'pomoSettings', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr'] },
+  help: { btn: '#btnHelpMenu', box: '#helpMenu', items: ['updates', 'updOnOpen', '-', 'news', 'shortcuts', '-', 'about'] },
+  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'examNew', 'summary', 'siglas', '-', 'ai', 'aiChapter', 'aiHighlights', 'aiHistory', 'aiPrompts', '-', 'plan', 'stats', 'pomoSettings', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr'] },
 };
 let openMenu = null;
 function menuItem(c){
@@ -159,7 +161,7 @@ document.addEventListener('mousedown', e => { if (openMenu && !e.target.closest?
 document.addEventListener('keydown', e => { if (openMenu && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); const b = $(MENUS[openMenu].btn); closeMenus(); b.focus(); } }, true);
 
 // ---------- Barra personalizável ----------
-const DEFAULT_PINS = ['cmdk', 'ai', 'pomo', 'panel'];
+const DEFAULT_PINS = ['cmdk', 'ai', 'exam', 'pomo', 'panel'];
 const pins = () => { const p = ls.get('le.tbPins', null); return Array.isArray(p) ? p.filter(id => id === 'cmdk' || byId(id)) : DEFAULT_PINS.slice(); };
 const savePins = p => { ls.set('le.tbPins', p); renderPins(); };
 const zone = $('#tbPins'), stash = $('#tbStash');
@@ -196,6 +198,7 @@ function renderPins(){
     e.dataset.pin = id; zone.append(e);
   }
   refreshPins();
+  App.updateExamBtn?.();
 }
 // estado "ligado" dos botões criados (ex.: régua, duas páginas)
 function refreshPins(){
