@@ -43,6 +43,9 @@
     <symbol id="i-area" viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M11 4h2M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 11v2M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M13 20h-2M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 13v-2"/></symbol>
     <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M8.5 20h11"/><path d="m4.6 15.2 9.9-9.9a2 2 0 0 1 2.8 0l2.4 2.4a2 2 0 0 1 0 2.8L12 18.2a2 2 0 0 1-1.4.6H8.4a2 2 0 0 1-1.4-.6l-2.4-2.4a2 2 0 0 1 0-2.8z"/><path d="m9 10.8 5.2 5.2"/></symbol>
     <symbol id="i-pointer" viewBox="0 0 24 24"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-.5a1.5 1.5 0 0 1 3 0v1m0 0a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-4.6-2.2L4.6 15.4a1.5 1.5 0 0 1 2.3-1.9L9 15.5"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5"/><path d="M6 9v10.5h12V9"/><path d="M10 19.5v-5h4v5"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.5a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6"/><path d="M12 17h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8h.01"/></symbol>
     <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m14.5 7.5 3 3"/></symbol>
     <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14A1.5 1.5 0 0 1 20.5 6v9a1.5 1.5 0 0 1-1.5 1.5h-6L8 20.5v-4H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5z"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V6A2 2 0 0 0 13.5 4H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></symbol>
@@ -97,9 +100,7 @@
 
 <header id="toolbar">
   <div id="loadbar" aria-hidden="true"></div>
-  <button id="btnHome" class="logo" title="Início — documentos recentes e sua semana">
-    <img src="icone.png" alt=""><span class="logoName">Vetra</span>
-  </button>
+  <button id="btnHome" class="btn icon homeBtn doc-only" title="Início — fechar o PDF e voltar aos documentos recentes" aria-label="Início"><svg class="i"><use href="#i-home"/></svg></button>
   <div class="menuWrap fileWrap">
     <button class="btn fileBtn" id="btnFile" title="Arquivo: abrir, salvar, salvar como, exportar, imprimir" aria-haspopup="menu"><svg class="i fmBtnIcon"><use href="#i-file"/></svg><span class="fmBtnText">Arquivo</span></button>
     <div id="fileMenu" class="fileMenu" role="menu" hidden></div>
@@ -111,6 +112,10 @@
   <div class="menuWrap fileWrap barMenu">
     <button class="btn fileBtn" id="btnStudy" title="Estudar: revisar, simulado, caderno de resumo, IA e ferramentas" aria-haspopup="menu"><svg class="i fmBtnIcon"><use href="#i-cards"/></svg><span class="fmBtnText">Estudar</span></button>
     <div id="studyMenu" class="fileMenu" role="menu" hidden></div>
+  </div>
+  <div class="menuWrap fileWrap barMenu">
+    <button class="btn fileBtn" id="btnHelpMenu" title="Ajuda: procurar atualizações, novidades, atalhos e sobre o Vetra" aria-haspopup="menu"><svg class="i fmBtnIcon"><use href="#i-help"/></svg><span class="fmBtnText">Ajuda</span></button>
+    <div id="helpMenu" class="fileMenu" role="menu" hidden></div>
   </div>
   <span class="tbSep tbSepLeft"></span>
   <nav id="tabbar" hidden>
@@ -144,9 +149,6 @@
         <div class="menuLabel">Personalizar</div>
         <button data-act="look"><svg class="i"><use href="#i-palette"/></svg><span>Aparência e leitura<small>Temas, cores, página, grifos e régua</small></span></button>
         <button data-act="toolbar"><svg class="i"><use href="#i-pin"/></svg><span>Personalizar a barra<small>Arraste funções para a barra, reordene ou tire</small></span></button>
-        <button data-act="updates" class="desktopOnly"><svg class="i"><use href="#i-download"/></svg><span>Procurar atualizações<small>Baixa a versão nova do Vetra e reabre</small></span></button>
-        <button data-act="news"><svg class="i"><use href="#i-news"/></svg><span>Novidades<small>O que mudou nas últimas versões</small></span></button>
-        <button data-act="help"><svg class="i"><use href="#i-keyboard"/></svg><span>Atalhos do teclado<small>Tecla ? ou F1</small></span></button>
         <button data-act="keepimg"><svg class="i"><use href="#i-check" id="keepImgIcon"/></svg><span>Manter imagens originais no escuro<small id="keepImgLabel">Ligado — radiografias e fotos não ficam invertidas</small></span></button>
         <div class="menuLabel">Backup</div>
         <button data-act="sync"><svg class="i"><use href="#i-restore"/></svg><span>Sincronizar aparelhos<small>Computador, tablet e celular com os mesmos grifos</small></span></button>

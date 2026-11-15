@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.19.3', title: 'Menu Ajuda', items: ['Novo menu Ajuda na barra de cima (como nos programas de PDF): Procurar atualizações, Novidades, Atalhos do teclado e Sobre o Vetra. Quando há versão nova, ele ganha um pontinho', 'No lugar do logo, um botão de Início (casinha) aparece quando um PDF está aberto', 'O cartão de Backup não mostra mais "parado" enquanto o backup ainda está ligando'] },
   { v: '1.19.2', title: 'Marcação como no papel', items: ['No simulado, a alternativa marcada ganha um círculo azul-caneta em volta da letra e a riscada um traço de lápis — sem cores de certo/errado até você corrigir', 'Clique duplo (ou dois toques) na alternativa risca; o botão direito continua riscando também'] },
   { v: '1.19.1', title: 'Atualizações no Vetra para Windows', items: ['Configurações → Procurar atualizações: o Vetra instalado baixa a versão nova e reabre, sem reinstalar. Ele também confere sozinho uma vez por dia', 'Simulado no celular: a folha de respostas abre pelo placar na barra (ex.: 12/100), e a prova fica livre para tocar nas alternativas'] },
   { v: '1.19', title: 'Simulado melhor', items: [

@@ -1565,3 +1565,22 @@ body.exam:not(.exam-review):not(.exam-paused) .textLayer{cursor:default}
   #examBar .examChip.review{max-width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;line-height:30px}
   body.exam.exam-sheet .exSheetBtn{background:var(--accent);color:var(--on-accent)}
 }
+
+/* menu Ajuda: pontinho quando há versão nova; selo "nova" no item */
+#btnHelpMenu{position:relative}
+#btnHelpMenu.has-update::after{content:'';position:absolute;top:6px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--surface)}
+.fmBadge{margin-left:auto;padding:1px 7px;border-radius:99px;background:var(--accent);color:var(--on-accent);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.fmBadge + kbd{margin-left:8px}
+.updAlert{border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
+/* Sobre o Vetra */
+.aboutDlg{width:min(460px,94vw)}
+.aboutHead{display:flex;align-items:center;gap:14px;padding:18px 18px 6px}
+.aboutHead img{width:56px;height:56px;border-radius:14px}
+.aboutHead h2{margin:0;font-size:20px}
+.aboutClose{margin-left:auto;align-self:flex-start}
+.aboutBody{padding:6px 18px 18px;font-size:13.5px;line-height:1.5}
+.aboutList{list-style:none;margin:10px 0 14px;padding:0;display:flex;flex-direction:column;gap:6px}
+.aboutList li{display:grid;grid-template-columns:150px 1fr;gap:10px}
+.aboutActs{display:flex;flex-wrap:wrap;gap:6px}
+/* "Início": só um ícone, e só com um PDF aberto (o nome Vetra já está na janela) */
+.homeBtn{width:36px;height:36px;margin-right:2px}

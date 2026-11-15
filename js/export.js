@@ -381,6 +381,7 @@ addEventListener('visibilitychange', () => { if (document.hidden && dirHandle &&
 // O serviço grava em Documentos\Leitor de Estudos\Backups: um arquivo por dia (últimos 30) + ultimo-backup.json.
 const localBase = () => 'http://127.0.0.1:' + (App.ls.get('le.svcPort', 47613) || 47613);
 let local = { ok: false, checked: false, pasta: '', ultimo: null }, lastLocal = 0, localT = null;
+const startedAt = Date.now();
 const localToken = () => App.ls.get('le.bkToken', null);
 async function localFetch(path, opts){
   const t = localToken(); if (!t) throw new Error('sem senha');
@@ -464,9 +465,16 @@ function renderBackupStatus(){
     ll.textContent = `Ligado — ${shortPath(local.pasta)}${local.ultimo ? ' · último ' + fmtWhen(local.ultimo) : ''}`;
     hint.textContent = `Automático e ligado. ${local.ultimo ? 'Última cópia ' + fmtWhen(local.ultimo) + '. ' : ''}Os últimos 30 dias ficam em ${shortPath(local.pasta)}.`;
     dot.className = 'statusDot ok'; dot.title = 'Backup automático ligado';
+  } else if (local.checked && Date.now() - startedAt < 15000) {
+    // o serviço leva alguns segundos para ligar depois que o app abre
+    ll.textContent = 'Ligando…';
+    hint.textContent = 'Ligando o backup automático…';
+    dot.className = 'statusDot'; dot.title = 'Ligando o backup automático';
   } else if (local.checked) {
-    ll.textContent = 'Parado — abra o leitor pelo atalho para ativar';
-    hint.textContent = 'O backup automático está parado. Abra o Vetra pelo atalho "Vetra" (ou rode "Instalar atalho" de novo) para ativá-lo.';
+    const app = !!window.vetraDesktop;
+    ll.textContent = app ? 'Parado — feche e abra o Vetra' : 'Parado — abra o leitor pelo atalho para ativar';
+    hint.textContent = app ? 'O backup automático não respondeu. Feche e abra o Vetra; se continuar, instale de novo pelo instalador (seus dados ficam).'
+      : 'O backup automático está parado. Abra pelo atalho "Vetra (testes)" (ou rode "Instalar atalho" de novo) para ativá-lo.';
     dot.className = 'statusDot off'; dot.title = 'Backup automático parado';
   }
   // cópia extra numa pasta escolhida (ex.: OneDrive)
@@ -487,7 +495,9 @@ App.renderBackupStatus = renderBackupStatus;
 
 App.initBackup = async () => {
   // backup local: confere o serviço e faz uma cópia logo ao abrir
-  checkLocal().then(ok => { if (ok) writeLocal(true); });
+  // o serviço pode estar ligando junto com o app: tenta de novo algumas vezes nos primeiros segundos
+  const tentar = async () => { const ok = await checkLocal(); if (ok) writeLocal(true); return ok; };
+  tentar().then(ok => { if (ok) return; [1500, 3500, 7000, 12000, 16000].forEach(ms => setTimeout(() => { if (!local.ok) tentar(); else renderBackupStatus(); }, ms)); });
   setInterval(() => { if (!local.ok) checkLocal(); }, 60000); // se o serviço subir depois, detecta sozinho
   const rec = await safe(() => DB.get('meta', 'backupDir'), null);
   if (rec && rec.handle) {

@@ -67,11 +67,12 @@ const C = [
   { id: 'ocr', group: 'Ferramentas', label: 'Reconhecer texto (OCR)', icon: 'scan', doc: true, run: () => App.runOcr() },
   // Configurações
   { id: 'customize', group: 'Configurações', label: 'Personalizar a barra…', icon: 'pin', run: () => App.customizeToolbar() },
-  { id: 'shortcuts', group: 'Configurações', label: 'Atalhos do teclado', icon: 'keyboard', key: 'F1', run: () => App.openHelp() },
+  { id: 'about', group: 'Ajuda', label: 'Sobre o Vetra', icon: 'info', run: () => App.openAbout() },
+  { id: 'shortcuts', group: 'Ajuda', label: 'Atalhos do teclado', icon: 'keyboard', key: 'F1', run: () => App.openHelp() },
   { id: 'backupNow', group: 'Configurações', label: 'Fazer backup agora', icon: 'cloud', run: () => App.backupNow?.() },
   { id: 'sync', group: 'Configurações', label: 'Sincronizar aparelhos…', short: 'Sincronizar', keywords: 'nuvem celular tablet github', icon: 'restore', run: () => App.openSync() },
-  { id: 'updates', group: 'Configurações', label: 'Procurar atualizações', keywords: 'versão nova atualizar', icon: 'download', run: () => (App.checkUpdates ? App.checkUpdates(true) : App.toast('No celular e no site, o Vetra se atualiza sozinho.')) },
-  { id: 'news', group: 'Configurações', label: 'Novidades', icon: 'news', run: () => App.openNews?.() },
+  { id: 'updates', group: 'Ajuda', label: 'Procurar atualizações…', badge: () => App.updateInfo && App.updateInfo.temNova ? 'nova' : '', label2: 'Procurar atualizações', keywords: 'versão nova atualizar', icon: 'download', run: () => (App.checkUpdates ? App.checkUpdates(true) : App.toast('No celular e no site, o Vetra se atualiza sozinho.')) },
+  { id: 'news', group: 'Ajuda', label: 'Novidades', icon: 'news', run: () => App.openNews?.() },
 ];
 App.commands = C;
 const byId = id => C.find(c => c.id === id);
@@ -87,6 +88,7 @@ App.commandAvailable = c => !c.doc || doc();
 // ---------- Menus Exibir e Estudar ----------
 const MENUS = {
   view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', 'fitPage', 'actualSize', '-', 'look'] },
+  help: { btn: '#btnHelpMenu', box: '#helpMenu', items: ['updates', '-', 'news', 'shortcuts', '-', 'about'] },
   study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'summary', 'siglas', '-', 'ai', 'aiChapter', 'aiHighlights', 'aiHistory', 'aiPrompts', '-', 'plan', 'stats', 'pomoSettings', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr'] },
 };
 let openMenu = null;
@@ -96,6 +98,7 @@ function menuItem(c){
   b.append(App.icon(c.icon), el('span', 'fmLabel', c.label));
   if (c.on) b.append(App.icon(isOn ? 'check' : 'x', 'i fmCheck' + (isOn ? ' on' : '')));
   if (c.key) b.append(el('kbd', null, c.key));
+  const badge = c.badge && c.badge(); if (badge) b.append(el('span', 'fmBadge', badge));
   b.disabled = !App.commandAvailable(c);
   b.onclick = e => { e.stopPropagation(); App.runCommand(c.id, $(MENUS[openMenu]?.btn)); };
   return b;
