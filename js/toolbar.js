@@ -169,7 +169,7 @@ function pinEl(id){
     if (!made.has(id)) {
       const b = el('button', 'btn cmdkPill'); b.type = 'button';
       b.append(App.icon('search'), el('span', 'cmdkText', 'Buscar ou comando'), el('kbd', null, 'Ctrl K'));
-      b.title = 'Paleta de comandos: digite o nome de qualquer função ou o que quer buscar (Ctrl+K)';
+      b.title = 'Buscar ou comando (Ctrl+K): digite o nome de qualquer função ou o que quer buscar'; b.setAttribute('aria-label', 'Buscar ou comando');
       b.onclick = () => App.openPalette?.();
       made.set(id, b);
     }

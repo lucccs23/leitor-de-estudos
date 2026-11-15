@@ -4,7 +4,7 @@
 (() => {
 'use strict';
 const App = window.App;
-const { $, $$, el, btn, state } = App;
+const { $, $$, el, btn, state, ls } = App;
 
 const view = $('#examView'), panel = $('#examPanel'), bar = $('#examBar'), pause = $('#examPause'), viewer = $('#viewer');
 const LETTERS = 'ABCDE';
@@ -265,7 +265,7 @@ function setupCard(v, det){
     };
     state.exams.push(e); save();
     hideView(); enterMode(e);
-    App.toast('Boa prova! Clique na alternativa (ou A–E) para marcar · clique duplo, botão direito ou Shift+letra risca · X dúvida · Z chute · J/K navegam.');
+    App.toast('Boa prova! Clique na alternativa (ou A–E) para marcar · clique duplo, botão direito ou Shift+letra risca · X dúvida · Z chute · J/K navegam · F oculta a folha.');
   }, 'primary');
   actions.append(start, btn('Fechar', hideView));
   c.append(actions); v.append(c);
@@ -278,6 +278,7 @@ function enterMode(e){
   ex = e; paused = false;
   curQ = Math.max(1, Math.min(e.n, firstOpenQuestion(e)));
   document.body.classList.add('exam');
+  document.body.classList.toggle('exam-nosheet', !!ls.get('le.examSheetHidden', false));
   document.body.classList.toggle('exam-review', !!e.finished);
   App.closePopup();
   e.guess = e.guess || {}; e.areas = e.areas || [];
@@ -290,7 +291,7 @@ function exitMode(silent){
   clearInterval(tickT); tickT = null;
   if (ex && !silent) save();
   ex = null; paused = false;
-  document.body.classList.remove('exam', 'exam-review', 'exam-paused', 'exam-sheet');
+  document.body.classList.remove('exam', 'exam-review', 'exam-paused', 'exam-sheet', 'exam-nosheet');
   pause.hidden = true; bar.innerHTML = ''; panel.innerHTML = '';
   $$('.qLayer').forEach(l => l.remove());
   altMap = {}; sheetFilter = 'all';
@@ -335,9 +336,24 @@ function setPaused(on, silent){
 const sheetBtn = () => {
   const b = el('button', 'btn sm exSheetBtn'); b.id = 'exSheetBtn';
   b.append(App.icon('list'), el('span', null, ex ? `${Object.keys(ex.answers).length}/${ex.n}` : ''));
-  b.title = 'Folha de respostas'; b.onclick = () => document.body.classList.toggle('exam-sheet');
+  b.title = 'Mostrar ou ocultar a folha de respostas (F)'; b.onclick = toggleSheet;
+  b.setAttribute('aria-pressed', String(sheetShown()));
   return b;
 };
+// folha de respostas: no celular abre por cima quando você pede; no computador fica ao lado e dá para ocultar (lembra a escolha)
+const isPhone = () => innerWidth <= 700;
+const sheetShown = () => isPhone() ? document.body.classList.contains('exam-sheet') : !document.body.classList.contains('exam-nosheet');
+function toggleSheet(){
+  if (isPhone()) document.body.classList.toggle('exam-sheet');
+  else {
+    const hide = !document.body.classList.contains('exam-nosheet');
+    document.body.classList.toggle('exam-nosheet', hide);
+    ls.set('le.examSheetHidden', hide);
+    App.toast(hide ? 'Folha de respostas oculta: F ou o botão da barra mostra de novo.' : 'Folha de respostas à vista.');
+    App.scheduleRender?.();
+  }
+  $('#exSheetBtn')?.setAttribute('aria-pressed', String(sheetShown()));
+}
 function renderBar(){
   bar.innerHTML = '';
   if (!ex) return;
@@ -700,9 +716,9 @@ function altAt(e2){
 // clique simples (sem arrastar para selecionar texto) marca; o botão direito risca
 let downAt = null;
 viewer.addEventListener('pointerdown', e2 => { downAt = { x: e2.clientX, y: e2.clientY }; }, true);
-// um clique marca; dois cliques (ou toques) rápidos riscam. O 1º clique espera um instante para saber se vem o 2º.
-const DOUBLE_MS = 320;
-let lastTap = null, tapT = null;
+// um clique marca na hora; se vier um 2º clique (ou toque) rápido na mesma alternativa, desfaz a marcação e risca.
+const DOUBLE_MS = 350;
+let lastTap = null;
 const sameAlt = (a, b) => a && b && a.q === b.q && a.L === b.L;
 // o 2º clique rápido não seleciona a palavra (o navegador faria isso no clique duplo)
 viewer.addEventListener('mousedown', e2 => {
@@ -715,38 +731,44 @@ viewer.addEventListener('click', e2 => {
   const hit = altAt(e2); if (!hit) { lastTap = null; return; }
   const now = Date.now();
   if (lastTap && sameAlt(lastTap, hit) && now - lastTap.t < DOUBLE_MS) {
-    // clique duplo: risca (e não marca)
-    clearTimeout(tapT); tapT = null; lastTap = null;
+    // clique duplo: volta ao que era antes do 1º clique e risca
+    const prev = lastTap.prev; lastTap = null;
     getSelection().removeAllRanges();
+    if (prev.a) ex.answers[hit.q] = prev.a; else delete ex.answers[hit.q];
+    ex.elim[hit.q] = prev.elim.slice();
+    // a marca do 1º clique some sem animação (não "pisca")
+    $$(`.altMark[data-q="${hit.q}"]`).forEach(m => { m.style.transition = 'none'; });
     toggleElim(hit.q, hit.L);
+    requestAnimationFrame(() => requestAnimationFrame(() => $$(`.altMark[data-q="${hit.q}"]`).forEach(m => { m.style.transition = ''; })));
     setTimeout(() => App.closePopup(), 30);
     return;
   }
   if (App.hasSelection()) return;
-  lastTap = { ...hit, t: now };
-  clearTimeout(tapT);
-  tapT = setTimeout(() => {
-    tapT = null;
-    if (!ex || ex.finished) return;
-    if (curQ !== hit.q) { curQ = hit.q; markCurrent(true); }
-    holdScrollUntil = Date.now() + 700;
-    const adv = ex.autoAdvance; ex.autoAdvance = false; // na própria prova não pula de lugar
-    setAnswer(hit.q, hit.L); ex.autoAdvance = adv;
-    App.closePopup();
-  }, DOUBLE_MS);
+  // marca já no 1º clique (guardando o estado anterior, caso seja um clique duplo)
+  lastTap = { ...hit, t: now, prev: { a: ex.answers[hit.q], elim: (ex.elim[hit.q] || []).slice() } };
+  if (curQ !== hit.q) { curQ = hit.q; markCurrent(true); }
+  holdScrollUntil = Date.now() + 700;
+  const adv = ex.autoAdvance; ex.autoAdvance = false; // na própria prova não pula de lugar
+  setAnswer(hit.q, hit.L); ex.autoAdvance = adv;
+  setTimeout(() => App.closePopup(), 30);
 });
 // passar o mouse: destaca só a alternativa embaixo do cursor
 let hovT = 0, hovEl = null;
 viewer.addEventListener('mousemove', e2 => {
   if (!ex || ex.finished || paused || state.tool !== 'text' || e2.buttons) { if (hovEl) { hovEl.classList.remove('hov'); hovEl = null; document.body.classList.remove('alt-hover'); } return; }
-  const now = performance.now(); if (now - hovT < 40) return; hovT = now;
+  hovEv = e2; if (hovT) return;
+  hovT = requestAnimationFrame(() => { hovT = 0; hoverAt(hovEv); });
+}, { passive: true });
+let hovEv = null;
+function hoverAt(e2){
+  if (!ex || ex.finished || paused) return;
   const hit = altAt(e2);
   const b = hit ? $(`.altMark[data-q="${hit.q}"][data-l="${hit.L}"]`) : null;
   if (b === hovEl) return;
   if (hovEl) hovEl.classList.remove('hov');
   hovEl = b; if (b) b.classList.add('hov');
   document.body.classList.toggle('alt-hover', !!b);
-}, { passive: true });
+}
 viewer.addEventListener('contextmenu', e2 => {
   if (!ex || ex.finished || paused) return;
   const hit = altAt(e2); if (!hit) return;
@@ -803,6 +825,7 @@ async function detectAreas(anchors){
 App.examKey = e => {
   if (!ex || App.examViewOpen) return false;
   const K = e.key.toLowerCase();
+  if (K === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); toggleSheet(); return true; }
   if (K === 'j') { e.preventDefault(); goToQuestion(curQ + 1); return true; }
   if (K === 'k') { e.preventDefault(); goToQuestion(curQ - 1); return true; }
   if (ex.finished) return false;
