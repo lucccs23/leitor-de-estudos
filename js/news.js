@@ -5,6 +5,13 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.19.1', title: 'Atualizações no Vetra para Windows', items: ['Configurações → Procurar atualizações: o Vetra instalado baixa a versão nova e reabre, sem reinstalar. Ele também confere sozinho uma vez por dia', 'Simulado no celular: a folha de respostas abre pelo placar na barra (ex.: 12/100), e a prova fica livre para tocar nas alternativas'] },
+  { v: '1.19', title: 'Simulado melhor', items: [
+    'Responda clicando na alternativa da própria prova; o botão direito risca a alternativa, como no papel',
+    'Ritmo na folha: adiantado ou atrasado em relação à meta por questão, e o tempo da questão atual',
+    'Marque "~" quando responder no chute (tecla Z) e filtre a folha por em branco, dúvida ou chute antes de entregar',
+    'No resultado: acertos por área (o Vetra acha as áreas pelos títulos da prova ou divide em 5), tempo de cada questão, certeza x chute e sua evolução entre os simulados',
+  ] },
   { v: '1.18', title: 'Livros EPUB', items: ['No Vetra para Windows, abra livros .epub: o livro vira um PDF de tamanho de livro (A5), com capítulos, imagens e sumário, e todas as funções valem nele', 'Abrir o mesmo EPUB de novo reaproveita a conversão: os grifos continuam no lugar. Com a sincronização, o livro chega ao celular e ao tablet'] },
   { v: '1.17.1', title: 'Tamanho da página à mão', items: ['Na barra de página, o botão de tamanho mostra o ajuste atual e abre o menu: à largura (Ctrl+0), página inteira (Ctrl+9), tamanho real 100% (Ctrl+1), modos de leitura e tela cheia', 'Vetra para Windows: instalador próprio, com atalho, ícone e "Abrir com" para PDFs'] },
   { v: '1.17', title: 'IA mais esperta', items: [

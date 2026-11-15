@@ -3,6 +3,7 @@
 const { app, BrowserWindow, shell, ipcMain, Menu, dialog } = require('electron');
 const path = require('path'), fs = require('fs'), cp = require('child_process'), crypto = require('crypto');
 const { epubParaPdf } = require('./epub');
+const atualizacao = require('./atualizar');
 
 const PORTA = 47623; // serviço local do app instalado (a versão de testes usa outra)
 app.setAppUserModelId('app.vetra.leitor');
@@ -25,8 +26,12 @@ function token(){
 
 // ---------- Serviço local (PowerShell, sem janela): backup diário em Documentos\Vetra\Backups e OCR ----------
 let servico = null;
+// o app abre pela versão baixada do site (se houver uma mais nova) ou pela que veio no instalador
+const pasta = () => atualizacao.pastaApp(APP_DIR).dir;
 function iniciarServico(){
-  const script = unpacked(path.join(APP_DIR, 'servico-backup.ps1'));
+  // o PowerShell não lê dentro do app.asar: usa a cópia "unpacked" (ou a da atualização baixada)
+  let script = unpacked(path.join(pasta(), 'servico-backup.ps1'));
+  if (!fs.existsSync(script)) script = unpacked(path.join(APP_DIR, 'servico-backup.ps1'));
   if (!fs.existsSync(script)) return;
   const destino = path.join(app.getPath('documents'), 'Vetra', 'Backups');
   try {
@@ -37,6 +42,7 @@ function iniciarServico(){
 }
 
 // ---------- Janela ----------
+const carregar = () => win && win.loadFile(path.join(pasta(), 'index.html'), { query: { bk: token(), svc: String(PORTA) } });
 const estadoArq = () => path.join(app.getPath('userData'), 'janela.json');
 function lerEstado(){ try { return JSON.parse(fs.readFileSync(estadoArq(), 'utf8')); } catch { return {}; } }
 let win = null, pronto = false, fila = [];
@@ -51,7 +57,7 @@ function criarJanela(){
   });
   if (st.max) win.maximize();
   Menu.setApplicationMenu(null);
-  win.loadFile(path.join(APP_DIR, 'index.html'), { query: { bk: token(), svc: String(PORTA) } });
+  carregar();
   win.once('ready-to-show', () => win.show());
   // links externos (Claude, ChatGPT, GitHub…) abrem no navegador, nunca dentro do app
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
@@ -92,6 +98,14 @@ ipcMain.handle('epub-to-pdf', async (_e, bytes) => {
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 ipcMain.on('open-external', (_e, url) => { if (/^https?:/i.test(String(url))) shell.openExternal(url); });
+// Procurar atualizações (botão nas Configurações e uma vez por dia)
+ipcMain.handle('update-check', async () => {
+  try { return await atualizacao.procurar(APP_DIR); } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+ipcMain.handle('update-apply', async () => {
+  try { const r = await atualizacao.aplicar(APP_DIR); setTimeout(() => { pronto = false; carregar(); }, 400); return r; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
 
 app.on('second-instance', (_e, argv) => {
   if (win) { if (win.isMinimized()) win.restore(); win.focus(); }

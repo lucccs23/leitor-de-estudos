@@ -1,4 +1,6 @@
-/* Modo simulado: folha de respostas, cronômetro, correção com gabarito, resultado detalhado e cartões dos erros. */
+/* Modo simulado: folha de respostas, cronômetro, correção com gabarito, resultado detalhado e cartões dos erros.
+   Também: responder clicando na alternativa da própria prova (botão direito risca), ritmo e tempo por questão,
+   certeza x chute, filtros da folha, resultado por área e evolução entre os simulados. */
 (() => {
 'use strict';
 const App = window.App;
@@ -8,6 +10,8 @@ const view = $('#examView'), panel = $('#examPanel'), bar = $('#examBar'), pause
 const LETTERS = 'ABCDE';
 let ex = null;            // simulado aberto (em andamento ou em correção)
 let curQ = 1, paused = false, tickT = null, lastTick = 0, saveCount = 0, detectCache = null;
+let altMap = {};           // posição das alternativas no PDF: { q: { A: {page,x,y,x1,y1}, … } }
+let sheetFilter = 'all';   // filtro da folha de respostas
 
 App.examRunning = () => !!(ex && !ex.finished && !paused);
 App.examOpen = () => !!ex;
@@ -58,7 +62,7 @@ async function detectQuestions(){
   const chain = [];
   for (let i = bestI; i >= 0; i = prev[i]) chain.unshift(cands[i]);
   const anchors = chain.length >= 3 ? chain.map(({ q, page, x, y }) => ({ q, page, x: +x.toFixed(4), y: +y.toFixed(4) })) : [];
-  detectCache = { fp: state.fp, ocrPages: Object.keys(state.ocr).length, anchors, max: anchors.length ? anchors[anchors.length - 1].q : 0, key: await detectKey(anchors.length ? anchors[anchors.length - 1].q : 0) };
+  detectCache = { fp: state.fp, ocrPages: Object.keys(state.ocr).length, anchors, max: anchors.length ? anchors[anchors.length - 1].q : 0, key: await detectKey(anchors.length ? anchors[anchors.length - 1].q : 0), areas: await detectAreas(anchors) };
   return detectCache;
 }
 // gabarito: procura a palavra "gabarito" nas últimas páginas e lê os pares número-letra depois dela
@@ -215,6 +219,22 @@ function setupCard(v, det){
   const adv = el('label', 'rvCheck'); const advCb = el('input'); advCb.type = 'checkbox'; advCb.checked = App.ls.get('le.examAdvance', true);
   adv.append(advCb, 'Ir para a próxima questão ao responder');
   c.append(el('div', 'rvLabel', 'Opções'), adv);
+  // áreas (para o resultado por área)
+  let areas = det.areas && det.areas.length ? det.areas : [];
+  const areaBox = el('div', 'exAreas');
+  const areaHint = el('p', 'exHint', '');
+  const paintAreas = () => {
+    areaBox.innerHTML = '';
+    areaHint.textContent = det.areas && det.areas.length && areas === det.areas ? `Encontrei ${areas.length} áreas pelos títulos da prova — confira as faixas.` : areas.length ? '' : 'Opcional: diga as faixas de questões de cada área para ver o resultado por área.';
+    areas.forEach((ar, i) => areaBox.append(areaRow(ar, () => { areas.splice(i, 1); paintAreas(); })));
+    const acts = el('div', 'exRow');
+    acts.append(App.ibtn('plus', 'Área', () => { const last = areas[areas.length - 1]; areas.push({ name: '', from: last ? last.to + 1 : 1, to: +nIn.value || 60 }); paintAreas(); }, 'sm outline'),
+      App.ibtn('grid', '5 áreas iguais (residência)', () => { areas = splitAreas(+nIn.value || 100); paintAreas(); }, 'sm outline'));
+    if (areas.length) acts.append(App.ibtn('x', 'Sem áreas', () => { areas = []; paintAreas(); }, 'sm'));
+    areaBox.append(acts);
+  };
+  paintAreas();
+  c.append(el('div', 'rvLabel', 'Áreas'), areaHint, areaBox);
   // histórico
   const done = state.exams.filter(e => e.finished).sort((a, b) => b.finishedAt - a.finishedAt);
   if (done.length) {
@@ -241,10 +261,11 @@ function setupCard(v, det){
       finished: false, finishedAt: null, answers: {}, elim: {}, flags: {}, times: {}, key: parsed && parsed.count ? parsed.key : null,
       annulled: [], annulCorrect: true, anchors: det.anchors.filter(a => a.q <= n), autoAdvance: advCb.checked, overtime: false,
       comments: fromFile ? fromFile.comments : {}, keySource: fromFile ? fromFile.name : null,
+      guess: {}, areas: cleanAreas(areas, n),
     };
     state.exams.push(e); save();
     hideView(); enterMode(e);
-    App.toast('Boa prova! A–E marcam a resposta · Shift+letra risca · X marca dúvida · J/K navegam.');
+    App.toast('Boa prova! Clique na alternativa (ou A–E) para marcar · botão direito (ou Shift+letra) risca · X dúvida · Z chute · J/K navegam.');
   }, 'primary');
   actions.append(start, btn('Fechar', hideView));
   c.append(actions); v.append(c);
@@ -259,17 +280,20 @@ function enterMode(e){
   document.body.classList.add('exam');
   document.body.classList.toggle('exam-review', !!e.finished);
   App.closePopup();
+  e.guess = e.guess || {}; e.areas = e.areas || [];
   renderPanel(); renderBar(); renderBadges();
   if (!e.finished) { lastTick = Date.now(); tickT = setInterval(tick, 1000); goToQuestion(curQ, true); }
   App.scheduleRender();
+  buildAlts(e).then(m => { if (ex === e) { altMap = m; renderAlts(); } });
 }
 function exitMode(silent){
   clearInterval(tickT); tickT = null;
   if (ex && !silent) save();
   ex = null; paused = false;
-  document.body.classList.remove('exam', 'exam-review', 'exam-paused');
+  document.body.classList.remove('exam', 'exam-review', 'exam-paused', 'exam-sheet');
   pause.hidden = true; bar.innerHTML = ''; panel.innerHTML = '';
   $$('.qLayer').forEach(l => l.remove());
+  altMap = {}; sheetFilter = 'all';
 }
 App.exitExam = () => exitMode();
 const firstOpenQuestion = e => { for (let q = 1; q <= e.n; q++) if (!e.answers[q]) return q; return 1; };
@@ -278,7 +302,7 @@ function tick(){
   const now = Date.now(), dt = Math.min(5, (now - lastTick) / 1000); lastTick = now;
   if (!ex || ex.finished || paused) return;
   ex.elapsed += dt; ex.times[curQ] = (ex.times[curQ] || 0) + dt;
-  updateClock();
+  updateClock(); updatePace();
   if (ex.timeLimit && !ex.overtime) {
     const left = ex.timeLimit - ex.elapsed;
     if (left <= 0) { timeUp(); return; }
@@ -308,9 +332,16 @@ function setPaused(on, silent){
   if (!on && !silent) viewer.focus({ preventScroll: true });
 }
 
+const sheetBtn = () => {
+  const b = el('button', 'btn sm exSheetBtn'); b.id = 'exSheetBtn';
+  b.append(App.icon('list'), el('span', null, ex ? `${Object.keys(ex.answers).length}/${ex.n}` : ''));
+  b.title = 'Folha de respostas'; b.onclick = () => document.body.classList.toggle('exam-sheet');
+  return b;
+};
 function renderBar(){
   bar.innerHTML = '';
   if (!ex) return;
+  bar.append(sheetBtn());
   if (ex.finished) {
     const r = scoreOf(ex);
     bar.append(el('span', 'examChip review', ex.key ? `Correção: ${r.pct}% (${r.right}/${r.total})` : 'Simulado entregue'),
@@ -334,9 +365,24 @@ function updateClock(){
   const prog = $('#exProg'); if (prog) prog.textContent = progressText();
 }
 const progressText = () => {
-  const a = Object.keys(ex.answers).length, f = Object.keys(ex.flags).filter(q => ex.flags[q]).length;
-  return `${a} de ${ex.n} respondidas${f ? ` · ${f} com dúvida` : ''}`;
+  const a = Object.keys(ex.answers).length, f = Object.keys(ex.flags).filter(q => ex.flags[q]).length, g = Object.keys(ex.guess || {}).length;
+  return `${a} de ${ex.n} respondidas${f ? ` · ${f} com dúvida` : ''}${g ? ` · ${g} no chute` : ''}`;
 };
+// ritmo: compara o tempo usado com o tempo "certo" para as questões já respondidas
+const perQuestion = () => ex.timeLimit ? ex.timeLimit / ex.n : 0;
+function updatePace(){
+  const box = $('#exPace'); if (!box || !ex || ex.finished) return;
+  const tq = ex.times[curQ] || 0, pq = perQuestion();
+  box.innerHTML = '';
+  const cur = el('span', 'paceQ' + (pq && tq > pq * 1.5 ? ' slow' : ''), `Questão ${curQ}: ${fmtClock(tq)}`);
+  if (pq) {
+    const done = Object.keys(ex.answers).length, diff = done * pq - ex.elapsed;
+    const st = Math.abs(diff) < 60 ? 'ok' : diff > 0 ? 'ahead' : 'behind';
+    const pace = el('span', 'pace ' + st, st === 'ok' ? 'no ritmo' : `${diff > 0 ? 'adiantado' : 'atrasado'} ${fmtDur(Math.abs(diff))}`);
+    pace.title = `Meta: ${fmtDur(pq)} por questão (tempo de prova ÷ questões)`;
+    box.append(pace, el('span', 'muted', ' · '), cur);
+  } else box.append(cur);
+}
 
 // ---------- Folha de respostas ----------
 function renderPanel(){
@@ -348,14 +394,19 @@ function renderPanel(){
   head.append(sub);
   if (!ex.finished) {
     const bar2 = el('div', 'progress'); const f = el('div'); f.id = 'exBar'; bar2.append(f); head.append(bar2);
+    const pace = el('div', 'exPace'); pace.id = 'exPace'; head.append(pace);
   }
   panel.append(head);
   const legend = el('div', 'exLegend');
-  legend.textContent = ex.finished ? 'Verde: acerto · vermelho: erro · contorno: gabarito' : 'Clique para marcar · botão direito risca · bandeira = dúvida';
+  legend.textContent = ex.finished ? 'Verde: acerto · vermelho: erro · contorno: gabarito' : 'Clique na alternativa (na prova ou aqui) · botão direito risca · ⚑ dúvida · ~ chute';
   panel.append(legend);
+  // filtros: revisar só o que falta antes de entregar
+  const fl = el('div', 'exFilters'); fl.id = 'exFilters';
+  panel.append(fl);
   const list = el('div', 'qList'); list.id = 'qList';
   for (let q = 1; q <= ex.n; q++) list.append(qRow(q));
   panel.append(list);
+  renderFilters();
   // na correção: comentário da questão atual (quando o gabarito tinha comentários)
   if (ex.finished && ex.comments && Object.keys(ex.comments).length) { const cb = el('div', 'exComment'); cb.id = 'exComment'; panel.append(cb); }
   updateProgressBar();
@@ -373,7 +424,35 @@ function renderComment(){
   box.append(el('div', 'exCommentText', c ? c.text : 'Sem comentário para esta questão.'));
 }
 const resultLine = () => { const r = scoreOf(ex); return ex.key ? `${r.right} acertos de ${r.total} (${r.pct}%) · ${fmtClock(ex.elapsed)}` : 'Sem gabarito: informe para corrigir'; };
-function updateProgressBar(){ const f = $('#exBar'); if (f && ex) f.style.width = (Object.keys(ex.answers).length / ex.n * 100) + '%'; }
+function updateProgressBar(){
+  const f = $('#exBar'); if (f && ex) f.style.width = (Object.keys(ex.answers).length / ex.n * 100) + '%';
+  const sb = $('#exSheetBtn span'); if (sb && ex) sb.textContent = `${Object.keys(ex.answers).length}/${ex.n}`;
+  renderFilters(); updatePace();
+}
+const FILTERS = ex2 => [
+  ['all', 'Todas', ex2.n, () => true],
+  ['blank', 'Em branco', null, q => !ex2.answers[q]],
+  ['flag', 'Dúvida', null, q => !!ex2.flags[q]],
+  ['guess', 'Chute', null, q => !!(ex2.guess && ex2.guess[q])],
+];
+function renderFilters(){
+  const box = $('#exFilters'); if (!box || !ex) return;
+  box.innerHTML = '';
+  for (const [id, label, , test] of FILTERS(ex)) {
+    let n = 0; for (let q = 1; q <= ex.n; q++) if (test(q)) n++;
+    if (id !== 'all' && !n && sheetFilter !== id) continue;
+    const b = el('button', 'exFilter' + (sheetFilter === id ? ' on' : ''), `${label} ${n}`);
+    b.onclick = () => { sheetFilter = sheetFilter === id ? 'all' : id; applyFilter(); renderFilters(); };
+    box.append(b);
+  }
+  box.hidden = box.children.length < 2;
+  applyFilter();
+}
+function applyFilter(){
+  if (!ex) return;
+  const f = FILTERS(ex).find(x => x[0] === sheetFilter) || FILTERS(ex)[0];
+  panel.querySelectorAll('.qRow').forEach(r => { r.hidden = !f[3](+r.dataset.q); });
+}
 function qRow(q){
   const row = el('div', 'qRow'); row.dataset.q = q;
   const num = el('button', 'qNum', String(q)); num.title = anchorOf(q) ? 'Ir até a questão' : 'Selecionar';
@@ -388,8 +467,9 @@ function qRow(q){
   }
   row.append(bub);
   if (!ex.finished) {
+    const gs = el('button', 'qGuess', '~'); gs.title = 'Respondi no chute (Z)'; gs.onclick = () => toggleGuess(q);
     const fl = App.ibtn('flag', null, () => toggleFlag(q), 'sm qFlag', 'Marcar dúvida (X)');
-    row.append(fl);
+    row.append(gs, fl);
   } else row.append(el('span', 'qStatus'));
   paintRow(row, q);
   return row;
@@ -411,6 +491,8 @@ function paintRow(row, q){
     b.disabled = !!ex.finished;
   });
   const fl = row.querySelector('.qFlag'); if (fl) fl.classList.toggle('on', !!ex.flags[q]);
+  const gs = row.querySelector('.qGuess'); if (gs) gs.classList.toggle('on', !!(ex.guess && ex.guess[q]));
+  row.classList.toggle('guess', !!(ex.guess && ex.guess[q]));
   const st = row.querySelector('.qStatus');
   if (st) {
     st.className = 'qStatus'; st.textContent = '';
@@ -420,7 +502,7 @@ function paintRow(row, q){
     else if (a === k) { st.classList.add('right'); st.append(App.icon('check')); }
     else { st.classList.add('wrong'); st.append(App.icon('x')); }
   }
-  updateBadge(q);
+  updateBadge(q); paintAlts(q);
 }
 function setAnswer(q, L){
   if (!ex || ex.finished) return;
@@ -441,7 +523,13 @@ function toggleElim(q, L){
 function toggleFlag(q){
   if (!ex || ex.finished) return;
   if (ex.flags[q]) delete ex.flags[q]; else ex.flags[q] = true;
-  paintRow(null, q); updateClock(); save();
+  paintRow(null, q); updateClock(); renderFilters(); save();
+}
+function toggleGuess(q){
+  if (!ex || ex.finished) return;
+  ex.guess = ex.guess || {};
+  if (ex.guess[q]) delete ex.guess[q]; else ex.guess[q] = true;
+  paintRow(null, q); updateClock(); renderFilters(); save();
 }
 
 // ---------- Questão atual e navegação ----------
@@ -450,7 +538,8 @@ function anchorTop(a){ const p = state.pages[a.page - 1]; return p ? p.el.offset
 function goToQuestion(q, fromAnswer){
   if (!ex) return;
   q = Math.max(1, Math.min(ex.n, q));
-  curQ = q; markCurrent(true);
+  curQ = q; markCurrent(true); updatePace();
+  if (!fromAnswer && innerWidth <= 700) document.body.classList.remove('exam-sheet'); // celular: mostra a questão
   const a = anchorOf(q);
   if (a) { holdScrollUntil = Date.now() + 700; viewer.scrollTop = anchorTop(a) - 28; App.scheduleRender(); }
   else if (!fromAnswer) App.toast(`Questão ${q} selecionada (não achei onde ela começa no PDF).`);
@@ -474,7 +563,7 @@ viewer.addEventListener('scroll', () => {
     const y = viewer.scrollTop + Math.min(140, viewer.clientHeight * 0.2);
     let q = null;
     for (const a of ex.anchors) { if (anchorTop(a) <= y) q = a.q; else break; }
-    if (q && q !== curQ) { curQ = q; markCurrent(true); }
+    if (q && q !== curQ) { curQ = q; markCurrent(true); updatePace(); }
   }, 80);
 }, { passive: true });
 
@@ -492,14 +581,159 @@ function renderBadges(){
     layer.append(b); updateBadge(a.q);
   }
   markCurrent(false);
+  renderAlts();
 }
 function updateBadge(q){
   const b = $(`.qBadge[data-q="${q}"]`); if (!b || !ex) return;
   const a = ex.answers[q], k = ex.finished && ex.key ? ex.key[q] : null;
-  b.textContent = a || (ex.flags[q] ? '?' : '');
+  b.textContent = a ? a + (ex.guess && ex.guess[q] ? '~' : '') : (ex.flags[q] ? '?' : '');
   b.title = `Questão ${q}${a ? ' — você marcou ' + a : ''}${k && k !== '*' ? ' · gabarito ' + k : ''}`;
   b.className = 'qBadge' + (a ? ' answered' : '') + (ex.flags[q] ? ' flagged' : '') + (q === curQ ? ' cur' : '')
     + (k && k !== '*' ? (a === k ? ' right' : ' wrong') : '');
+}
+
+// ---------- Responder na própria prova ----------
+// Acha "A)", "B)"… no começo das linhas de cada questão; o bloco de cada alternativa vai até a seguinte.
+async function buildAlts(e){
+  const out = {};
+  if (!e.anchors || !e.anchors.length) return out;
+  const L = letters(e);
+  for (const a of e.anchors) {
+    if (a.q > e.n) continue;
+    const reg = questionRegion(e, a.q); if (!reg) continue;
+    let pt; try { pt = await App.pageText(reg.page); } catch { continue; }
+    if (ex !== e) return out;
+    const Rr = reg.rect;
+    const inReg = pt.items.filter(it => it.str.trim() && it.y >= Rr.y - 0.003 && it.y <= Rr.y + Rr.h && it.x >= Rr.x - 0.01 && it.x <= Rr.x + Rr.w);
+    const lineStart = Math.min(...inReg.map(it => it.x));
+    const found = [];
+    let want = 0;
+    for (const it of inReg.slice().sort((p, o) => p.y - o.y || p.x - o.x)) {
+      const m = it.str.trim().match(/^\(?([A-Ea-e])\s*[).\-–]/) || (/^[A-Ea-e]$/.test(it.str.trim()) ? [0, it.str.trim()] : null);
+      if (!m || m[1].toUpperCase() !== L[want] || it.x > lineStart + 0.07) continue;
+      if (found.length && it.y <= found[found.length - 1].y + 0.002) continue;
+      found.push({ L: L[want], page: reg.page, x: it.x, y: it.y, h: it.h }); want++;
+      if (want >= L.length) break;
+    }
+    if (found.length < 2) continue;
+    const bottom = Math.max(...inReg.filter(it => it.y >= found[found.length - 1].y).map(it => it.y + it.h));
+    const m = {};
+    found.forEach((f, i) => {
+      const nx = found[i + 1];
+      m[f.L] = { page: f.page, x: +(f.x - 0.006).toFixed(4), y: +(f.y - 0.003).toFixed(4), x1: +Math.min(Rr.x + Rr.w, 0.99).toFixed(4), y1: +((nx ? nx.y - 0.002 : bottom + 0.004)).toFixed(4), lh: f.h };
+    });
+    out[a.q] = m;
+  }
+  return out;
+}
+function renderAlts(){
+  $$('.altBox').forEach(b => b.remove());
+  if (!ex) return;
+  for (const [q, m] of Object.entries(altMap)) for (const [Lt, r] of Object.entries(m)) {
+    const p = state.pages[r.page - 1]; if (!p) continue;
+    let layer = p.el.querySelector('.qLayer');
+    if (!layer) { layer = el('div', 'qLayer'); p.el.append(layer); }
+    const b = el('div', 'altBox'); b.dataset.q = q; b.dataset.l = Lt;
+    b.style.cssText = `left:${r.x * 100}%;top:${r.y * 100}%;width:${(r.x1 - r.x) * 100}%;height:${(r.y1 - r.y) * 100}%;--lh:${(r.lh / (r.y1 - r.y)) * 100}%`;
+    layer.prepend(b);
+  }
+  for (const q of Object.keys(altMap)) paintAlts(+q);
+}
+function paintAlts(q){
+  if (!ex || !altMap[q]) return;
+  const a = ex.answers[q], elim = ex.elim[q] || [], k = ex.finished && ex.key ? ex.key[q] : null;
+  $$(`.altBox[data-q="${q}"]`).forEach(b => {
+    const L = b.dataset.l;
+    b.classList.toggle('sel', a === L);
+    b.classList.toggle('elim', elim.includes(L));
+    b.classList.toggle('key', !!k && k !== '*' && k === L);
+    b.classList.toggle('wrong', !!k && k !== '*' && a === L && k !== L);
+  });
+}
+function altAt(e2){
+  const pageEl = e2.target.closest && e2.target.closest('.page'); if (!pageEl) return null;
+  const r = pageEl.getBoundingClientRect(), num = +pageEl.dataset.page;
+  const x = (e2.clientX - r.left) / r.width, y = (e2.clientY - r.top) / r.height;
+  for (const [q, m] of Object.entries(altMap)) for (const [Lt, b] of Object.entries(m))
+    if (b.page === num && x >= b.x && x <= b.x1 && y >= b.y && y <= b.y1) return { q: +q, L: Lt };
+  return null;
+}
+// clique simples (sem arrastar para selecionar texto) marca; o botão direito risca
+let downAt = null;
+viewer.addEventListener('pointerdown', e2 => { downAt = { x: e2.clientX, y: e2.clientY }; }, true);
+viewer.addEventListener('click', e2 => {
+  if (!ex || ex.finished || paused || e2.button !== 0 || App.examViewOpen || state.tool !== 'text') return;
+  if (downAt && Math.hypot(e2.clientX - downAt.x, e2.clientY - downAt.y) > 5) return;
+  if (App.hasSelection()) return;
+  const hit = altAt(e2); if (!hit) return;
+  if (curQ !== hit.q) { curQ = hit.q; markCurrent(true); }
+  holdScrollUntil = Date.now() + 700;
+  const adv = ex.autoAdvance; ex.autoAdvance = false; // na própria prova não pula de lugar
+  setAnswer(hit.q, hit.L); ex.autoAdvance = adv;
+  setTimeout(() => App.closePopup(), 30);
+});
+// passar o mouse: destaca só a alternativa embaixo do cursor
+let hovT = 0, hovEl = null;
+viewer.addEventListener('mousemove', e2 => {
+  if (!ex || ex.finished || paused || state.tool !== 'text' || e2.buttons) { if (hovEl) { hovEl.classList.remove('hov'); hovEl = null; document.body.classList.remove('alt-hover'); } return; }
+  const now = performance.now(); if (now - hovT < 40) return; hovT = now;
+  const hit = altAt(e2);
+  const b = hit ? $(`.altBox[data-q="${hit.q}"][data-l="${hit.L}"]`) : null;
+  if (b === hovEl) return;
+  if (hovEl) hovEl.classList.remove('hov');
+  hovEl = b; if (b) b.classList.add('hov');
+  document.body.classList.toggle('alt-hover', !!b);
+}, { passive: true });
+viewer.addEventListener('contextmenu', e2 => {
+  if (!ex || ex.finished || paused) return;
+  const hit = altAt(e2); if (!hit) return;
+  e2.preventDefault();
+  toggleElim(hit.q, hit.L);
+});
+
+// ---------- Áreas da prova ----------
+const AREAS5 = ['Clínica Médica', 'Cirurgia', 'Pediatria', 'Ginecologia e Obstetrícia', 'Medicina Preventiva'];
+function splitAreas(n){
+  const k = AREAS5.length, size = Math.floor(n / k);
+  return AREAS5.map((name, i) => ({ name, from: i * size + 1, to: i === k - 1 ? n : (i + 1) * size }));
+}
+function cleanAreas(list, n){
+  return (list || []).map(a => ({ name: String(a.name || '').trim() || 'Área', from: Math.max(1, Math.min(n, Math.round(+a.from || 1))), to: Math.max(1, Math.min(n, Math.round(+a.to || n))) }))
+    .map(a => a.from > a.to ? { ...a, from: a.to, to: a.from } : a).filter(a => a.to >= a.from);
+}
+function areaRow(ar, onDel){
+  const r = el('div', 'exAreaRow');
+  const nm = el('input', 'pomoName'); nm.value = ar.name; nm.placeholder = 'Nome da área'; nm.oninput = () => { ar.name = nm.value; };
+  const a1 = el('input', 'numInput'); a1.type = 'number'; a1.min = 1; a1.value = ar.from; a1.oninput = () => { ar.from = +a1.value; };
+  const a2 = el('input', 'numInput'); a2.type = 'number'; a2.min = 1; a2.value = ar.to; a2.oninput = () => { ar.to = +a2.value; };
+  [nm, a1, a2].forEach(i => { i.onkeydown = e2 => e2.stopPropagation(); });
+  r.append(nm, el('span', 'muted small', 'questões'), a1, el('span', 'muted small', 'a'), a2, App.ibtn('x', null, onDel, 'sm', 'Tirar esta área'));
+  return r;
+}
+// procura títulos de área no texto da prova ("CLÍNICA MÉDICA", "CIRURGIA"…) e liga cada um à 1ª questão depois dele
+const AREA_RE = [['Clínica Médica', /cl[ií]nica\s+m[eé]dica/i], ['Cirurgia', /cirurgia/i], ['Pediatria', /pediatria/i],
+  ['Ginecologia e Obstetrícia', /ginecologia|obstetr[ií]cia/i], ['Medicina Preventiva', /preventiva|sa[uú]de\s+coletiva|sa[uú]de\s+p[uú]blica|medicina\s+de\s+fam[ií]lia/i]];
+async function detectAreas(anchors){
+  if (!anchors.length) return [];
+  const marks = [];
+  const last = Math.min(state.pages.length, 400);
+  for (let p = 1; p <= last; p++) {
+    let pt; try { pt = await App.pageText(p); } catch { continue; }
+    for (const it of pt.items) {
+      const s = it.str.trim();
+      if (s.length < 6 || s.length > 60 || s !== s.toUpperCase()) continue;
+      const hit = AREA_RE.find(([, re]) => re.test(s)); if (!hit) continue;
+      if (marks.some(m => m.name === hit[0])) continue;
+      marks.push({ name: hit[0], page: p, col: it.x > 0.42 ? 1 : 0, y: it.y });
+    }
+  }
+  if (marks.length < 2) return [];
+  const order = o => o.page * 10 + o.col * 2 + o.y;
+  const sortedA = anchors.slice().sort((a, b) => order({ page: a.page, col: a.x > 0.42 ? 1 : 0, y: a.y }) - order({ page: b.page, col: b.x > 0.42 ? 1 : 0, y: b.y }));
+  const starts = marks.map(m => { const a = sortedA.find(x => order({ page: x.page, col: x.x > 0.42 ? 1 : 0, y: x.y }) > order(m)); return a ? { name: m.name, from: a.q } : null; })
+    .filter(Boolean).sort((a, b) => a.from - b.from);
+  const max = anchors[anchors.length - 1].q;
+  return starts.map((s, i) => ({ name: s.name, from: s.from, to: starts[i + 1] ? starts[i + 1].from - 1 : max })).filter(a => a.to >= a.from);
 }
 
 // ---------- Teclado no modo prova ----------
@@ -514,6 +748,7 @@ App.examKey = e => {
   const i = letters(ex).toLowerCase().indexOf(K);
   if (K.length === 1 && i >= 0) { e.preventDefault(); const L = LETTERS[i]; e.shiftKey ? toggleElim(curQ, L) : setAnswer(curQ, L); return true; }
   if (K === 'x') { e.preventDefault(); toggleFlag(curQ); return true; }
+  if (K === 'z') { e.preventDefault(); toggleGuess(curQ); return true; }
   return false;
 };
 
@@ -583,7 +818,7 @@ function scoreOf(e){
     const ann = e.annulled.includes(q) || k === '*';
     let st = 'nokey';
     if (k) st = ann ? 'annulled' : !a ? 'blank' : a === k ? 'right' : 'wrong';
-    r.rows.push({ q, a, k, st, t: e.times[q] || 0, flag: !!e.flags[q] });
+    r.rows.push({ q, a, k, st, t: e.times[q] || 0, flag: !!e.flags[q], guess: !!(e.guess && e.guess[q]) });
     if (st === 'right') r.right++; else if (st === 'wrong') r.wrong++; else if (st === 'blank') r.blank++; else if (st === 'annulled') r.annulled++;
   }
   const keyed = r.rows.filter(x => x.k).length;
@@ -622,9 +857,23 @@ function showResults(){
     const flagged = r.rows.filter(x => x.flag && x.k), flaggedRight = flagged.filter(x => x.st === 'right').length;
     const pl = (n, um, varios) => n === 1 ? um : varios;
     const acertos = r.right - (e.annulCorrect ? r.annulled : 0);
+    const guessed = r.rows.filter(x => x.guess && x.k && x.a), guessRight = guessed.filter(x => x.st === 'right').length;
+    const sure = r.rows.filter(x => !x.guess && x.k && x.a && x.st !== 'annulled'), sureRight = sure.filter(x => x.st === 'right').length;
     stats.append(stat(acertos, pl(acertos, 'acerto', 'acertos'), 'ok'), stat(r.wrong, pl(r.wrong, 'erro', 'erros'), 'bad'), stat(r.blank, 'em branco', 'mid'), stat(r.annulled, pl(r.annulled, 'anulada', 'anuladas'), ''),
       stat(flagged.length ? `${flaggedRight}/${flagged.length}` : '—', 'dúvidas que acertou', ''));
     c.append(stats);
+    // certeza x chute
+    if (guessed.length) {
+      const cg = el('div', 'resConf');
+      const pc = (a, b) => b ? Math.round(100 * a / b) : 0;
+      cg.append(el('span', 'rvLabel', 'Certeza x chute'),
+        el('div', null, `Com certeza: ${sureRight} de ${sure.length} (${pc(sureRight, sure.length)}%) · No chute: ${guessRight} de ${guessed.length} (${pc(guessRight, guessed.length)}%)`));
+      c.append(cg);
+    }
+    // por área
+    if (e.areas && e.areas.length) c.append(areaResults(e, r));
+    // tempo por questão
+    c.append(timeChart(e, r));
     const slow = r.rows.filter(x => x.t > 0).sort((a, b) => b.t - a.t).slice(0, 5);
     if (slow.length) {
       const s = el('div', 'resSlow'); s.append(el('span', 'rvLabel', 'Onde você mais demorou'));
@@ -634,12 +883,12 @@ function showResults(){
     }
     // tabela
     const filters = el('div', 'rvChips resFilters');
-    const defs = [['all', 'Todas', r.rows.length], ['wrong', 'Erradas', r.wrong], ['blank', 'Em branco', r.blank], ['flag', 'Com dúvida', r.rows.filter(x => x.flag).length], ['right', 'Acertadas', r.rows.filter(x => x.st === 'right').length]];
+    const defs = [['all', 'Todas', r.rows.length], ['wrong', 'Erradas', r.wrong], ['blank', 'Em branco', r.blank], ['flag', 'Com dúvida', r.rows.filter(x => x.flag).length], ['guess', 'Chutes', r.rows.filter(x => x.guess).length], ['right', 'Acertadas', r.rows.filter(x => x.st === 'right').length]];
     const table = el('div', 'resTable');
     const paintTable = () => {
       table.innerHTML = '';
       const head = el('div', 'resRow head'); ['Questão', 'Você', 'Gabarito', 'Tempo', ''].forEach(t => head.append(el('span', null, t))); table.append(head);
-      const rows = r.rows.filter(x => resFilter === 'all' || (resFilter === 'flag' ? x.flag : x.st === resFilter));
+      const rows = r.rows.filter(x => resFilter === 'all' || (resFilter === 'flag' ? x.flag : resFilter === 'guess' ? x.guess : x.st === resFilter));
       if (!rows.length) table.append(el('p', 'muted small pad', 'Nenhuma questão nesse filtro.'));
       for (const x of rows) {
         const row = el('div', 'resRow ' + x.st);
@@ -649,7 +898,7 @@ function showResults(){
           const i = e.annulled.indexOf(x.q); if (i >= 0) e.annulled.splice(i, 1); else e.annulled.push(x.q);
           save(); renderBar(); renderPanel(); renderBadges(); showResults();
         }, 'sm link');
-        row.append(go, el('span', 'resA', (x.a || '—') + (x.flag ? ' ⚑' : '')), el('span', 'resK', x.k === '*' ? 'X' : (x.k || '—')), el('span', 'muted', x.t ? fmtDur(x.t) : '—'), el('span', 'resEnd'));
+        row.append(go, el('span', 'resA', (x.a || '—') + (x.guess ? ' ~' : '') + (x.flag ? ' ⚑' : '')), el('span', 'resK', x.k === '*' ? 'X' : (x.k || '—')), el('span', 'muted', x.t ? fmtDur(x.t) : '—'), el('span', 'resEnd'));
         const com = e.comments && e.comments[x.q];
         if (com) {
           const box = el('div', 'resComment'); box.hidden = true;
@@ -673,18 +922,104 @@ function showResults(){
     annCb.onchange = () => { e.annulCorrect = annCb.checked; save(); renderBar(); showResults(); };
     annOpt.append(annCb, 'Questões anuladas contam como acerto');
     c.append(annOpt);
+    // evolução entre os simulados
+    const evo = el('div', 'resEvo'); c.append(evo); App.examEvolution(evo, e);
     // ações
     const a = el('div', 'rvActions');
     const errs = r.rows.filter(x => x.st === 'wrong' || x.st === 'blank').length;
     const cards = App.ibtn('cards', `Criar cartões dos erros (${errs})`, () => makeErrorCards(e), 'primary');
     cards.disabled = !errs;
-    a.append(cards, App.ibtn('edit', 'Editar gabarito', keyEntry, 'outline'),
+    a.append(cards, App.ibtn('edit', 'Editar gabarito', keyEntry, 'outline'), App.ibtn('grid', e.areas && e.areas.length ? 'Editar áreas' : 'Dividir por área', () => editAreas(e), 'outline'),
       App.ibtn('restore', 'Refazer simulado', () => retake(e), 'outline'), btn('Ver na prova', hideView, 'outline'));
     c.append(a); v.append(c);
   });
 }
+// ---------- Resultado por área, tempo por questão e evolução ----------
+function areaResults(e, r){
+  const box = el('div', 'resAreas');
+  box.append(el('span', 'rvLabel', 'Por área'));
+  for (const ar of e.areas) {
+    const rows = r.rows.filter(x => x.q >= ar.from && x.q <= ar.to && x.k);
+    const right = rows.filter(x => x.st === 'right' || (x.st === 'annulled' && e.annulCorrect)).length;
+    const tot = e.annulCorrect ? rows.length : rows.filter(x => x.st !== 'annulled').length;
+    const pct = tot ? Math.round(100 * right / tot) : 0;
+    const row = el('div', 'resAreaRow');
+    const barEl = el('span', 'statBar'); const fl = el('i'); fl.style.width = pct + '%'; fl.className = pct >= 70 ? 'ok' : pct >= 50 ? 'mid' : 'bad'; barEl.append(fl);
+    row.append(el('span', 'statName', ar.name), el('span', 'muted small', `${ar.from}–${ar.to}`), barEl, el('strong', null, `${pct}%`), el('span', 'muted small', `${right}/${tot}`));
+    box.append(row);
+  }
+  return box;
+}
+function timeChart(e, r){
+  const box = el('div', 'resTime');
+  const pq = e.timeLimit ? e.timeLimit / e.n : 0;
+  const withT = r.rows.filter(x => x.t > 0);
+  const avg = list => list.length ? list.reduce((s2, x) => s2 + x.t, 0) / list.length : 0;
+  const rightA = avg(withT.filter(x => x.st === 'right')), wrongA = avg(withT.filter(x => x.st === 'wrong'));
+  box.append(el('span', 'rvLabel', 'Tempo por questão'));
+  const info = [];
+  if (pq) info.push(`meta ${fmtDur(pq)}`);
+  if (rightA) info.push(`nos acertos ${fmtDur(rightA)}`);
+  if (wrongA) info.push(`nos erros ${fmtDur(wrongA)}`);
+  if (info.length) box.append(el('div', 'muted small', 'Média: ' + info.join(' · ')));
+  const max = Math.max(pq * 1.5, ...r.rows.map(x => x.t), 30);
+  const ch = el('div', 'tChart');
+  for (const x of r.rows) {
+    const b = el('button', 'tBar ' + x.st); b.style.height = Math.max(2, x.t / max * 100) + '%';
+    b.title = `Questão ${x.q}: ${x.t ? fmtDur(x.t) : 'sem tempo'} · ${{ right: 'acerto', wrong: 'erro', blank: 'branco', annulled: 'anulada', nokey: '' }[x.st]}`;
+    b.onclick = () => { hideView(); goToQuestion(x.q); };
+    ch.append(b);
+  }
+  if (pq) { const ln = el('div', 'tMeta'); ln.style.bottom = (pq / max * 100) + '%'; ln.title = 'Meta por questão'; ch.append(ln); }
+  box.append(ch);
+  return box;
+}
+function editAreas(e){
+  showView(v => {
+    const c = el('div', 'rvCard exCard');
+    c.append(el('h2', null, 'Áreas da prova'), el('p', 'muted', 'Diga as faixas de questões de cada área para ver o resultado por área.'));
+    let areas = (e.areas || []).map(a => ({ ...a }));
+    const box = el('div', 'exAreas');
+    const paint = () => {
+      box.innerHTML = '';
+      areas.forEach((ar, i) => box.append(areaRow(ar, () => { areas.splice(i, 1); paint(); })));
+      const acts = el('div', 'exRow');
+      acts.append(App.ibtn('plus', 'Área', () => { const last = areas[areas.length - 1]; areas.push({ name: '', from: last ? last.to + 1 : 1, to: e.n }); paint(); }, 'sm outline'),
+        App.ibtn('grid', '5 áreas iguais (residência)', () => { areas = splitAreas(e.n); paint(); }, 'sm outline'));
+      box.append(acts);
+    };
+    paint();
+    const a = el('div', 'rvActions');
+    a.append(btn('Salvar', () => { e.areas = cleanAreas(areas, e.n); save(); showResults(); }, 'primary'), btn('Voltar', showResults, 'outline'));
+    c.append(box, a); v.append(c);
+  });
+}
+// evolução: todos os simulados corrigidos (de todos os PDFs), do mais antigo ao mais novo
+App.examEvolution = async (box, cur) => {
+  const docs = await App.safe(() => App.DB.all('docs'), []);
+  const all = new Map();
+  for (const d of docs) for (const e of d.exams || []) if (e.finished && e.key) all.set(e.id, { e, doc: d.name });
+  for (const e of state.exams) if (e.finished && e.key) all.set(e.id, { e, doc: state.name });
+  const list = [...all.values()].sort((a, b) => a.e.finishedAt - b.e.finishedAt).slice(-14);
+  box.innerHTML = '';
+  if (list.length < 2) return;
+  box.append(el('span', 'rvLabel', 'Sua evolução nos simulados'));
+  const ch = el('div', 'evoChart');
+  for (const { e, doc } of list) {
+    const r = scoreOf(e);
+    const col = el('div', 'evoCol' + (cur && e.id === cur.id ? ' cur' : ''));
+    const b = el('i'); b.style.height = Math.max(3, r.pct) + '%';
+    col.title = `${App.baseName(doc)} · ${new Date(e.finishedAt).toLocaleDateString('pt-BR')} · ${r.right}/${r.total}`;
+    col.append(el('span', 'evoPct', r.pct + '%'), el('span', 'evoBar'), el('span', 'evoDate', new Date(e.finishedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })));
+    col.querySelector('.evoBar').append(b);
+    ch.append(col);
+  }
+  box.append(ch);
+  const first = scoreOf(list[0].e).pct, lastP = scoreOf(list[list.length - 1].e).pct;
+  box.append(el('div', 'muted small', `De ${first}% para ${lastP}% em ${list.length} simulados${lastP > first ? ' — subindo!' : '.'}`));
+};
 function retake(e){
-  const n = { ...e, id: App.uid(), created: Date.now(), elapsed: 0, finished: false, finishedAt: null, answers: {}, elim: {}, flags: {}, times: {}, annulled: [], overtime: false };
+  const n = { ...e, id: App.uid(), created: Date.now(), elapsed: 0, finished: false, finishedAt: null, answers: {}, elim: {}, flags: {}, times: {}, guess: {}, annulled: [], overtime: false };
   state.exams.push(n); save(); hideView(); enterMode(n);
   App.toast('Nova tentativa começou. Boa prova!');
 }

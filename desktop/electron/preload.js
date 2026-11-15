@@ -7,4 +7,8 @@ contextBridge.exposeInMainWorld('vetraDesktop', {
   openExternal: url => ipcRenderer.send('open-external', url),
   // converte um EPUB em PDF (devolve { ok, pdf, title } ou { ok:false, error })
   epubToPdf: bytes => ipcRenderer.invoke('epub-to-pdf', bytes),
+  // atualizações (baixa a versão nova do site e reabre)
+  checkUpdate: () => ipcRenderer.invoke('update-check'),
+  applyUpdate: () => ipcRenderer.invoke('update-apply'),
+  shellVersion: () => process.versions && process.versions.electron,
 });

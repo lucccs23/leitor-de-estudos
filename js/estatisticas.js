@@ -185,6 +185,8 @@ App.openStats = async () => {
       body.append(list);
     }
 
+    // simulados (evolução)
+    if (App.examEvolution) { const evo = el('div', 'resEvo statEvo'); body.append(evo); App.examEvolution(evo).then(() => { const h = evo.querySelector('.rvLabel'); if (h) h.className = 'statH'; }); }
     // Focus
     const fx = el('div', 'statFocus');
     fx.append(el('h3', 'statH', 'Focus (opcional)'));

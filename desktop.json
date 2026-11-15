@@ -1,0 +1,5 @@
+{
+  "cascaMinima": "1.19.1",
+  "instalador": "https://github.com/lucccs23/leitor-de-estudos/releases/latest",
+  "obs": "Vetra para Windows: versões com 'cascaMinima' maior que a do app instalado precisam do instalador novo; as outras se atualizam sozinhas pelo botão Procurar atualizações."
+}

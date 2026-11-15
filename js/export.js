@@ -12,7 +12,7 @@ menu.addEventListener('click', e => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
   menu.hidden = true;
   ({ backup: App.exportBackup,
-     restore: () => $('#backupInput').click(), look: () => App.openLook?.(), toolbar: () => App.customizeToolbar?.(), install: () => App.installApp?.(), news: () => App.openNews?.(), sync: () => App.openSync?.(), summary: () => App.openSummary?.(), auto: App.setupAutoBackup, help: App.openHelp, localbk: App.backupNow,
+     restore: () => $('#backupInput').click(), look: () => App.openLook?.(), toolbar: () => App.customizeToolbar?.(), install: () => App.installApp?.(), news: () => App.openNews?.(), updates: () => App.checkUpdates?.(true), sync: () => App.openSync?.(), summary: () => App.openSummary?.(), auto: App.setupAutoBackup, help: App.openHelp, localbk: App.backupNow,
      keepimg: () => { const on = !App.ls.get('le.keepImages', true); App.setKeepImages(on); renderKeepImg();
        App.toast(on ? 'Modo escuro: imagens com as cores originais' : 'Modo escuro: imagens invertidas junto com a página'); } })[b.dataset.act]?.();
 });

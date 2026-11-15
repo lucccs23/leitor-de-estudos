@@ -70,6 +70,7 @@ const C = [
   { id: 'shortcuts', group: 'Configurações', label: 'Atalhos do teclado', icon: 'keyboard', key: 'F1', run: () => App.openHelp() },
   { id: 'backupNow', group: 'Configurações', label: 'Fazer backup agora', icon: 'cloud', run: () => App.backupNow?.() },
   { id: 'sync', group: 'Configurações', label: 'Sincronizar aparelhos…', short: 'Sincronizar', keywords: 'nuvem celular tablet github', icon: 'restore', run: () => App.openSync() },
+  { id: 'updates', group: 'Configurações', label: 'Procurar atualizações', keywords: 'versão nova atualizar', icon: 'download', run: () => (App.checkUpdates ? App.checkUpdates(true) : App.toast('No celular e no site, o Vetra se atualiza sozinho.')) },
   { id: 'news', group: 'Configurações', label: 'Novidades', icon: 'news', run: () => App.openNews?.() },
 ];
 App.commands = C;
