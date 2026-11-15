@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.19.5';
+App.VERSION = '1.19.6';
 App.VERSION_DATE = '14/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -1221,7 +1221,7 @@ App.renderPanel = () => {
   }
 };
 $('#hlFilter').addEventListener('input', e => { state.query = e.target.value; renderPanelSoon(); });
-App.togglePanel = () => { document.body.classList.toggle('panel-open'); ls.set('le.panel', document.body.classList.contains('panel-open')); scheduleRender(); };
+App.togglePanel = () => { document.body.classList.toggle('panel-open'); scheduleRender(); };
 
 // ---------- Salvar ----------
 let saveT = null;

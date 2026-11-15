@@ -1590,3 +1590,10 @@ body.exam:not(.exam-review):not(.exam-paused) .textLayer{cursor:default}
 /* simulado guardado: o botão vira "Continuar simulado" */
 #btnExam.resume,#btnExamResume{color:var(--accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent)}
 #examBar .exStop:hover{color:var(--danger)}
+
+/* arrastar os botões da barra para reorganizar */
+.tbPins > [data-pin]{transition:transform .16s cubic-bezier(.2,.8,.3,1)}
+.tbPins > [data-pin].tbDrag{transition:none;z-index:3;cursor:grabbing;background:var(--surface);box-shadow:0 4px 14px rgba(0,0,0,.28),0 0 0 1px var(--border-strong)}
+body.tb-reordering, body.tb-reordering *{cursor:grabbing!important;user-select:none}
+body.tb-reordering .tooltip,body.tb-reordering [role=tooltip]{display:none!important}
+@media (prefers-reduced-motion:reduce){ .tbPins > [data-pin]{transition:none} }

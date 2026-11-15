@@ -349,7 +349,7 @@ function exitMode(silent){
   clearInterval(tickT); tickT = null;
   if (ex && !silent) save();
   ex = null; paused = false;
-  document.body.classList.remove('exam', 'exam-review', 'exam-paused', 'exam-sheet', 'exam-nosheet');
+  document.body.classList.remove('exam', 'exam-review', 'exam-paused', 'exam-sheet', 'exam-nosheet', 'panel-open');
   pause.hidden = true; bar.innerHTML = ''; panel.innerHTML = '';
   $$('.qLayer').forEach(l => l.remove());
   altMap = {}; sheetFilter = 'all';

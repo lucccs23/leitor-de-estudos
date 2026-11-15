@@ -7,7 +7,7 @@ const { ls, state } = App;
 App.setKeepImages(ls.get('le.keepImages', true));
 App.applyTheme(ls.get('le.theme', matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
 // em telas estreitas os painéis ficam por cima da página: começam fechados
-if (ls.get('le.panel', true) && innerWidth > 900) document.body.classList.add('panel-open');
+// o painel de grifos começa fechado: abre só quando você pede (botão do painel ou H)
 App.initSidebar();
 App.buildPalette(); App.buildLegend();
 App.setTool('text'); App.setStyle(state.style);

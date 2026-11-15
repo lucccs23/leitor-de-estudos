@@ -237,7 +237,7 @@ function buildCustom(){
   if (!custom) return;
   custom.innerHTML = '';
   const head = el('div', 'tbcHead');
-  const t = el('div', 'tbcTitle'); t.append(el('strong', null, 'Personalizar a barra'), el('span', 'muted small', 'Arraste uma função para a barra lá em cima. Na barra, arraste para mudar a ordem, ou arraste de volta para cá (ou clique no ×) para tirar.'));
+  const t = el('div', 'tbcTitle'); t.append(el('strong', null, 'Personalizar a barra'), el('span', 'muted small', 'Arraste uma função para a barra lá em cima. Na barra, arraste para mudar a ordem (isso funciona a qualquer hora, mesmo fora daqui), ou arraste de volta para cá (ou clique no ×) para tirar.'));
   head.append(t,
     App.btn('Restaurar padrão', () => { savePins(DEFAULT_PINS.slice()); buildCustom(); }, 'sm outline'),
     App.btn('Pronto', endCustomize, 'primary sm'));
@@ -301,6 +301,60 @@ zone.addEventListener('drop', e => {
 // no modo personalizar, clicar num botão da barra não executa a função
 zone.addEventListener('click', e => { if (custom && e.target.closest('[data-pin]') && !e.target.closest('.pinX')) { e.stopPropagation(); e.preventDefault(); } }, true);
 document.addEventListener('keydown', e => { if (custom && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); endCustomize(); } }, true);
+// ---------- Arrastar direto na barra (sem entrar no modo personalizar) ----------
+// segure um botão e arraste para o lado: os outros abrem espaço e a nova ordem fica salva
+let rd = null, eatClick = false;
+const visPins = () => [...zone.querySelectorAll(':scope > [data-pin]')].filter(b => b.offsetWidth > 0);
+zone.addEventListener('pointerdown', e => {
+  if (custom || e.button !== 0 || e.pointerType === 'touch') return;
+  const b = e.target.closest('[data-pin]'); if (!b || b.parentElement !== zone) return;
+  rd = { b, x0: e.clientX, y0: e.clientY, on: false, pid: e.pointerId };
+});
+addEventListener('pointermove', e => {
+  if (!rd || e.pointerId !== rd.pid) return;
+  const dx = e.clientX - rd.x0;
+  if (!rd.on) {
+    if (Math.abs(dx) < 7 || Math.abs(e.clientY - rd.y0) > 30) return;
+    const vis = visPins(); if (vis.length < 2) { rd = null; return; }
+    rd.on = true; rd.vis = vis.filter(x => x !== rd.b); rd.from = vis.indexOf(rd.b);
+    const r = rd.b.getBoundingClientRect(); rd.c0 = r.left + r.width / 2; rd.w = r.width + 2;
+    rd.centers = rd.vis.map(x => { const q = x.getBoundingClientRect(); return q.left + q.width / 2; });
+    rd.b.classList.add('tbDrag'); document.body.classList.add('tb-reordering');
+    App.closePop?.(); closeMenus();
+  }
+  e.preventDefault();
+  rd.b.style.transform = `translateX(${dx}px)`;
+  const c = rd.c0 + dx;
+  rd.to = rd.centers.filter(x => x < c).length;
+  rd.vis.forEach((x, k) => {
+    let s = 0;
+    if (rd.to > rd.from && k >= rd.from && k < rd.to) s = -rd.w;
+    else if (rd.to < rd.from && k >= rd.to && k < rd.from) s = rd.w;
+    x.style.transform = s ? `translateX(${s}px)` : '';
+  });
+}, { passive: false });
+const endReorder = () => {
+  if (!rd) return;
+  const d = rd; rd = null;
+  if (!d.on) return;
+  eatClick = true; setTimeout(() => { eatClick = false; }, 0);
+  document.body.classList.remove('tb-reordering');
+  d.b.classList.remove('tbDrag');
+  zone.querySelectorAll(':scope > [data-pin]').forEach(x => { x.style.transform = ''; });
+  if (d.to === d.from) return;
+  // nova ordem: tira o botão e põe antes do vizinho visível da posição escolhida
+  const all = [...zone.querySelectorAll(':scope > [data-pin]')].map(x => x.dataset.pin).filter(id => id !== d.b.dataset.pin);
+  const ref = d.vis[d.to];
+  let at = ref ? all.indexOf(ref.dataset.pin) : all.indexOf(d.vis[d.vis.length - 1].dataset.pin) + 1;
+  all.splice(at, 0, d.b.dataset.pin);
+  const rest = pins().filter(id => !all.includes(id));
+  savePins([...all, ...rest]);
+};
+addEventListener('pointerup', endReorder);
+addEventListener('pointercancel', endReorder);
+// soltar depois de arrastar não "clica" no botão
+zone.addEventListener('click', e => { if (eatClick) { eatClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+
 // botão direito na barra: atalho para personalizar
 $('#toolbar').addEventListener('contextmenu', e => {
   if (e.target.closest('input, .tab, #tabs')) return;
