@@ -100,7 +100,23 @@ const updateMini = () => {
 const build = App.buildPalette;
 App.buildPalette = () => { build(); updateMini(); };
 
+// a barra e o controle de página nunca ficam um por cima do outro: se não cabem lado a lado, o controle sobe
+const pager = $('#pager'); let collideRaf = 0;
+const checkCollide = () => {
+  collideRaf = 0;
+  const a = dock.getBoundingClientRect(), b = pager.getBoundingClientRect();
+  const hit = a.width > 0 && b.width > 0 && !dock.classList.contains('moved') && !dock.classList.contains('min') && a.right + 8 > b.left && b.right + 8 > a.left;
+  document.body.classList.toggle('pager-up', hit);
+};
+const reqCollide = () => { if (!collideRaf) collideRaf = requestAnimationFrame(checkCollide); };
+if (pager) {
+  const ro = new ResizeObserver(reqCollide); ro.observe(dock); ro.observe(pager);
+  new MutationObserver(reqCollide).observe(dock, { attributes: true, attributeFilter: ['class', 'style'] });
+  addEventListener('resize', reqCollide);
+}
+
 App.initDock = () => {
+  App.on('tool:changed', reqCollide);
   updateMini();
   dock.classList.toggle('min', ls.get('le.dockMin', false));
   App.on('doc:loaded', () => requestAnimationFrame(place));

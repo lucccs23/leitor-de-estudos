@@ -199,7 +199,47 @@ function renderPins(){
   }
   refreshPins();
   App.updateExamBtn?.();
+  reqFit();
 }
+
+// ---------- A barra sempre cabe na tela (celular): primeiro encolhe, depois manda o que sobrar para "⋯" ----------
+const toolbar = $('#toolbar'), tbRight = $('.tbRight');
+const more = el('button', 'btn icon tbMore'); more.type = 'button'; more.id = 'btnTbMore'; more.hidden = true;
+more.append(App.icon('more')); more.title = 'Mais botões da barra'; more.setAttribute('aria-label', 'Mais botões da barra');
+zone.after(more);
+let fitRaf = 0;
+const reqFit = () => { if (!fitRaf) fitRaf = requestAnimationFrame(fitBar); };
+const visible = e => e.offsetWidth > 0 && getComputedStyle(e).display !== 'none';
+// no celular a página pode "esticar" para caber a barra; por isso compara também com a largura real da tela
+const tooWide = () => toolbar.scrollWidth > Math.min(toolbar.clientWidth, Math.floor(window.visualViewport?.width || innerWidth), (matchMedia('(pointer:coarse)').matches && screen.width) || Infinity);
+function fitBar(){
+  fitRaf = 0;
+  const kids = [...zone.children];
+  kids.forEach(e => e.classList.remove('tbFitHide'));
+  more.hidden = true; document.body.classList.remove('tb-fit');
+  if (!tooWide()) return;
+  document.body.classList.add('tb-fit');           // 1º: botões com texto viram só ícone
+  if (!tooWide()) return;
+  more.hidden = false;                             // 2º: os últimos botões vão para o menu "⋯"
+  // nunca esconde o que está em andamento (timer rodando, simulado para continuar)
+  // o que sai primeiro: painel, timer parado, IA e busca; o simulado fica por último (é o mais usado)
+  const FIRST = ['panel', 'pomo', 'ai', 'cmdk'], rank = e => { const i = FIRST.indexOf(e.dataset.pin); return i < 0 ? 100 - kids.indexOf(e) : i; };
+  const cands = kids.filter(e => visible(e) && !e.matches('.running, .resume')).sort((x, y) => rank(x) - rank(y));
+  for (const e of cands) { e.classList.add('tbFitHide'); if (!tooWide()) break; }
+}
+more.onclick = () => {
+  const hidden = [...zone.children].filter(e => e.classList.contains('tbFitHide'));
+  App.popMenu(more, hidden.map(e => ({
+    icon: (e.querySelector('use')?.getAttribute('href') || '').replace('#i-', '') || 'more',
+    label: (e.dataset.pin === 'cmdk' ? 'Buscar ou comando' : (byId(e.dataset.pin)?.short || byId(e.dataset.pin)?.label)) || e.getAttribute('aria-label') || e.textContent.trim(),
+    on: () => e.click(),
+  })), { alignRight: true });
+};
+new ResizeObserver(reqFit).observe(toolbar);
+new MutationObserver(reqFit).observe(zone, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'hidden'] });
+['doc:loaded', 'doc:closed', 'layout:changed'].forEach(ev => App.on(ev, reqFit));
+window.visualViewport?.addEventListener('resize', reqFit);
+App.fitBar = reqFit;
 // estado "ligado" dos botões criados (ex.: régua, duas páginas)
 function refreshPins(){
   for (const [id, b] of made) { const c = byId(id); if (c && c.on) b.classList.toggle('on', !!c.on()); }

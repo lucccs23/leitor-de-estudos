@@ -48,7 +48,7 @@
 
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--text);font:14px/1.45 var(--font);display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);font:14px/1.45 var(--font);display:flex;flex-direction:column;overflow:hidden;overflow:clip;-webkit-font-smoothing:antialiased}
 button,select,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 [hidden]{display:none!important}
@@ -152,7 +152,8 @@ body:not(.has-doc) #pages{display:none}
 .dock{position:absolute;z-index:15;display:flex;align-items:center;gap:4px;padding:5px;background:var(--glass);backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lg)}
 #dock{left:50%;bottom:20px;transform:translateX(-50%)}
 #pager{right:20px;bottom:20px;padding:4px;border-radius:13px;gap:2px}
-@container (max-width:1180px){ #dock:not(.moved):not(.min) ~ #pager{bottom:84px} }
+/* quando a barra e o controle de página não cabem lado a lado, o controle sobe (medido em js/dock.js) */
+body.pager-up #dock:not(.moved):not(.min) ~ #pager{bottom:84px}
 
 /* Barra de marcação: maior, arrastável, recolhível, e em pé quando encostada na lateral */
 #dock{padding:6px;gap:5px;border-radius:18px;touch-action:none}
@@ -1643,7 +1644,14 @@ body[data-tool=lasso] .drawLayer{pointer-events:auto;cursor:crosshair}
 /* caneta: só o essencial na barra (Texto volta ao normal); Área e Nota voltam ao sair da caneta */
 body:is([data-tool=ink],[data-tool=erase],[data-tool=lasso]) #tools :is([data-tool=area],[data-tool=note]){display:none}
 /* a barra da caneta é mais larga: o controle de página sobe para não ficar por baixo dela */
-@container (max-width:1700px){ body:is([data-tool=ink],[data-tool=erase],[data-tool=lasso]) #dock:not(.moved):not(.min) ~ #pager{bottom:84px} }
+/* celular estreito: a barra de texto cabe inteira, sem a última cor cortada na borda */
+@media (max-width:420px){
+  body:not(:is([data-tool=ink],[data-tool=erase],[data-tool=lasso])) #dock .seg .btn{width:33px}
+  body:not(:is([data-tool=ink],[data-tool=erase],[data-tool=lasso])) #palette{gap:3px}
+  body:not(:is([data-tool=ink],[data-tool=erase],[data-tool=lasso])) #palette .swatch{width:25px;height:25px}
+}
+/* na borracha as cores não servem para nada: some a paleta */
+body[data-tool=erase] #palette{display:none}
 /* celular: na caneta, as cores vão para uma segunda linha (tudo à vista, sem rolar a barra) */
 @media (max-width:700px){
   body:is([data-tool=ink],[data-tool=lasso]) #dock{flex-wrap:wrap;justify-content:center;overflow:visible;row-gap:6px}
@@ -1681,3 +1689,11 @@ body:is([data-tool=ink],[data-tool=erase],[data-tool=lasso]) #tools :is([data-to
 .cpEye{margin-left:auto}
 .cpActs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .cpActs .btn{justify-content:center;height:38px}
+
+/* barra de cima sempre cabe na tela: botões com texto viram ícone; o que sobrar vai para "⋯" */
+body.tb-fit #btnReview,body.tb-fit #btnExam,body.tb-fit #btnExamResume{font-size:0;gap:0;width:40px;padding:0;justify-content:center}
+body.tb-fit .pomoChip.running{padding:0 8px}
+.tbPins > .tbFitHide{display:none!important}
+.tbMore[hidden]{display:none}
+body.tb-fit .pomoChip.running > svg{display:none}
+@media (max-width:400px){ #toolbar .fileBtn,#toolbar #btnHome,.tbPins .btn.icon,.tbMore,#btnMenu,body.tb-fit #btnExam{width:36px} }
