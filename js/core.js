@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.20.0';
+App.VERSION = '1.20.1';
 App.VERSION_DATE = '14/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -224,6 +224,7 @@ themeBtn.onclick = () => applyTheme(nextTheme(), true);
 App.buildPalette = () => {
   const pal = $('#palette'); pal.innerHTML = '';
   const penMode = state.tool === 'ink' || state.tool === 'lasso';
+  if (penMode && App.penPaletteExtras) { App.penPaletteExtras(pal); return; }
   const cur = state.tool === 'ink' ? App.penColor() : state.tool === 'lasso' ? null : state.color;
   App.COLORS.forEach((c, i) => {
     const b = el('button', 'swatch' + (cur === c.id ? ' current' : ''));
@@ -234,7 +235,6 @@ App.buildPalette = () => {
     b.onclick = () => pickColor(c.id);
     pal.appendChild(b);
   });
-  if (penMode) App.penPaletteExtras?.(pal, cur);
 };
 App.pickColor = id => pickColor(id);
 function pickColor(id){
@@ -1515,6 +1515,7 @@ document.addEventListener('keydown', e => {
     closePopup(); getSelection().removeAllRanges(); App.setTool('text'); return;
   }
   const n = parseInt(k, 10);
+  if (n >= 1 && n <= 6 && (state.tool === 'ink' || state.tool === 'lasso') && App.penSlot) { e.preventDefault(); App.penSlot(n - 1); return; }
   if (n >= 1 && n <= App.COLORS.length) {
     e.preventDefault();
     const id = App.COLORS[n - 1].id;

@@ -1651,3 +1651,34 @@ body:is([data-tool=ink],[data-tool=erase],[data-tool=lasso]) #tools :is([data-to
   body:is([data-tool=ink],[data-tool=lasso]) #palette{flex-basis:100%;justify-content:center;gap:10px}
   body:is([data-tool=ink],[data-tool=lasso]) #pager{bottom:calc(122px + env(safe-area-inset-bottom))!important}
 }
+
+/* paleta da caneta e seletor de cor */
+#palette .swatch.moreColor{background:conic-gradient(from 90deg,#ff3b30,#ffcc00,#34c759,#00c7be,#007aff,#af52de,#ff2d55,#ff3b30);box-shadow:inset 0 0 0 2px var(--surface)}
+.colorPop{position:fixed;z-index:97;width:min(318px,calc(100vw - 16px));background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow-lg);padding:12px;display:flex;flex-direction:column;gap:12px;animation:pop .12s ease-out}
+.cpTabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:3px;background:var(--surface-2);border-radius:11px}
+.cpTab{height:32px;border:none;border-radius:9px;background:none;color:var(--muted);font-weight:600}
+.cpTab.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.cpGrid{display:grid;grid-template-columns:repeat(12,1fr);border-radius:8px;overflow:hidden}
+.cpGrid[hidden],.cpSpec[hidden]{display:none}
+.cpCell{aspect-ratio:1;border:none;padding:0;border-radius:0;position:relative}
+.cpCell.on{outline:2px solid #fff;outline-offset:-2px;box-shadow:0 0 0 2px #000 inset;z-index:1;border-radius:3px}
+.cpSpec{display:flex;flex-direction:column;gap:12px}
+.cpSV{position:relative;height:180px;border-radius:10px;background:linear-gradient(to top,#000,transparent),linear-gradient(to right,#fff,var(--hue,red));touch-action:none;cursor:crosshair}
+.cpKnob{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.4),0 2px 5px rgba(0,0,0,.35);pointer-events:none}
+.cpHue{-webkit-appearance:none;appearance:none;height:14px;border-radius:99px;background:linear-gradient(to right,red,#ff0,lime,cyan,blue,#f0f,red);outline:none}
+.cpHue::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;border:none;box-shadow:0 0 0 1px rgba(0,0,0,.35),0 2px 5px rgba(0,0,0,.3)}
+.cpHue::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#fff;border:none;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.cpVals{display:flex;align-items:center;gap:12px}
+.cpPrev{display:flex;width:52px;height:36px;border-radius:9px;overflow:hidden;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.cpPrev span{flex:1;cursor:pointer}
+.cpField{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cpField small{font-size:11px;color:var(--muted)}
+.cpField span{font-variant-numeric:tabular-nums;font-size:13px}
+.cpHex{width:84px;height:28px;border:1px solid var(--border);border-radius:7px;background:var(--surface-2);color:var(--text);padding:0 7px;font:inherit;font-size:13px;text-transform:uppercase}
+.cpRGB{display:flex;gap:12px;margin-left:auto}
+.cpRGB .cpField{align-items:center}
+.cpRecent{display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px dashed var(--border);min-height:44px}
+.cpRec{width:30px;height:30px;border-radius:50%;border:none;padding:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 0 0 1px rgba(0,0,0,.2)}
+.cpEye{margin-left:auto}
+.cpActs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cpActs .btn{justify-content:center;height:38px}

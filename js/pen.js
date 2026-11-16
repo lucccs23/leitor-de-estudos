@@ -106,31 +106,174 @@ function eraserOpts(){
   pop.append(clear);
 }
 
-// ---------- Cores personalizadas (na paleta da caneta) ----------
-const customs = () => ls.get('le.inkCustom', []).filter(c => /^#[0-9a-f]{6}$/i.test(c)).slice(0, 4);
-App.penPaletteExtras = (pal, cur) => {
-  for (const hex of customs()) {
-    const b = el('button', 'swatch custom' + (cur === hex ? ' current' : ''));
-    b.style.setProperty('--c', hex); b.title = `Cor personalizada ${hex} (botão direito tira)`;
-    b.setAttribute('aria-label', 'Cor personalizada ' + hex);
-    b.onmousedown = e => e.preventDefault();
-    b.onclick = () => App.pickColor(hex);
-    b.oncontextmenu = e => { e.preventDefault(); ls.set('le.inkCustom', customs().filter(c => c !== hex)); App.buildPalette(); };
-    pal.append(b);
-  }
-  const add = el('button', 'swatch addColor'); add.type = 'button'; add.title = 'Escolher outra cor'; add.setAttribute('aria-label', 'Escolher outra cor');
-  add.append(App.icon('plus'));
-  const inp = el('input'); inp.type = 'color'; inp.className = 'colorInput'; inp.tabIndex = -1;
-  const cc = typeof cur === 'string' && cur[0] === '#' ? cur : App.colorOf(cur || App.penColor()).ink;
-  inp.value = /^#[0-9a-f]{6}$/i.test(cc) ? cc : '#3d63c9';
-  inp.onchange = () => {
-    const hex = inp.value.toLowerCase();
-    ls.set('le.inkCustom', [hex, ...customs().filter(c => c !== hex)].slice(0, 4));
-    App.pickColor(hex);
-  };
-  add.onclick = () => inp.click();
-  pal.append(add, inp);
+// ---------- Paleta da caneta: 6 cores só dela. Tocar de novo na cor escolhida (ou segurar) troca a cor ali mesmo ----------
+const HEX = /^#[0-9a-f]{6}$/i;
+const slots = () => {
+  const def = App.COLORS.map(c => c.ink.toLowerCase());
+  const s0 = ls.get('le.inkSlots', null);
+  return Array.from({ length: 6 }, (_, i) => (s0 && HEX.test(s0[i] || '') ? s0[i] : def[i] || '#3d63c9').toLowerCase());
 };
+const curHex = () => App.colorOf(App.penColor()).ink.toLowerCase();
+const recents = () => ls.get('le.inkRecent', []).filter(c => HEX.test(c)).slice(0, 6);
+const addRecent = hex => ls.set('le.inkRecent', [hex, ...recents().filter(c => c !== hex)].slice(0, 6));
+function editSlot(i, anchor){
+  const sl = slots(), old = sl[i], wasCur = old === curHex();
+  openPicker(anchor, old, hex => {
+    sl[i] = hex; ls.set('le.inkSlots', sl); addRecent(hex);
+    if (state.tool === 'lasso') App.lassoRecolor?.(hex);
+    else if (wasCur || state.tool === 'ink') App.setPenColor(state.pen, hex);
+    App.buildPalette();
+  });
+}
+App.penSlot = i => { const h = slots()[i]; if (h) App.pickColor(h); };
+App.penPaletteExtras = pal => {
+  pal.innerHTML = '';
+  const cur = state.tool === 'ink' ? curHex() : null;
+  slots().forEach((hex, i) => {
+    const b = el('button', 'swatch' + (cur === hex ? ' current' : ''));
+    b.style.setProperty('--c', hex);
+    b.title = cur === hex ? 'Toque de novo para trocar esta cor' : `Cor ${i + 1} (toque de novo, segure ou botão direito para trocar)`;
+    b.setAttribute('aria-label', `Cor da caneta ${i + 1}: ${hex}`);
+    b.onmousedown = e => e.preventDefault();
+    let held = false, t = null;
+    b.onpointerdown = () => { held = false; t = setTimeout(() => { held = true; editSlot(i, b); }, 550); };
+    b.onpointerup = b.onpointerleave = b.onpointercancel = () => clearTimeout(t);
+    b.onclick = () => {
+      if (held) return;
+      if (state.tool === 'ink' && cur === hex) editSlot(i, b); // já era a cor da caneta: abre o seletor
+      else App.pickColor(hex);
+    };
+    b.oncontextmenu = e => { e.preventDefault(); clearTimeout(t); editSlot(i, b); };
+    pal.append(b);
+  });
+  const more = el('button', 'swatch moreColor'); more.type = 'button';
+  more.title = 'Mais cores'; more.setAttribute('aria-label', 'Mais cores');
+  more.onmousedown = e => e.preventDefault();
+  more.onclick = () => {
+    const sl = slots(); let i = sl.indexOf(curHex());
+    if (i < 0) i = 0;
+    editSlot(i, more);
+  };
+  pal.append(more);
+};
+
+// ---------- Seletor de cor (dentro do app, como num caderno digital) ----------
+let cpop = null;
+function closePicker(){ if (cpop) { cpop.remove(); cpop = null; } }
+addEventListener('pointerdown', e => { if (cpop && !cpop.contains(e.target) && !e.target.closest('#palette')) closePicker(); }, true);
+addEventListener('keydown', e => { if (cpop && e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); closePicker(); } }, true);
+const toHex = (r, g, b) => '#' + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+const rgbOf = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+function hsv2hex(h, s, v){
+  const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+  return toHex(f(5) * 255, f(3) * 255, f(1) * 255);
+}
+function hex2hsv(hex){
+  const [r, g, b] = rgbOf(hex).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [(h * 60 + 360) % 360, mx ? d / mx : 0, mx];
+}
+function hsl2hex(h, s, l){
+  const a = s * Math.min(l, 1 - l), f = n => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+  return toHex(f(0) * 255, f(8) * 255, f(4) * 255);
+}
+// grade de amostras: cinzas + 11 tons, do mais claro ao mais escuro
+const SWATCHES = (() => {
+  const rows = 10, hues = [0, 25, 45, 60, 90, 140, 170, 200, 225, 260, 290, 330], out = [];
+  for (let r = 0; r < rows; r++) {
+    const l = 0.93 - r * 0.088;
+    out.push([hsl2hex(0, 0, Math.max(0, 1 - r / (rows - 1))), ...hues.slice(0, 11).map(h => hsl2hex(h, r < 2 ? 0.9 : 0.85, Math.max(0.1, l)))]);
+  }
+  return out;
+})();
+function openPicker(anchor, initial, onDone){
+  closePicker(); App.closePenPop?.();
+  let cur = HEX.test(initial) ? initial.toLowerCase() : '#3d63c9';
+  let [hh, ss, vv] = hex2hsv(cur);
+  cpop = el('div', 'colorPop'); cpop.setAttribute('role', 'dialog'); cpop.setAttribute('aria-label', 'Escolher a cor');
+  const tabs = el('div', 'cpTabs');
+  const tSw = el('button', 'cpTab', 'Amostras'), tSp = el('button', 'cpTab', 'Espectro');
+  tabs.append(tSw, tSp);
+  const body = el('div', 'cpBody');
+  // amostras
+  const grid = el('div', 'cpGrid');
+  SWATCHES.forEach(row => row.forEach(hex => {
+    const c = el('button', 'cpCell'); c.style.background = hex; c.dataset.hex = hex; c.title = hex;
+    c.onclick = () => setCur(hex, true);
+    grid.append(c);
+  }));
+  // espectro
+  const spec = el('div', 'cpSpec');
+  const sv = el('div', 'cpSV'), knob = el('span', 'cpKnob'); sv.append(knob);
+  const hue = el('input', 'cpHue'); hue.type = 'range'; hue.min = 0; hue.max = 360; hue.step = 1; hue.setAttribute('aria-label', 'Tom');
+  spec.append(sv, hue);
+  const paintSV = () => {
+    sv.style.setProperty('--hue', `hsl(${hh} 100% 50%)`);
+    knob.style.left = ss * 100 + '%'; knob.style.top = (1 - vv) * 100 + '%'; knob.style.background = cur;
+    hue.value = hh;
+  };
+  const svAt = e => {
+    const r = sv.getBoundingClientRect();
+    ss = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); vv = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
+    setCur(hsv2hex(hh, ss, vv), false);
+  };
+  sv.onpointerdown = e => { sv.setPointerCapture(e.pointerId); svAt(e); };
+  sv.onpointermove = e => { if (e.buttons) svAt(e); };
+  hue.oninput = () => { hh = +hue.value; setCur(hsv2hex(hh, ss || 0.8, vv || 0.8), false); };
+  body.append(grid, spec);
+  const show = which => {
+    grid.hidden = which !== 'sw'; spec.hidden = which !== 'sp';
+    tSw.classList.toggle('on', which === 'sw'); tSp.classList.toggle('on', which === 'sp');
+    ls.set('le.cpTab', which); if (which === 'sp') paintSV();
+  };
+  tSw.onclick = () => show('sw'); tSp.onclick = () => show('sp');
+  // valores: antes | agora, hex e RGB
+  const vals = el('div', 'cpVals');
+  const prev = el('div', 'cpPrev'), pOld = el('span'), pNew = el('span'); pOld.style.background = initial; prev.append(pOld, pNew);
+  pOld.title = 'Cor de antes (toque para voltar)'; pOld.onclick = () => setCur(initial, true);
+  const hexIn = el('input', 'cpHex'); hexIn.maxLength = 7; hexIn.spellcheck = false; hexIn.setAttribute('aria-label', 'Código hexadecimal');
+  hexIn.onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') done(); };
+  hexIn.oninput = () => { let v = hexIn.value.trim(); if (v[0] !== '#') v = '#' + v; if (HEX.test(v)) setCur(v.toLowerCase(), true, true); };
+  const rgb = el('div', 'cpRGB');
+  const hexBox = el('label', 'cpField'); hexBox.append(el('small', null, 'Hexadecimal'), hexIn);
+  vals.append(prev, hexBox, rgb);
+  // recentes + conta-gotas
+  const rec = el('div', 'cpRecent');
+  recents().forEach(hex => { const c = el('button', 'cpRec'); c.style.background = hex; c.title = hex; c.onclick = () => setCur(hex, true); rec.append(c); });
+  if (!recents().length) rec.append(el('span', 'muted small', 'As cores que você escolher aparecem aqui'));
+  if (window.EyeDropper) {
+    const eye = App.ibtn('pointer', null, async () => {
+      try { const r = await new window.EyeDropper().open(); if (r && HEX.test(r.sRGBHex)) setCur(r.sRGBHex.toLowerCase(), true); } catch {}
+    }, 'sm cpEye', 'Conta-gotas: pegar uma cor da tela');
+    rec.append(eye);
+  }
+  const acts = el('div', 'cpActs');
+  const done = () => { const v = cur; closePicker(); onDone(v); };
+  acts.append(App.btn('Cancelar', closePicker, 'sm'), App.btn('Concluir', done, 'sm primary'));
+  cpop.append(tabs, body, vals, rec, acts);
+  function setCur(hex, syncHsv, fromInput){
+    cur = hex;
+    if (syncHsv) [hh, ss, vv] = hex2hsv(hex);
+    pNew.style.background = hex;
+    if (!fromInput) hexIn.value = hex.toUpperCase();
+    const [r, g, b] = rgbOf(hex);
+    rgb.innerHTML = '';
+    [['Vermelho', r], ['Verde', g], ['Azul', b]].forEach(([n, v]) => { const f = el('div', 'cpField'); f.append(el('small', null, n), el('span', null, String(v))); rgb.append(f); });
+    grid.querySelectorAll('.cpCell.on').forEach(c => c.classList.remove('on'));
+    grid.querySelector(`.cpCell[data-hex="${hex}"]`)?.classList.add('on');
+    if (!spec.hidden) paintSV();
+  }
+  setCur(cur, true);
+  show(ls.get('le.cpTab', 'sw'));
+  document.body.append(cpop);
+  const r = anchor.getBoundingClientRect(), w = cpop.offsetWidth, h = cpop.offsetHeight;
+  let x = r.left + r.width / 2 - w / 2, y = r.top - h - 12;
+  if (y < 8) y = Math.min(innerHeight - h - 8, r.bottom + 12);
+  cpop.style.left = Math.max(8, Math.min(innerWidth - w - 8, x)) + 'px';
+  cpop.style.top = Math.max(8, y) + 'px';
+}
+App.openColorPicker = openPicker;
 
 // ---------- Círculo da borracha (modo "só onde passar") ----------
 const ring = el('div', 'eraserRing'); ring.hidden = true; document.body.append(ring);
@@ -312,7 +455,7 @@ function moveGesture(p, rect, start){
   };
 }
 // a seleção some ao trocar de ferramenta, desfazer, trocar de PDF; e volta a ser marcada se a página for redesenhada
-App.on('tool:changed', () => { clearSel(); closePenPop(); ring.hidden = true; });
+App.on('tool:changed', () => { clearSel(); closePenPop(); closePicker(); ring.hidden = true; });
 App.on('undo:changed', clearSel);
 App.on('doc:loaded', clearSel);
 App.on('doc:closed', clearSel);
