@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.20.1';
+App.VERSION = '1.20.3';
 App.VERSION_DATE = '14/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -852,10 +852,56 @@ function createHighlight(color){
     state.highlights.pop();
   } else snapshot();
   const h = { id: uid(), kind: 'text', style: state.style, color, text, note: '', parts, created: now };
+  const absorbed = absorbOverlaps(h);
   state.highlights.push(h); state.color = color;
   sel.removeAllRanges(); closePopup();
-  refreshHighlight(h);
+  if (absorbed.length) { renderAllAnnots(); App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed'); }
+  else refreshHighlight(h);
 }
+
+// ---------- Grifo por cima de grifo: vira um só (sem "camadas" de cor) ----------
+const rectArea = r => Math.max(0, r.w) * Math.max(0, r.h);
+const interArea = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+// junta dois trechos de texto que se sobrepõem ("…sódio em" + "sódio em 24 horas")
+function joinText(a, b){
+  if (!a) return b; if (!b) return a;
+  if (b.includes(a)) return b; if (a.includes(b)) return a;
+  for (let k = Math.min(a.length, b.length); k >= 3; k--) if (a.endsWith(b.slice(0, k))) return a + b.slice(k);
+  return a + ' ' + b;
+}
+const firstPos = h => { const p = h.parts[0], r = p.rects[0]; return p.page * 10 + r.y + r.x * 0.001; };
+function absorbOverlaps(h){
+  const absorbed = [];
+  for (const o of [...state.highlights]) {
+    if (o.kind !== 'text' || o.style !== h.style || o.q) continue;
+    let inter = 0, area = 0;
+    for (const op of o.parts) for (const r of op.rects) {
+      area += rectArea(r);
+      const np = h.parts.find(p => p.page === op.page); if (!np) continue;
+      // conta só a sobreposição com a mesma linha (altura parecida), não com a linha de cima/baixo
+      for (const n of np.rects) {
+        const oy = Math.min(r.y + r.h, n.y + n.h) - Math.max(r.y, n.y);
+        if (oy > 0.5 * Math.min(r.h, n.h)) inter += interArea(r, n);
+      }
+    }
+    if (!area || inter < area * 0.02) continue;
+    // sobrepõe: o antigo entra no novo
+    for (const op of o.parts) {
+      const np = h.parts.find(p => p.page === op.page);
+      if (np) np.rects = mergeRects([...np.rects, ...op.rects]);
+      else h.parts.push({ page: op.page, rects: op.rects.map(r => ({ ...r })) });
+    }
+    h.parts.sort((p, q) => p.page - q.page);
+    h.text = firstPos(o) <= firstPos(h) ? joinText(o.text, h.text) : joinText(h.text, o.text);
+    if (o.note) h.note = h.note ? h.note + '\n\n' + o.note : o.note;
+    for (const k of ['tags', 'link', 'tag', 'srs']) if (o[k] != null && h[k] == null) h[k] = o[k];
+    h.created = Math.min(h.created, o.created || h.created);
+    state.highlights = state.highlights.filter(x => x !== o);
+    absorbed.push(o);
+  }
+  return absorbed;
+}
+App.absorbOverlaps = absorbOverlaps;
 
 function cropImage(p, r){
   if (!p.canvas) return null;

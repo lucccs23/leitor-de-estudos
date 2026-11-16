@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.20.3', title: 'Grifo por cima de grifo vira um só', items: ['Grifar de novo um trecho que já tinha grifo (ou um pedaço dele) junta tudo num grifo só, com a cor nova — a parte antiga não fica mais forte', 'No simulado, a alternativa marcada agora deixa a própria letra da prova em azul forte, sem quadrado por cima (nada fica desalinhado)'] },
   { v: '1.20.1', title: 'Trocar a cor da caneta na hora', items: ['Toque de novo na cor escolhida (ou segure) para trocá-la ali mesmo: amostras, espectro, código hex, cores recentes e conta-gotas', 'A caneta tem suas 6 cores próprias, separadas das cores de grifo'] },
   { v: '1.20.0', title: 'Caneta de caderno digital', items: ['Caneta e marca-texto viraram botões próprios, cada um com sua cor e espessura (P e M)', 'Espessura numa barrinha com prévia do traço', 'Borracha: apagar o traço inteiro ou só onde passar (com tamanho ajustável) e "apagar tudo desta página"', 'Laço: contorne traços para arrastar, mudar a cor, duplicar ou apagar', 'Botões de desfazer e refazer (Ctrl+Z e Ctrl+Y)', 'Cores personalizadas: o + na paleta da caneta abre qualquer cor'] },
   { v: '1.19.7', title: 'Começa na página inicial', items: ['O Vetra abre sempre na página inicial, em vez de reabrir o último PDF. Quer voltar ao que estava lendo? Clique nele na lista ou use Ctrl+Shift+T'] },

@@ -733,13 +733,11 @@ function renderAlts(){
     // área de clique (invisível)
     const b = tag(el('div', 'altBox'));
     b.style.cssText = `left:${r.x * 100}%;top:${r.y * 100}%;width:${(r.x1 - r.x) * 100}%;height:${(r.y1 - r.y) * 100}%`;
-    // quadradinho com a letra (cobre o "C)" do PDF quando marcada; contorno leve ao passar o mouse)
+    // a própria letra do PDF ("C)") fica colorida: uma camada de cor que só tinge o que é tinta (nada para desalinhar)
     const asp = p.base.w / p.base.h, lx = r.lx ?? r.x + 0.006, ly = r.ly ?? r.y + 0.003, lw = Math.max(r.lw ?? 0, r.lh * 0.85 / asp);
-    const hH = r.lh * 1.5, wW = Math.max(lw + r.lh * 0.5 / asp, hH / asp);
-    const cx = lx + lw / 2, cy = ly + r.lh * 0.5;
+    const tw = Math.min(lw, r.lh * 1.6 / asp) + 0.002, padY = r.lh * 0.12;
     const mk = tag(el('div', 'altMark'));
-    mk.style.cssText = `left:${(cx - wW / 2) * 100}%;top:${(cy - hH / 2) * 100}%;width:${wW * 100}%;height:${hH * 100}%`;
-    mk.append(el('span', null, Lt));
+    mk.style.cssText = `left:${(lx - 0.001) * 100}%;top:${(ly - padY) * 100}%;width:${tw * 100}%;height:${(r.lh + padY * 2) * 100}%`;
     // linhas do texto: esmaecem e ganham o traço quando a alternativa é riscada
     const st = tag(el('div', 'altStrike'));
     const textStart = lx + lw + 0.006; // a letra ("A)") fica de fora: só o texto esmaece e é riscado

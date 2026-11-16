@@ -1486,16 +1486,15 @@ body[data-tool=erase] .drawLayer{pointer-events:auto;cursor:cell}
 /* alternativas na própria prova, como no papel: círculo em volta da letra marcada e risco sobre o texto eliminado */
 .altBox{position:absolute;pointer-events:none}
 /* cor de caneta fixa durante a prova (não usa verde/vermelho, nem a cor de destaque); na página escurecida, tinta clara */
-:root{--alt-ink:#3d63c9;--alt-pencil:rgba(70,72,82,.7)}
-[data-page=invert]{--alt-ink:#4a6fd6;--alt-pencil:rgba(215,218,228,.6)}
-.altMark{position:absolute;border-radius:24%;border:1.5px solid transparent;pointer-events:none;display:grid;place-items:center;container-type:size;
-  opacity:0;transform:scale(.6);transition:transform .2s cubic-bezier(.2,1.5,.45,1),opacity .14s ease-out,background-color .15s,border-color .15s}
-.altMark span{font:700 64cqh/1 var(--font-ui,system-ui),sans-serif;color:#fff;opacity:0}
-.altMark.hov{opacity:1;transform:scale(1);border-color:color-mix(in srgb,var(--alt-ink) 45%,transparent)}
-.altMark.sel,.altMark.key,.altMark.wrong{opacity:1;transform:scale(1);background:var(--alt-ink);border-color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.25)}
-.altMark.sel span,.altMark.key span,.altMark.wrong span{opacity:1}
-.altMark.key{background:var(--ok)}
-.altMark.wrong{background:var(--danger)}
+:root{--alt-ink:#1d5bff;--alt-ok:#12a150;--alt-bad:#e5262d;--alt-pencil:rgba(70,72,82,.7)}
+[data-page=invert]{--alt-ink:#3b8bff;--alt-ok:#2fd27a;--alt-bad:#ff4d55;--alt-pencil:rgba(215,218,228,.6)}
+.altMark{position:absolute;pointer-events:none;background:var(--alt-ink);mix-blend-mode:lighten;opacity:0;transition:opacity .14s ease-out}
+/* página escurecida: a letra é clara, então a tinta entra pelo "escurecer" */
+[data-page=invert] .altMark{mix-blend-mode:darken}
+.altMark.hov{opacity:.35}
+.altMark.sel,.altMark.key,.altMark.wrong{opacity:1}
+.altMark.key{background:var(--alt-ok)}
+.altMark.wrong{background:var(--alt-bad)}
 /* riscada: o texto some no fundo da página e o traço de lápis passa por cima */
 .altStrike{position:absolute;inset:0;pointer-events:none}
 .altStrike i{position:absolute;border-radius:2px;background:transparent;transition:background-color .2s}
