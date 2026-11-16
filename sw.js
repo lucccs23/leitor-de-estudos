@@ -1,7 +1,7 @@
 /* Vetra — funcionamento offline.
    Guarda todos os arquivos do app no aparelho na instalação; depois tudo abre sem internet.
    Ao publicar uma versão nova, mude VERSION: os aparelhos baixam os arquivos novos e o app avisa. */
-const VERSION = '1.20.4';
+const VERSION = '1.20.5';
 const CACHE = 'leitor-' + VERSION;
 const FILES = [
   './', './index.html', './app.css', './manifest.webmanifest', './icone.png',

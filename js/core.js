@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.20.4';
+App.VERSION = '1.20.5';
 App.VERSION_DATE = '14/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -1138,7 +1138,7 @@ function placePopup(x, y){
   let top = y + 12;
   if (top + ph > innerHeight - 8) top = y - ph - 14;
   // nunca acima da barra de cima nem fora da tela (seleção perto do topo, comum no celular)
-  const minTop = ($('#toolbar').getBoundingClientRect().bottom || 0) + 6;
+  const minTop = Math.max($('#toolbar').getBoundingClientRect().bottom || 0, $('#topStrip')?.getBoundingClientRect().bottom || 0) + 6;
   top = Math.max(minTop, Math.min(top, innerHeight - ph - 8));
   popup.style.left = left + 'px'; popup.style.top = top + 'px';
 }

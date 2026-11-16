@@ -1697,3 +1697,17 @@ body.tb-fit .pomoChip.running{padding:0 8px}
 .tbMore[hidden]{display:none}
 body.tb-fit .pomoChip.running > svg{display:none}
 @media (max-width:400px){ #toolbar .fileBtn,#toolbar #btnHome,.tbPins .btn.icon,.tbMore,#btnMenu,body.tb-fit #btnExam{width:36px} }
+
+/* barras presas no topo: faixa logo abaixo da barra superior */
+#topStrip{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;min-height:48px;padding:3px 10px;background:var(--surface);border-bottom:1px solid var(--border);flex:none;position:relative;z-index:19}
+#topStrip[hidden],body:not(.has-doc) #topStrip{display:none}
+#topStrip > .dock{position:static;left:auto!important;top:auto!important;bottom:auto!important;right:auto;transform:none!important;background:transparent;border-color:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:2px;animation:none}
+#topStrip > #dock{margin:0 auto}
+#topStrip > #pager{margin-left:auto}
+#topStrip > #dock:only-child{margin:0 auto}
+#topStrip #dockToggle,#topStrip #dockMini,#topStrip #dock > .dockSep:has(+ #dockToggle){display:none}
+#topStrip #dockGrip{cursor:grab}
+/* levando a barra até o topo: a faixa aparece como alvo */
+body.strip-drop.has-doc #topStrip{display:flex;background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
+body.strip-drop.has-doc #topStrip:empty::before{content:'Solte aqui para prender a barra no topo';margin:auto;color:var(--accent);font-weight:600;font-size:13px}
+body.strip-on.has-doc #toast{top:calc(var(--strip-h,48px) + 64px)}

@@ -28,6 +28,8 @@ const C = [
   { id: 'continuous', group: 'Exibir', label: 'Rolagem contínua', icon: 'list', doc: true, run: () => App.setLayout({ paged: false }), on: () => !L().paged, radio: true },
   { id: 'paged', group: 'Exibir', label: 'Página por página', icon: 'pages', doc: true, run: () => App.setLayout({ paged: true }), on: () => !!L().paged, radio: true },
   { id: 'spread', group: 'Exibir', label: 'Duas páginas lado a lado', icon: 'book', doc: true, run: () => App.setLayout({ spread: !L().spread }), on: () => !!L().spread },
+  { id: 'dockTop', group: 'Exibir', label: 'Barra de marcação presa no topo', keywords: 'barra ferramentas topo fixar prender posição', icon: 'pin', doc: true, run: () => App.toggleBarTop('dock'), on: () => !!App.barTop?.('dock') },
+  { id: 'pagerTop', group: 'Exibir', label: 'Controle de página preso no topo', keywords: 'página zoom topo fixar prender posição', icon: 'pin', doc: true, run: () => App.toggleBarTop('pager'), on: () => !!App.barTop?.('pager') },
   { id: 'ruler', group: 'Exibir', label: 'Régua de leitura', icon: 'ruler', key: 'U', doc: true, run: () => App.toggleRuler(), on: () => !!ls.get('le.ruler', false) },
   { id: 'split', group: 'Exibir', label: 'Lado a lado com outro PDF', short: 'Lado a lado', icon: 'columns', key: 'L', doc: true, el: '#btnSplit', run: a => App.toggleSplit(a), on: () => document.body.classList.contains('split-on') },
   { id: 'tts', group: 'Exibir', label: 'Ouvir em voz alta', short: 'Ouvir', icon: 'speaker', doc: true, el: '#btnTts', run: () => (ttsOn() ? App.ttsStop() : App.ttsStart()), on: ttsOn },
@@ -89,7 +91,7 @@ App.commandAvailable = c => !c.doc || doc();
 
 // ---------- Menus Exibir e Estudar ----------
 const MENUS = {
-  view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', 'fitPage', 'actualSize', '-', 'look'] },
+  view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', 'fitPage', 'actualSize', '-', 'dockTop', 'pagerTop', '-', 'look'] },
   help: { btn: '#btnHelpMenu', box: '#helpMenu', items: ['updates', 'updOnOpen', '-', 'news', 'shortcuts', '-', 'about'] },
   study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'examNew', 'summary', 'siglas', '-', 'ai', 'aiChapter', 'aiHighlights', 'aiHistory', 'aiPrompts', '-', 'plan', 'stats', 'pomoSettings', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr'] },
 };
