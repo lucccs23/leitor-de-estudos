@@ -119,7 +119,7 @@ const pager = $('#pager'); let collideRaf = 0;
 const checkCollide = () => {
   collideRaf = 0;
   const a = dock.getBoundingClientRect(), b = pager.getBoundingClientRect();
-  const hit = a.width > 0 && b.width > 0 && !inStrip(dock) && !inStrip(pager) && !dock.classList.contains('moved') && !dock.classList.contains('min') && a.right + 8 > b.left && b.right + 8 > a.left;
+  const hit = a.width > 0 && b.width > 0 && !inStrip(dock) && !inStrip(pager) && !dock.classList.contains('moved') && a.right + 8 > b.left && b.right + 8 > a.left;
   document.body.classList.toggle('pager-up', hit);
 };
 const reqCollide = () => { if (!collideRaf) collideRaf = requestAnimationFrame(checkCollide); };
@@ -165,6 +165,12 @@ App.setBarTop = (k, on) => {
   else App.toast(on ? `${nome} presa no topo` : `${nome} flutuando de novo`);
   App.refreshPins?.();
 };
+// posição do controle de página: esquerda, centro ou direita (flutuando e preso no topo)
+const pagerAlign = () => { const a = ls.get('le.pagerAlign', 'right'); return ['left', 'center', 'right'].includes(a) ? a : 'right'; };
+const applyAlign = () => { const a = pagerAlign(); document.body.classList.toggle('pager-c', a === 'center'); document.body.classList.toggle('pager-l', a === 'left'); reqCollide(); };
+App.setPagerAlign = a => { ls.set('le.pagerAlign', a); applyAlign(); App.refreshPins?.(); };
+App.pagerAlign = pagerAlign;
+applyAlign();
 App.toggleBarTop = k => App.setBarTop(k, !wantTop(k));
 App.barTop = wantTop;
 // clique direito (ou toque longo) na barra: escolher onde ela fica
@@ -173,6 +179,7 @@ function placeMenu(k, e){
   e.preventDefault();
   App.popMenu({ getBoundingClientRect: () => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY, width: 1, height: 1 }) }, [
     { icon: 'pin', label: top ? 'Deixar flutuando sobre a página' : 'Prender na barra de cima', on: () => App.setBarTop(k, !top) },
+    ...(k === 'pager' ? [{ sep: true }, ...[['left', 'À esquerda'], ['center', 'No centro'], ['right', 'À direita']].map(([a, l]) => ({ icon: a === 'center' ? 'fit' : a === 'left' ? 'left' : 'right', label: l, checked: pagerAlign() === a, on: () => App.setPagerAlign(a) }))] : []),
     ...(k === 'dock' && !top && pos ? [{ icon: 'restore', label: 'Voltar ao lugar padrão', on: () => { pos = null; ls.set('le.dockPos', null); place(); } }] : []),
   ], { title: k === 'dock' ? 'Barra de marcação' : 'Controle de página' });
 }

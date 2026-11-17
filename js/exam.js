@@ -24,6 +24,18 @@ const fmtClock = s => {
 const fmtDur = s => s < 60 ? Math.round(s) + ' s' : App.fmtDuration(s);
 const letters = e => LETTERS.slice(0, e.alts);
 const save = () => App.saveDocSoon();
+// "refazer só os erros": a tentativa vale só para algumas questões (e.only); as outras ficam apagadas na prova
+const inSet = (e, q) => !e.only || e.only.includes(+q);
+const qs = e => { const out = []; for (let q = 1; q <= e.n; q++) if (inSet(e, q)) out.push(q); return out; };
+const nq = e => e.only ? e.only.length : e.n;
+const answered = e => Object.keys(e.answers).filter(q => inSet(e, q)).length;
+const offSet = () => App.toast('Nesta tentativa só valem as questões que você errou, deixou em branco ou chutou.');
+const qState = (e, q) => {
+  const k = e.key ? e.key[q] : null, a = e.answers[q] || null;
+  if (!k) return 'nokey';
+  if (e.annulled.includes(q) || k === '*') return 'annulled';
+  return !a ? 'blank' : a === k ? 'right' : 'wrong';
+};
 
 // ==================== Detecção das questões e do gabarito ====================
 async function detectQuestions(){
@@ -356,7 +368,7 @@ function exitMode(silent){
   updateExamBtn();
 }
 App.exitExam = () => exitMode();
-const firstOpenQuestion = e => { for (let q = 1; q <= e.n; q++) if (!e.answers[q]) return q; return 1; };
+const firstOpenQuestion = e => { const l = qs(e); for (const q of l) if (!e.answers[q]) return q; return l[0] || 1; };
 
 function tick(){
   const now = Date.now(), dt = Math.min(5, (now - lastTick) / 1000); lastTick = now;
@@ -375,7 +387,7 @@ function timeUp(){
   setPaused(true, true);
   showView(v => {
     const c = el('div', 'rvCard exCard center');
-    c.append(el('h2', null, 'Tempo esgotado'), el('p', 'muted', `${Object.keys(ex.answers).length} de ${ex.n} questões respondidas.`));
+    c.append(el('h2', null, 'Tempo esgotado'), el('p', 'muted', `${answered(ex)} de ${nq(ex)} questões respondidas.`));
     const a = el('div', 'rvActions');
     a.append(btn('Entregar agora', () => { hideView(); deliver(true); }, 'primary'),
       btn('Continuar fora do tempo', () => { ex.overtime = true; save(); hideView(); setPaused(false); renderBar(); }, 'outline'));
@@ -394,7 +406,7 @@ function setPaused(on, silent){
 
 const sheetBtn = () => {
   const b = el('button', 'btn sm exSheetBtn'); b.id = 'exSheetBtn';
-  b.append(App.icon('list'), el('span', null, ex ? `${Object.keys(ex.answers).length}/${ex.n}` : ''));
+  b.append(App.icon('list'), el('span', null, ex ? `${answered(ex)}/${nq(ex)}` : ''));
   b.title = 'Mostrar ou ocultar a folha de respostas (F)'; b.onclick = toggleSheet;
   b.setAttribute('aria-pressed', String(sheetShown()));
   return b;
@@ -441,18 +453,18 @@ function updateClock(){
   const prog = $('#exProg'); if (prog) prog.textContent = progressText();
 }
 const progressText = () => {
-  const a = Object.keys(ex.answers).length, f = Object.keys(ex.flags).filter(q => ex.flags[q]).length, g = Object.keys(ex.guess || {}).length;
-  return `${a} de ${ex.n} respondidas${f ? ` · ${f} com dúvida` : ''}${g ? ` · ${g} no chute` : ''}`;
+  const a = answered(ex), f = Object.keys(ex.flags).filter(q => ex.flags[q]).length, g = Object.keys(ex.guess || {}).length;
+  return `${a} de ${nq(ex)} respondidas${f ? ` · ${f} com dúvida` : ''}${g ? ` · ${g} no chute` : ''}`;
 };
 // ritmo: compara o tempo usado com o tempo "certo" para as questões já respondidas
-const perQuestion = () => ex.timeLimit ? ex.timeLimit / ex.n : 0;
+const perQuestion = () => ex.timeLimit ? ex.timeLimit / nq(ex) : 0;
 function updatePace(){
   const box = $('#exPace'); if (!box || !ex || ex.finished) return;
   const tq = ex.times[curQ] || 0, pq = perQuestion();
   box.innerHTML = '';
   const cur = el('span', 'paceQ' + (pq && tq > pq * 1.5 ? ' slow' : ''), `Questão ${curQ}: ${fmtClock(tq)}`);
   if (pq) {
-    const done = Object.keys(ex.answers).length, diff = done * pq - ex.elapsed;
+    const done = answered(ex), diff = done * pq - ex.elapsed;
     const st = Math.abs(diff) < 60 ? 'ok' : diff > 0 ? 'ahead' : 'behind';
     const pace = el('span', 'pace ' + st, st === 'ok' ? 'no ritmo' : `${diff > 0 ? 'adiantado' : 'atrasado'} ${fmtDur(Math.abs(diff))}`);
     pace.title = `Meta: ${fmtDur(pq)} por questão (tempo de prova ÷ questões)`;
@@ -465,7 +477,7 @@ function renderPanel(){
   panel.innerHTML = '';
   if (!ex) return;
   const head = el('div', 'exPanelHead');
-  head.append(el('h2', null, ex.finished ? 'Correção' : 'Folha de respostas'));
+  head.append(el('h2', null, (ex.finished ? 'Correção' : 'Folha de respostas') + (ex.only ? ' · só os erros' : '')));
   const sub = el('div', 'muted small'); sub.id = 'exProg'; sub.textContent = ex.finished ? resultLine() : progressText();
   head.append(sub);
   if (!ex.finished) {
@@ -480,7 +492,7 @@ function renderPanel(){
   const fl = el('div', 'exFilters'); fl.id = 'exFilters';
   panel.append(fl);
   const list = el('div', 'qList'); list.id = 'qList';
-  for (let q = 1; q <= ex.n; q++) list.append(qRow(q));
+  for (const q of qs(ex)) list.append(qRow(q));
   panel.append(list);
   renderFilters();
   // na correção: comentário da questão atual (quando o gabarito tinha comentários)
@@ -501,12 +513,19 @@ function renderComment(){
 }
 const resultLine = () => { const r = scoreOf(ex); return ex.key ? `${r.right} acertos de ${r.total} (${r.pct}%) · ${fmtClock(ex.elapsed)}` : 'Sem gabarito: informe para corrigir'; };
 function updateProgressBar(){
-  const f = $('#exBar'); if (f && ex) f.style.width = (Object.keys(ex.answers).length / ex.n * 100) + '%';
-  const sb = $('#exSheetBtn span'); if (sb && ex) sb.textContent = `${Object.keys(ex.answers).length}/${ex.n}`;
+  const f = $('#exBar'); if (f && ex) f.style.width = (answered(ex) / nq(ex) * 100) + '%';
+  const sb = $('#exSheetBtn span'); if (sb && ex) sb.textContent = `${answered(ex)}/${nq(ex)}`;
   renderFilters(); updatePace();
 }
-const FILTERS = ex2 => [
-  ['all', 'Todas', ex2.n, () => true],
+const FILTERS = ex2 => ex2.finished && ex2.key ? [
+  // na correção: andar só pelas erradas (J/K pulam só entre elas)
+  ['all', 'Todas', null, () => true],
+  ['wrong', 'Erradas', null, q => qState(ex2, q) === 'wrong'],
+  ['blank', 'Em branco', null, q => qState(ex2, q) === 'blank'],
+  ['guess', 'Chutes', null, q => !!(ex2.guess && ex2.guess[q])],
+  ['right', 'Acertadas', null, q => qState(ex2, q) === 'right'],
+] : [
+  ['all', 'Todas', null, () => true],
   ['blank', 'Em branco', null, q => !ex2.answers[q]],
   ['flag', 'Dúvida', null, q => !!ex2.flags[q]],
   ['guess', 'Chute', null, q => !!(ex2.guess && ex2.guess[q])],
@@ -515,7 +534,7 @@ function renderFilters(){
   const box = $('#exFilters'); if (!box || !ex) return;
   box.innerHTML = '';
   for (const [id, label, , test] of FILTERS(ex)) {
-    let n = 0; for (let q = 1; q <= ex.n; q++) if (test(q)) n++;
+    let n = 0; for (const q of qs(ex)) if (test(q)) n++;
     if (id !== 'all' && !n && sheetFilter !== id) continue;
     const b = el('button', 'exFilter' + (sheetFilter === id ? ' on' : ''), `${label} ${n}`);
     b.onclick = () => { sheetFilter = sheetFilter === id ? 'all' : id; applyFilter(); renderFilters(); };
@@ -590,15 +609,17 @@ function paintRow(row, q){
 }
 function setAnswer(q, L){
   if (!ex || ex.finished) return;
+  if (!inSet(ex, q)) { offSet(); return; }
   if (paused) setPaused(false);
   const was = ex.answers[q];
   if (was === L) delete ex.answers[q];
   else { ex.answers[q] = L; if (ex.elim[q]) ex.elim[q] = ex.elim[q].filter(x => x !== L); }
   paintRow(null, q); updateProgressBar(); updateClock(); save();
-  if (ex.autoAdvance && ex.answers[q] && !was && q < ex.n) goToQuestion(q + 1, true);
+  if (ex.autoAdvance && ex.answers[q] && !was) { const nx = qs(ex).find(x => x > q); if (nx) goToQuestion(nx, true); }
 }
 function toggleElim(q, L){
   if (!ex || ex.finished) return;
+  if (!inSet(ex, q)) { offSet(); return; }
   const list = ex.elim[q] || (ex.elim[q] = []);
   const i = list.indexOf(L);
   if (i >= 0) list.splice(i, 1); else { list.push(L); if (ex.answers[q] === L) delete ex.answers[q]; }
@@ -606,11 +627,13 @@ function toggleElim(q, L){
 }
 function toggleFlag(q){
   if (!ex || ex.finished) return;
+  if (!inSet(ex, q)) { offSet(); return; }
   if (ex.flags[q]) delete ex.flags[q]; else ex.flags[q] = true;
   paintRow(null, q); updateClock(); renderFilters(); save();
 }
 function toggleGuess(q){
   if (!ex || ex.finished) return;
+  if (!inSet(ex, q)) { offSet(); return; }
   ex.guess = ex.guess || {};
   if (ex.guess[q]) delete ex.guess[q]; else ex.guess[q] = true;
   paintRow(null, q); updateClock(); renderFilters(); save();
@@ -627,6 +650,14 @@ function goToQuestion(q, fromAnswer){
   const a = anchorOf(q);
   if (a) { holdScrollUntil = Date.now() + 700; viewer.scrollTop = anchorTop(a) - 28; App.scheduleRender(); }
   else if (!fromAnswer) App.toast(`Questão ${q} selecionada (não achei onde ela começa no PDF).`);
+}
+function step(dir){
+  const f = (FILTERS(ex).find(x => x[0] === sheetFilter) || FILTERS(ex)[0])[3];
+  const list = qs(ex).filter(q => f(q));
+  if (!list.length) return;
+  const nx = dir > 0 ? list.find(q => q > curQ) : list.slice().reverse().find(q => q < curQ);
+  if (nx) goToQuestion(nx);
+  else App.toast(dir > 0 ? 'Essa é a última do filtro.' : 'Essa é a primeira do filtro.');
 }
 function markCurrent(scrollSheet){
   panel.querySelectorAll('.qRow.cur').forEach(r => r.classList.remove('cur'));
@@ -673,7 +704,7 @@ function updateBadge(q){
   b.textContent = a ? a + (ex.guess && ex.guess[q] ? '~' : '') : (ex.flags[q] ? '?' : '');
   b.title = `Questão ${q}${a ? ' — você marcou ' + a : ''}${k && k !== '*' ? ' · gabarito ' + k : ''}`;
   b.className = 'qBadge' + (a ? ' answered' : '') + (ex.flags[q] ? ' flagged' : '') + (q === curQ ? ' cur' : '')
-    + (k && k !== '*' ? (a === k ? ' right' : ' wrong') : '');
+    + (k && k !== '*' ? (a === k ? ' right' : ' wrong') : '') + (inSet(ex, q) ? '' : ' off');
 }
 
 // ---------- Responder na própria prova ----------
@@ -726,6 +757,7 @@ function renderAlts(){
   $$('.altBox,.altMark,.altStrike').forEach(b => b.remove());
   if (!ex) return;
   for (const [q, m] of Object.entries(altMap)) for (const [Lt, r] of Object.entries(m)) {
+    if (!inSet(ex, q)) continue;
     const p = state.pages[r.page - 1]; if (!p) continue;
     let layer = p.el.querySelector('.qLayer');
     if (!layer) { layer = el('div', 'qLayer'); p.el.append(layer); }
@@ -884,8 +916,8 @@ App.examKey = e => {
   if (!ex || App.examViewOpen) return false;
   const K = e.key.toLowerCase();
   if (K === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); toggleSheet(); return true; }
-  if (K === 'j') { e.preventDefault(); goToQuestion(curQ + 1); return true; }
-  if (K === 'k') { e.preventDefault(); goToQuestion(curQ - 1); return true; }
+  if (K === 'j') { e.preventDefault(); step(1); return true; }
+  if (K === 'k') { e.preventDefault(); step(-1); return true; }
   if (ex.finished) return false;
   if (K === 'p') { e.preventDefault(); setPaused(!paused); return true; }
   if (paused) return false;
@@ -899,7 +931,7 @@ App.examKey = e => {
 // ==================== Entrega, gabarito e resultado ====================
 function deliver(force){
   if (!ex || ex.finished) return;
-  const blanks = ex.n - Object.keys(ex.answers).length;
+  const blanks = nq(ex) - answered(ex);
   const flags = Object.keys(ex.flags).length;
   const finish = () => {
     clearInterval(tickT); tickT = null;
@@ -958,6 +990,7 @@ function keyEntry(){
 function scoreOf(e){
   const r = { right: 0, wrong: 0, blank: 0, annulled: 0, total: 0, pct: 0, rows: [] };
   for (let q = 1; q <= e.n; q++) {
+    if (!inSet(e, q)) continue;
     const k = e.key ? e.key[q] : null, a = e.answers[q] || null;
     const ann = e.annulled.includes(q) || k === '*';
     let st = 'nokey';
@@ -993,7 +1026,8 @@ function showResults(){
     const info = el('div', 'resInfo');
     info.append(el('h2', null, `${r.right} de ${r.total} acertos`),
       el('p', 'muted', `${e.name} · ${new Date(e.finishedAt || Date.now()).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`),
-      el('p', 'muted small', `Tempo: ${fmtClock(e.elapsed)}${e.timeLimit ? ' de ' + fmtClock(e.timeLimit) : ''} · média de ${fmtDur(e.elapsed / Math.max(1, e.n))} por questão`));
+      el('p', 'muted small', `Tempo: ${fmtClock(e.elapsed)}${e.timeLimit ? ' de ' + fmtClock(e.timeLimit) : ''} · média de ${fmtDur(e.elapsed / Math.max(1, nq(e)))} por questão`));
+    if (e.only) info.append(el('p', 'muted small', `Tentativa só com os erros, brancos e chutes: ${e.only.length} de ${e.n} questões (fica de fora da evolução).`));
     top.append(ring(r.pct), info);
     c.append(top);
     const stats = el('div', 'resStats');
@@ -1071,10 +1105,16 @@ function showResults(){
     // ações
     const a = el('div', 'rvActions');
     const errs = r.rows.filter(x => x.st === 'wrong' || x.st === 'blank').length;
-    const cards = App.ibtn('cards', `Criar cartões dos erros (${errs})`, () => makeErrorCards(e), 'primary');
+    const redo = errorSet(e).length;
+    const review = App.ibtn('eye', `Revisar os erros na prova (${r.wrong})`, () => reviewErrors(), 'primary');
+    review.disabled = !r.wrong;
+    const redoBtn = App.ibtn('restore', `Refazer só os erros (${redo})`, () => retakeErrors(e), 'primary');
+    redoBtn.disabled = !redo; redoBtn.title = 'Nova tentativa só com as questões que você errou, deixou em branco ou chutou (mesmo acertando)';
+    const cards = App.ibtn('cards', `Criar cartões dos erros (${errs})`, () => makeErrorCards(e), 'outline');
     cards.disabled = !errs;
-    a.append(cards, App.ibtn('edit', 'Editar gabarito', keyEntry, 'outline'), App.ibtn('grid', e.areas && e.areas.length ? 'Editar áreas' : 'Dividir por área', () => editAreas(e), 'outline'),
-      App.ibtn('restore', 'Refazer simulado', () => retake(e), 'outline'), btn('Ver na prova', hideView, 'outline'));
+    a.append(review, redoBtn, cards, App.ibtn('download', 'Exportar planilha', () => exportSheet(e), 'outline'),
+      App.ibtn('edit', 'Editar gabarito', keyEntry, 'outline'), App.ibtn('grid', e.areas && e.areas.length ? 'Editar áreas' : 'Dividir por área', () => editAreas(e), 'outline'),
+      App.ibtn('restore', e.only ? 'Refazer esta tentativa' : 'Refazer simulado', () => retake(e), 'outline'), btn('Ver na prova', hideView, 'outline'));
     c.append(a); v.append(c);
   });
 }
@@ -1096,7 +1136,7 @@ function areaResults(e, r){
 }
 function timeChart(e, r){
   const box = el('div', 'resTime');
-  const pq = e.timeLimit ? e.timeLimit / e.n : 0;
+  const pq = e.timeLimit ? e.timeLimit / nq(e) : 0;
   const withT = r.rows.filter(x => x.t > 0);
   const avg = list => list.length ? list.reduce((s2, x) => s2 + x.t, 0) / list.length : 0;
   const rightA = avg(withT.filter(x => x.st === 'right')), wrongA = avg(withT.filter(x => x.st === 'wrong'));
@@ -1142,8 +1182,8 @@ function editAreas(e){
 App.examEvolution = async (box, cur) => {
   const docs = await App.safe(() => App.DB.all('docs'), []);
   const all = new Map();
-  for (const d of docs) for (const e of d.exams || []) if (e.finished && e.key) all.set(e.id, { e, doc: d.name });
-  for (const e of state.exams) if (e.finished && e.key) all.set(e.id, { e, doc: state.name });
+  for (const d of docs) for (const e of d.exams || []) if (e.finished && e.key && !e.only) all.set(e.id, { e, doc: d.name });
+  for (const e of state.exams) if (e.finished && e.key && !e.only) all.set(e.id, { e, doc: state.name });
   const list = [...all.values()].sort((a, b) => a.e.finishedAt - b.e.finishedAt).slice(-14);
   box.innerHTML = '';
   if (list.length < 2) return;
@@ -1162,6 +1202,55 @@ App.examEvolution = async (box, cur) => {
   const first = scoreOf(list[0].e).pct, lastP = scoreOf(list[list.length - 1].e).pct;
   box.append(el('div', 'muted small', `De ${first}% para ${lastP}% em ${list.length} simulados${lastP > first ? ' — subindo!' : '.'}`));
 };
+// questões para refazer: erradas, em branco e as que você acertou no chute
+const errorSet = e => scoreOf(e).rows.filter(x => x.st === 'wrong' || x.st === 'blank' || (x.guess && x.st === 'right')).map(x => x.q);
+function retakeErrors(e){
+  const only = errorSet(e);
+  if (!only.length) { App.toast('Nenhum erro, branco ou chute para refazer.'); return; }
+  const base = e.name.replace(/ — só os erros$/, '');
+  const n = { ...e, id: App.uid(), created: Date.now(), name: base + ' — só os erros', only, from: e.id,
+    timeLimit: e.timeLimit ? Math.round(e.timeLimit / nq(e) * only.length) : 0,
+    elapsed: 0, finished: false, finishedAt: null, answers: {}, elim: {}, flags: {}, times: {}, guess: {}, annulled: e.annulled.slice(), overtime: false };
+  state.exams.push(n); save(); hideView(); enterMode(n);
+  App.toast(`Refazendo ${only.length} questão(ões): erros, brancos e chutes. As outras ficam apagadas.`);
+}
+// revisar na prova: a folha mostra só as erradas, com a certa em verde; J/K pulam de uma errada para a outra
+function reviewErrors(){
+  hideView();
+  sheetFilter = 'wrong'; renderFilters();
+  if (isPhone()) document.body.classList.add('exam-sheet');
+  else if (document.body.classList.contains('exam-nosheet')) toggleSheet();
+  const first = qs(ex).find(q => qState(ex, q) === 'wrong');
+  if (first) goToQuestion(first, true);
+  App.toast('Só as erradas: a certa aparece em verde. J/K (ou a folha) passam de uma para a outra.');
+}
+App.examReviewErrors = reviewErrors;
+// planilha (abre no Excel/Google Planilhas): uma linha por questão + resumo
+function exportSheet(e){
+  const r = scoreOf(e);
+  const areaOf = q => (e.areas || []).find(a => q >= a.from && q <= a.to)?.name || '';
+  const ST = { right: 'acerto', wrong: 'erro', blank: 'branco', annulled: 'anulada', nokey: '' };
+  const esc = v => { v = String(v ?? ''); return /[;"\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const when = new Date(e.finishedAt || Date.now());
+  const lines = [
+    ['Simulado', e.name], ['Data', when.toLocaleString('pt-BR')], ['Acertos', `${r.right} de ${r.total}`], ['Aproveitamento', r.pct + '%'], ['Tempo total', fmtClock(e.elapsed)], [],
+    ['Questão', 'Área', 'Sua resposta', 'Gabarito', 'Resultado', 'Chute', 'Dúvida', 'Tempo (s)', 'Fonte'],
+    ...r.rows.map(x => [x.q, areaOf(x.q), x.a || '', x.k === '*' ? 'X' : (x.k || ''), ST[x.st], x.guess ? 'sim' : '', x.flag ? 'sim' : '', Math.round(x.t), e.comments?.[x.q]?.src || '']),
+  ];
+  if (e.areas && e.areas.length) {
+    lines.push([], ['Área', 'Questões', 'Acertos', 'Total', '%']);
+    for (const ar of e.areas) {
+      const rows = r.rows.filter(x => x.q >= ar.from && x.q <= ar.to && x.k);
+      const right = rows.filter(x => x.st === 'right' || (x.st === 'annulled' && e.annulCorrect)).length;
+      const tot = e.annulCorrect ? rows.length : rows.filter(x => x.st !== 'annulled').length;
+      lines.push([ar.name, `${ar.from}-${ar.to}`, right, tot, tot ? Math.round(100 * right / tot) + '%' : '']);
+    }
+  }
+  const csv = '\ufeff' + lines.map(l => l.map(esc).join(';')).join('\r\n');
+  const nome = `${App.baseName ? App.baseName(e.name) : e.name} - ${App.dayKey(when)}.csv`.replace(/[\\/:*?"<>|]/g, '-');
+  App.download(csv, nome, 'text/csv;charset=utf-8');
+  App.toast('Planilha baixada — abre no Excel ou no Google Planilhas.');
+}
 function retake(e){
   const n = { ...e, id: App.uid(), created: Date.now(), elapsed: 0, finished: false, finishedAt: null, answers: {}, elim: {}, flags: {}, times: {}, guess: {}, annulled: [], overtime: false };
   state.exams.push(n); save(); hideView(); enterMode(n);

@@ -2,7 +2,7 @@
 (() => {
 'use strict';
 const App = window.App;
-const { $, el, btn, state } = App;
+const { $, el, btn, state, ls } = App;
 
 const box = $('#review');
 const DAY = 864e5;
@@ -177,4 +177,26 @@ document.addEventListener('keydown', e => {
   if (e.key === ' ' && deck.length && !revealed && revealFn) { e.preventDefault(); revealFn(); return; }
   if (['1', '2', '3'].includes(e.key) && revealed) { e.preventDefault(); grade(+e.key); }
 }, true);
+// ---------- Lembretes de revisão ----------
+// ao abrir o Vetra (uma vez por dia) e ao abrir um PDF com cartões vencidos (uma vez por dia em cada PDF)
+const dueIn = list => (list || []).filter(h => h.srs && h.srs.due <= Date.now() && h.kind !== 'ink' && h.kind !== 'note').length;
+App.reviewRemind = () => ls.get('le.rvRemind', true);
+App.toggleReviewRemind = () => { const on = !App.reviewRemind(); ls.set('le.rvRemind', on); App.toast(on ? 'Lembretes de revisão ligados.' : 'Lembretes de revisão desligados.'); App.refreshPins?.(); };
+App.on('doc:loaded', () => {
+  if (!App.reviewRemind() || App.examOpen?.()) return;
+  const n = dueIn(state.highlights); if (!n) return;
+  const today = App.dayKey(), seen = ls.get('le.rvHint', {});
+  if (seen[state.fp] === today) return;
+  seen[state.fp] = today;
+  ls.set('le.rvHint', Object.fromEntries(Object.entries(seen).filter(([, d]) => d === today)));
+  setTimeout(() => App.toast(`${n} cartão(ões) para revisar hoje neste PDF — aperte R para revisar.`), 1500);
+});
+setTimeout(async () => {
+  if (!App.reviewRemind() || ls.get('le.rvDay', '') === App.dayKey()) return;
+  const docs = await App.safe(() => App.DB.all('docs'), []);
+  const n = docs.reduce((s2, d) => s2 + dueIn(d.highlights), 0);
+  if (!n) return;
+  ls.set('le.rvDay', App.dayKey());
+  App.toast(`${n} revisão(ões) para hoje — veja "Para revisar hoje" na página inicial.`);
+}, 5500);
 })();

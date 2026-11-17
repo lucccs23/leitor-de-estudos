@@ -153,7 +153,7 @@ body:not(.has-doc) #pages{display:none}
 #dock{left:50%;bottom:20px;transform:translateX(-50%)}
 #pager{right:20px;bottom:20px;padding:4px;border-radius:13px;gap:2px}
 /* quando a barra e o controle de página não cabem lado a lado, o controle sobe (medido em js/dock.js) */
-body.pager-up #dock:not(.moved):not(.min) ~ #pager{bottom:84px}
+body.pager-up #dock:not(.moved) ~ #pager{bottom:84px}
 
 /* Barra de marcação: maior, arrastável, recolhível, e em pé quando encostada na lateral */
 #dock{padding:6px;gap:5px;border-radius:18px;touch-action:none}
@@ -1650,6 +1650,12 @@ body:is([data-tool=ink],[data-tool=erase],[data-tool=lasso]) #tools :is([data-to
   body:not(:is([data-tool=ink],[data-tool=erase],[data-tool=lasso])) #palette{gap:3px}
   body:not(:is([data-tool=ink],[data-tool=erase],[data-tool=lasso])) #palette .swatch{width:25px;height:25px}
 }
+@media (max-width:372px){
+  body:not(:is([data-tool=ink],[data-tool=erase],[data-tool=lasso])) #dock .seg .btn{width:31px}
+  body:not(:is([data-tool=ink],[data-tool=erase],[data-tool=lasso])) #palette{gap:2px}
+  body:not(:is([data-tool=ink],[data-tool=erase],[data-tool=lasso])) #palette .swatch{width:24px;height:24px}
+  #dock{padding:4px 3px;gap:2px}
+}
 /* na borracha as cores não servem para nada: some a paleta */
 body[data-tool=erase] #palette{display:none}
 /* celular: na caneta, as cores vão para uma segunda linha (tudo à vista, sem rolar a barra) */
@@ -1704,6 +1710,15 @@ body.tb-fit .pomoChip.running > svg{display:none}
 #topStrip > .dock{position:static;left:auto!important;top:auto!important;bottom:auto!important;right:auto;transform:none!important;background:transparent;border-color:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:2px;animation:none}
 #topStrip > #dock{margin:0 auto}
 #topStrip > #pager{margin-left:auto}
+/* controle de página no centro ou à esquerda (escolha no clique direito ou em Exibir) */
+@media (min-width:701px){
+  body.pager-c #stage > #pager{left:50%;right:auto;transform:translateX(-50%)}
+  body.pager-l #stage > #pager{left:20px;right:auto}
+}
+body.pager-c #topStrip{justify-content:center}
+body.pager-c #topStrip > #pager,body.pager-c #topStrip > #dock{margin:0}
+body.pager-l #topStrip > #pager{order:-1;margin:0 auto 0 0}
+body.pager-l #topStrip > #dock{margin:0 auto 0 0}
 #topStrip > #dock:only-child{margin:0 auto}
 #topStrip #dockToggle,#topStrip #dockMini,#topStrip #dock > .dockSep:has(+ #dockToggle){display:none}
 #topStrip #dockGrip{cursor:grab}
@@ -1711,3 +1726,6 @@ body.tb-fit .pomoChip.running > svg{display:none}
 body.strip-drop.has-doc #topStrip{display:flex;background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
 body.strip-drop.has-doc #topStrip:empty::before{content:'Solte aqui para prender a barra no topo';margin:auto;color:var(--accent);font-weight:600;font-size:13px}
 body.strip-on.has-doc #toast{top:calc(var(--strip-h,48px) + 64px)}
+
+/* simulado "só os erros": questões de fora ficam apagadas */
+.qBadge.off{opacity:.3;border-style:dotted;pointer-events:none}

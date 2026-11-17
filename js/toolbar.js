@@ -30,6 +30,7 @@ const C = [
   { id: 'spread', group: 'Exibir', label: 'Duas páginas lado a lado', icon: 'book', doc: true, run: () => App.setLayout({ spread: !L().spread }), on: () => !!L().spread },
   { id: 'dockTop', group: 'Exibir', label: 'Barra de marcação presa no topo', keywords: 'barra ferramentas topo fixar prender posição', icon: 'pin', doc: true, run: () => App.toggleBarTop('dock'), on: () => !!App.barTop?.('dock') },
   { id: 'pagerTop', group: 'Exibir', label: 'Controle de página preso no topo', keywords: 'página zoom topo fixar prender posição', icon: 'pin', doc: true, run: () => App.toggleBarTop('pager'), on: () => !!App.barTop?.('pager') },
+  { id: 'pagerCenter', group: 'Exibir', label: 'Controle de página no centro', keywords: 'centralizar página zoom posição meio', icon: 'fit', doc: true, run: () => App.setPagerAlign(App.pagerAlign?.() === 'center' ? 'right' : 'center'), on: () => App.pagerAlign?.() === 'center' },
   { id: 'ruler', group: 'Exibir', label: 'Régua de leitura', icon: 'ruler', key: 'U', doc: true, run: () => App.toggleRuler(), on: () => !!ls.get('le.ruler', false) },
   { id: 'split', group: 'Exibir', label: 'Lado a lado com outro PDF', short: 'Lado a lado', icon: 'columns', key: 'L', doc: true, el: '#btnSplit', run: a => App.toggleSplit(a), on: () => document.body.classList.contains('split-on') },
   { id: 'tts', group: 'Exibir', label: 'Ouvir em voz alta', short: 'Ouvir', icon: 'speaker', doc: true, el: '#btnTts', run: () => (ttsOn() ? App.ttsStop() : App.ttsStart()), on: ttsOn },
@@ -43,6 +44,8 @@ const C = [
   { id: 'dock', group: 'Exibir', label: 'Mostrar ou recolher as ferramentas de grifo', short: 'Ferramentas de grifo', icon: 'highlighter', key: 'T', doc: true, run: () => App.toggleDock?.() },
   { id: 'look', group: 'Exibir', label: 'Aparência e leitura…', short: 'Aparência', icon: 'palette', run: () => App.openLook() },
   // Estudar
+  { id: 'cleanHl', group: 'Estudar', label: 'Juntar grifos sobrepostos', keywords: 'grifo duplicado empilhado cor forte limpar', icon: 'highlighter', doc: true, run: () => App.cleanOverlaps() },
+  { id: 'rvRemind', group: 'Estudar', label: 'Lembrar das revisões do dia', keywords: 'lembrete aviso revisão cartões', icon: 'clock', run: () => App.toggleReviewRemind(), on: () => !!App.reviewRemind?.() },
   { id: 'review', group: 'Estudar', label: 'Revisar grifos', short: 'Revisar', icon: 'cards', key: 'R', doc: true, el: '#btnReview', run: () => App.openReview() },
   { id: 'exam', group: 'Estudar', label: 'Modo simulado', short: 'Simulado', icon: 'exam', doc: true, el: '#btnExam', run: () => App.openExam() },
   { id: 'examNew', group: 'Estudar', label: 'Novo simulado / configurar…', keywords: 'prova gabarito tempo', icon: 'exam', doc: true, run: () => App.openExamSetup() },
@@ -91,9 +94,9 @@ App.commandAvailable = c => !c.doc || doc();
 
 // ---------- Menus Exibir e Estudar ----------
 const MENUS = {
-  view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', 'fitPage', 'actualSize', '-', 'dockTop', 'pagerTop', '-', 'look'] },
+  view: { btn: '#btnView', box: '#viewMenu', items: ['sidebar', 'panel', '-', 'continuous', 'paged', 'spread', 'ruler', '-', 'split', 'tts', 'fullscreen', '-', 'themes', 'zoomIn', 'zoomOut', 'fit', 'fitPage', 'actualSize', '-', 'dockTop', 'pagerTop', 'pagerCenter', '-', 'look'] },
   help: { btn: '#btnHelpMenu', box: '#helpMenu', items: ['updates', 'updOnOpen', '-', 'news', 'shortcuts', '-', 'about'] },
-  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'exam', 'examNew', 'summary', 'siglas', '-', 'ai', 'aiChapter', 'aiHighlights', 'aiHistory', 'aiPrompts', '-', 'plan', 'stats', 'pomoSettings', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr'] },
+  study: { btn: '#btnStudy', box: '#studyMenu', items: ['review', 'rvRemind', 'cleanHl', '-', 'exam', 'examNew', 'summary', 'siglas', '-', 'ai', 'aiChapter', 'aiHighlights', 'aiHistory', 'aiPrompts', '-', 'plan', 'stats', 'pomoSettings', '-', 'searchAll', 'bookmark', '-', 'organize', 'combine', 'photos', 'ocr'] },
 };
 let openMenu = null;
 function menuItem(c){

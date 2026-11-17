@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.20.5';
+App.VERSION = '1.20.7';
 App.VERSION_DATE = '14/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -902,6 +902,47 @@ function absorbOverlaps(h){
   return absorbed;
 }
 App.absorbOverlaps = absorbOverlaps;
+// grifos antigos, feitos antes da 1.20.3, podem estar empilhados: junta tudo (o mais novo dá a cor)
+function mergeAllOverlaps(dry){
+  const before = state.highlights;
+  if (dry) state.highlights = JSON.parse(JSON.stringify(before));
+  let merged = 0;
+  for (let pass = 0; pass < 3; pass++) {
+    let list = state.highlights.slice(), out = [], now = 0;
+    while (list.length) {
+      const h = list.pop();
+      if (h.kind !== 'text' || h.q) { out.unshift(h); continue; }
+      state.highlights = list;
+      now += absorbOverlaps(h).length;
+      list = state.highlights;
+      out.unshift(h);
+    }
+    state.highlights = out; merged += now;
+    if (!now) break;
+  }
+  if (dry) state.highlights = before;
+  return merged;
+}
+App.countOverlaps = () => mergeAllOverlaps(true);
+App.cleanOverlaps = () => {
+  if (!state.pdf) return;
+  const n = mergeAllOverlaps(true);
+  if (!n) { App.toast('Nenhum grifo sobreposto neste PDF.'); return; }
+  snapshot();
+  mergeAllOverlaps(false);
+  renderAllAnnots(); App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed');
+  App.toast(`${n} grifo(s) sobreposto(s) juntado(s) — Ctrl+Z desfaz.`);
+};
+// ao abrir um PDF com grifos empilhados, avisa uma vez
+App.on('doc:loaded', () => setTimeout(() => {
+  if (!state.pdf) return;
+  const seen = ls.get('le.overlapHint', []);
+  if (seen.includes(state.fp)) return;
+  const n = mergeAllOverlaps(true);
+  if (!n) return;
+  ls.set('le.overlapHint', [...seen, state.fp].slice(-300));
+  App.toast(`Este PDF tem ${n} grifo(s) sobreposto(s) (cor mais forte). Estudar → "Juntar grifos sobrepostos" arruma.`);
+}, 2500));
 
 function cropImage(p, r){
   if (!p.canvas) return null;
