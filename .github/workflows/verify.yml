@@ -1,0 +1,111 @@
+# Verificação obrigatória dos PRs.
+# Roda com pull_request_target: o workflow, os testes, o lint e as regras vêm SEMPRE do main (a base),
+# e só os arquivos do app vêm do PR. Assim um PR nunca consegue mudar as checagens que o julgam.
+# O código de teste do PR nunca é executado aqui; o PR só fornece o app que está sendo testado.
+name: verify
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# só o commit mais recente conta: um push novo cancela a verificação anterior
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  # caminhos que são "regras": só mudam em PR próprio, num branch checks/...
+  REGRAS: '^(tests/|\.claude/|\.github/|CLAUDE\.md$|REVIEW\.md$|eslint\.config\.js$|package\.json$|package-lock\.json$|\.gitignore$)'
+
+jobs:
+  separacao:
+    name: regras separadas do app
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confere o que o PR muda
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          gh api "repos/${{ github.repository }}/pulls/$PR/files" --paginate --jq '.[].filename' > arquivos.txt
+          grep -E  "$REGRAS" arquivos.txt > regras.txt || true
+          grep -vE "$REGRAS" arquivos.txt > app.txt || true
+          echo "Regras mudadas:"; cat regras.txt; echo "App mudado:"; cat app.txt
+          if [ -s regras.txt ] && [ -s app.txt ]; then
+            echo "::error::Este PR mexe nas checagens e no app ao mesmo tempo. Separe: checagens num PR próprio (branch checks/...), app em outro."
+            exit 1
+          fi
+          if [ -s regras.txt ] && [[ "$BRANCH" != checks/* ]]; then
+            echo "::error::Mudanças nas checagens só em branch checks/... (este é $BRANCH)."
+            exit 1
+          fi
+
+  verify:
+    name: verify (checagens do main)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Regras e testes do main
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: work
+          persist-credentials: false
+
+      - name: App do PR
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          persist-credentials: false
+
+      - name: Junta o app do PR com as regras do main
+        if: github.event_name == 'pull_request_target'
+        run: |
+          cd pr
+          git ls-files | grep -vE "$REGRAS" > ../app-files.txt
+          cd ..
+          # o app do main sai e entra o do PR (apagados no PR também somem), as regras ficam as do main
+          (cd work && git ls-files | grep -vE "$REGRAS" | xargs -r rm -f)
+          rsync -a --files-from=app-files.txt pr/ work/
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: work/package-lock.json
+
+      - name: Instala (só o lint)
+        working-directory: work
+        run: npm ci --no-fund --no-audit
+
+      - name: Checagens estáticas e lint
+        working-directory: work
+        run: npm run check
+
+      - name: Build
+        working-directory: work
+        run: npm run build
+
+      - name: Testes ponta a ponta
+        working-directory: work
+        env:
+          VETRA_BROWSER: /usr/bin/google-chrome
+        run: npm test
+
+      - name: Capturas das falhas
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: falhas-${{ github.run_id }}
+          path: work/tests/out/
+          retention-days: 14

@@ -1,0 +1,19 @@
+{
+  "name": "vetra-checks",
+  "private": true,
+  "description": "Verificação do Vetra: checagens estáticas, lint e testes ponta a ponta. Não faz parte do app publicado.",
+  "type": "module",
+  "scripts": {
+    "check": "node tests/static.mjs && npm run lint",
+    "lint": "eslint js sw.js",
+    "build": "node tests/static.mjs && node desktop/build/copiar-app.js",
+    "test": "node tests/run.mjs",
+    "shots": "node tests/run.mjs --shots telas",
+    "verify": "npm run check && npm run build && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.13.0",
+    "globals": "17.13.0"
+  }
+}
