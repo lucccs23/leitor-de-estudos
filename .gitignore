@@ -7,3 +7,7 @@ desktop/dist/
 desktop/app/
 desktop/build/icon.ico
 desktop/build/icon.png
+
+# Verificação (raiz): dependências do lint e saída dos testes
+/node_modules/
+tests/out/
