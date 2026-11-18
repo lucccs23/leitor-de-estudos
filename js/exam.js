@@ -1252,7 +1252,8 @@ function exportSheet(e){
   App.toast('Planilha baixada — abre no Excel ou no Google Planilhas.');
 }
 function retake(e){
-  const n = { ...e, id: App.uid(), created: Date.now(), elapsed: 0, finished: false, finishedAt: null, answers: {}, elim: {}, flags: {}, times: {}, guess: {}, annulled: [], overtime: false };
+  // as anuladas continuam anuladas (senão contariam como erro na nova tentativa)
+  const n = { ...e, id: App.uid(), created: Date.now(), elapsed: 0, finished: false, finishedAt: null, answers: {}, elim: {}, flags: {}, times: {}, guess: {}, annulled: (e.annulled || []).slice(), overtime: false };
   state.exams.push(n); save(); hideView(); enterMode(n);
   App.toast('Nova tentativa começou. Boa prova!');
 }
