@@ -53,6 +53,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Falha em vez de pular: job pulado conta como aprovado na proteção do main.
+      # Antes de qualquer checkout, para o código de um fork nunca rodar aqui.
+      - name: Recusa PR vindo de fork
+        if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::PRs vindos de fork não são testados aqui, porque este fluxo roda com o contexto do repositório. Para propor a mudança, ela precisa vir de um branch deste repositório."
+          exit 1
+
       - name: Regras e testes do main
         uses: actions/checkout@v4
         with:
@@ -78,11 +86,10 @@ jobs:
           (cd work && git ls-files | grep -vE "$REGRAS" | xargs -r rm -f)
           rsync -a --files-from=app-files.txt pr/ work/
 
+      # sem cache de propósito: este fluxo roda código do PR e não pode gravar nada que outra execução reaproveite
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: work/package-lock.json
 
       - name: Instala (só o lint)
         working-directory: work
