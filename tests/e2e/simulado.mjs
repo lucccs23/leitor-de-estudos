@@ -66,6 +66,24 @@ export default async ({ launch, fixtures }) => {
   await t.check('resultado da tentativa conta só as 17', /^2 de 17/.test(r.placar) && r.aviso, r);
   await t.close();
 
+  // refazer o simulado inteiro: a questão anulada continua anulada (com a opção padrão, conta como acerto)
+  const rowQ = q => `$$('#examView .resRow').find(x => x.querySelector('.resQ')?.textContent === 'Questão ${q}')`;
+  const a = await launch({ width: 1300 });
+  await a.open(fixtures.prova, 'prova.pdf');
+  a.step('começa, erra a 1 e acerta a 2');
+  await a.ev(START);
+  r = await a.ev(`${answer([[1, 'B'], [2, 'B']])} ${DELIVER} return $('#examView h2').textContent;`);
+  await a.check('anuladas: 1 acerto antes de anular', /^1 de 20/.test(r), r);
+  a.step('anula a questão 1');
+  r = await a.ev(`btnT(${rowQ(1)}, 'Anular').click(); await until(() => ${rowQ(1)}?.classList.contains('annulled')); return $('#examView h2').textContent;`);
+  await a.check('anular a questão errada muda o placar', /^2 de 20/.test(r), r);
+  a.step('refaz o simulado e erra a 1 de novo');
+  r = await a.ev(`btnT($('#examView'), 'Refazer simulado').click(); await until(() => /^0 de 20/.test($('#exProg')?.textContent || ''));
+    ${answer([[1, 'B'], [2, 'B']])} ${DELIVER} await until(() => ${rowQ(1)});
+    return { placar: $('#examView h2').textContent, q1: ${rowQ(1)}.querySelector('.resSt').textContent };`);
+  await a.check('refazer simulado mantém a questão anulada', /^2 de 20/.test(r.placar) && r.q1 === 'anulada', r);
+  await a.close();
+
   // celular: marcar tocando na prova e entregar
   const m = await launch({ width: 390 });
   await m.open(fixtures.prova, 'prova.pdf');
