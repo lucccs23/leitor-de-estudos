@@ -29,12 +29,21 @@ export async function launch(ctx, { width = 1300, height = 900, init = '' } = {}
   const profile = mkdtempSync(join(tmpdir(), 'vetra-teste-'));
   const args = ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--disable-extensions', 'about:blank'];
   if (process.platform === 'linux') args.unshift('--no-sandbox');
-  const proc = spawn(findBrowser(), args, { stdio: 'ignore' });
+  const proc = spawn(findBrowser(), args, { stdio: ['ignore', 'ignore', 'pipe'] });
+  // a primeira abertura numa máquina fria ou ocupada pode demorar: espera a porta aparecer,
+  // e só desiste se o navegador morrer ou se passar do limite (com o motivo na mensagem)
+  let morreu = '', stderr = '';
+  proc.stderr.on('data', d => { stderr = (stderr + d).slice(-500); });
+  proc.on('exit', (code, sinal) => { morreu = `o navegador saiu (${code ?? sinal})`; });
+  proc.on('error', e => { morreu = e.message; });
+  const limite = Date.now() + 60000;
+  const falhou = o => { try { proc.kill('SIGKILL'); } catch {} return new Error(`${o} (${morreu || 'sem resposta em 60 s'}). ${stderr.trim()}`); };
   let port = 0;
-  for (let i = 0; i < 200 && !port; i++) { try { port = +readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch {} if (!port) await sleep(50); }
-  if (!port) throw new Error('O navegador não abriu a porta de depuração.');
+  while (!port && !morreu && Date.now() < limite) { try { port = +readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch {} if (!port) await sleep(50); }
+  if (!port) throw falhou('O navegador não abriu a porta de depuração');
   let target;
-  for (let i = 0; i < 100 && !target; i++) { try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find(t => t.type === 'page'); } catch {} if (!target) await sleep(50); }
+  while (!target && !morreu && Date.now() < limite) { try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find(t => t.type === 'page'); } catch {} if (!target) await sleep(50); }
+  if (!target) throw falhou('O navegador não mostrou a página inicial');
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((ok, bad) => { ws.addEventListener('open', ok); ws.addEventListener('error', bad); });
   let id = 0; const pend = new Map(), errors = [], steps = [];
