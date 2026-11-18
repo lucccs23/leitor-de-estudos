@@ -1703,6 +1703,14 @@ body.tb-fit .pomoChip.running{padding:0 8px}
 .tbMore[hidden]{display:none}
 body.tb-fit .pomoChip.running > svg{display:none}
 @media (max-width:400px){ #toolbar .fileBtn,#toolbar #btnHome,.tbPins .btn.icon,.tbMore,#btnMenu,body.tb-fit #btnExam{width:36px} }
+/* ainda não coube (simulado no tablet/celular): menus só com ícone, barra do simulado compacta, sem abas */
+body.tb-tight .fmBtnIcon{display:block}
+body.tb-tight .fmBtnText,body.tb-tight .logoName,body.tb-tight .tbSepLeft,body.tb-tight.exam #tabbar,body.tb-tight #examBar .examChip small{display:none!important}
+body.tb-tight #examBar{gap:4px;margin-right:4px}
+body.tb-tight #examBar .examChip{padding:0 8px}
+body.tb-tight #examBar .btn:not(.exSheetBtn){font-size:0;gap:0;width:36px;padding:0;justify-content:center}
+body.tb-tight #examBar .btn:not(.exSheetBtn) .i{margin:0}
+body.tb-tighter.exam #btnHelpMenu,body.tb-tighter #examBar .examChip > svg{display:none!important}
 
 /* barras presas no topo: faixa logo abaixo da barra superior */
 #topStrip{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;min-height:48px;padding:3px 10px;background:var(--surface);border-bottom:1px solid var(--border);flex:none;position:relative;z-index:19}

@@ -219,18 +219,29 @@ const visible = e => e.offsetWidth > 0 && getComputedStyle(e).display !== 'none'
 const tooWide = () => toolbar.scrollWidth > Math.min(toolbar.clientWidth, Math.floor(window.visualViewport?.width || innerWidth), (matchMedia('(pointer:coarse)').matches && screen.width) || Infinity);
 function fitBar(){
   fitRaf = 0;
-  const kids = [...zone.children];
+  fitSteps();
+  // as mudanças que o próprio encaixe fez não pedem outro encaixe (senão roda a cada quadro, sem parar)
+  fitWatch.takeRecords();
+}
+function fitSteps(){
+  const kids = [...zone.children], b = document.body.classList;
   kids.forEach(e => e.classList.remove('tbFitHide'));
-  more.hidden = true; document.body.classList.remove('tb-fit');
+  more.hidden = true; b.remove('tb-fit', 'tb-tight', 'tb-tighter');
   if (!tooWide()) return;
-  document.body.classList.add('tb-fit');           // 1º: botões com texto viram só ícone
+  b.add('tb-fit');                                 // 1º: botões com texto viram só ícone
   if (!tooWide()) return;
-  more.hidden = false;                             // 2º: os últimos botões vão para o menu "⋯"
+  // 2º: os últimos botões vão para o menu "⋯"
   // nunca esconde o que está em andamento (timer rodando, simulado para continuar)
   // o que sai primeiro: painel, timer parado, IA e busca; o simulado fica por último (é o mais usado)
   const FIRST = ['panel', 'pomo', 'ai', 'cmdk'], rank = e => { const i = FIRST.indexOf(e.dataset.pin); return i < 0 ? 100 - kids.indexOf(e) : i; };
   const cands = kids.filter(e => visible(e) && !e.matches('.running, .resume')).sort((x, y) => rank(x) - rank(y));
-  for (const e of cands) { e.classList.add('tbFitHide'); if (!tooWide()) break; }
+  if (cands.length) {
+    more.hidden = false;
+    for (const e of cands) { e.classList.add('tbFitHide'); if (!tooWide()) return; }
+  }
+  b.add('tb-tight');                               // 3º: menus e barra do simulado só com ícones
+  if (!tooWide()) return;
+  b.add('tb-tighter');                             // 4º: no aperto do simulado, sai o menu Ajuda e o ícone do relógio
 }
 more.onclick = () => {
   const hidden = [...zone.children].filter(e => e.classList.contains('tbFitHide'));
@@ -241,7 +252,8 @@ more.onclick = () => {
   })), { alignRight: true });
 };
 new ResizeObserver(reqFit).observe(toolbar);
-new MutationObserver(reqFit).observe(zone, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'hidden'] });
+const fitWatch = new MutationObserver(reqFit);
+fitWatch.observe(zone,{ subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'hidden'] });
 ['doc:loaded', 'doc:closed', 'layout:changed'].forEach(ev => App.on(ev, reqFit));
 window.visualViewport?.addEventListener('resize', reqFit);
 App.fitBar = reqFit;
