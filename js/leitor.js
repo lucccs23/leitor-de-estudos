@@ -935,6 +935,6 @@ App.bookSource = () => (B && !B.ro ? {
 App.bookJump = h => irParaGrifo(h);
 
 // para os testes e para quem integra: posição atual
-App.bookState = () => B && { ch: B.ch, pag: B.pag, paginas: paginas(), off: B.off, pct: B.pct, name: B.book.name, grifos: B.hls.length, marcadores: B.marks.length, modo: opc.modo, tema: temaAtual() };
+App.bookState = () => B && { ch: B.ch, pag: B.pag, paginas: paginas(), off: B.off, pct: B.pct, name: B.book.name, grifos: B.hls.length, marcadores: B.marks.length, modo: opc.modo, tema: temaAtual(), carregando };
 App.bookFrame = () => frame;
 })();
