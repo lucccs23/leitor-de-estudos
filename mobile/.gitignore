@@ -1,0 +1,7 @@
+# gerado a cada "npm run copiar" / "npm run apk"
+/node_modules/
+/www/
+/dist/
+/assinatura.properties
+*.jks
+*.keystore

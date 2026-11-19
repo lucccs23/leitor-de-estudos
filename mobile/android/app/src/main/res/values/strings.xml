@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vetra</string>
+    <string name="title_activity_main">Vetra</string>
+    <string name="package_name">app.vetra.leitor</string>
+    <string name="custom_url_scheme">app.vetra.leitor</string>
+</resources>

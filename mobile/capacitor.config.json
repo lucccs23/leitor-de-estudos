@@ -1,0 +1,10 @@
+{
+  "appId": "app.vetra.leitor",
+  "appName": "Vetra",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false
+  }
+}
