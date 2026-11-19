@@ -197,8 +197,10 @@ App.buildPdfBytes = async () => {
     if (h.kind === 'ink') {
       dict.Subtype = 'Ink';
       dict.InkList = part.paths.map(pts => pts.flatMap(([x, y]) => { const [px, py] = P(x, y); xs.push(px); ys.push(py); return [px, py]; }));
-      dict.BS = { W: +((h.width || 2.4) * 0.75).toFixed(2), S: 'S' };
-      if (h.marker) dict.CA = 0.4;
+      const bw = +((h.width || 2.4) * 0.75).toFixed(2);
+      dict.BS = h.line === 'dash' ? { W: bw, S: 'D', D: [+(bw * 2.6).toFixed(2), +(bw * 2.4).toFixed(2)] } : h.line === 'dot' ? { W: bw, S: 'D', D: [bw, +(bw * 2.2).toFixed(2)] } : { W: bw, S: 'S' };
+      if (h.marker) dict.CA = h.opacity ? h.opacity / 100 : 0.4;
+      else if (h.tip === 'pencil') dict.CA = 0.72;
     } else {
       const q = [];
       for (const r of part.rects) {

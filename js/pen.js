@@ -10,80 +10,200 @@ const SVGNS = 'http://www.w3.org/2000/svg';
 let pop = null;
 function closePenPop(){ if (pop) { pop.remove(); pop = null; } }
 App.closePenPop = closePenPop;
-addEventListener('pointerdown', e => { if (pop && !pop.contains(e.target) && !e.target.closest('#btnPenOpts')) closePenPop(); }, true);
+addEventListener('pointerdown', e => { if (pop && !pop.contains(e.target) && !e.target.closest('#btnPenOpts,[data-penkind],#penSeg [data-tool=erase]')) closePenPop(); }, true);
 addEventListener('keydown', e => { if (pop && e.key === 'Escape') { e.stopPropagation(); closePenPop(); } }, true);
 
 function place(anchor){
-  document.body.append(pop);
+  if (!pop.isConnected) document.body.append(pop);
   const r = anchor.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
   let x = r.left + r.width / 2 - w / 2, y = r.top - h - 10;
   if (y < 8) y = r.bottom + 10;
   pop.style.left = Math.max(8, Math.min(innerWidth - w - 8, x)) + 'px';
   pop.style.top = Math.max(8, Math.min(innerHeight - h - 8, y)) + 'px';
 }
-const PRESETS = { pen: [0.8, 1.5, 2.4, 4, 6.5], marker: [7, 11, 14, 19, 25] };
+// ---------- Desenhos dos botões do painel ----------
+const svgEl = (html, cls) => { const s = el('span', cls); s.innerHTML = html; return s; };
+const STAR = on => `<svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 3.6l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.8 1-5.9L3.5 9.8l5.9-.8z" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
+const PEN_STAR = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L15 6l3 3L8 19z"/><path d="M17.5 14.5l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z"/></svg>';
+const DROPPER = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l4 4M12.5 7.5l4 4L8 20H4v-4z"/><path d="M15 5l1.5-1.5a2.1 2.1 0 013 3L18 8"/></svg>';
+const NIBS = {
+  ball: '<path d="M10 24l3.4-16h1.2L18 24z" fill="#b9bdc6"/><path d="M13.3 8L14 3l.7 5z" fill="var(--tc)"/>',
+  fountain: '<path d="M9 24c0-7 3-11 5-20 2 9 5 13 5 20z" fill="#c9ccd4"/><path d="M14 8v11" stroke="#555" stroke-width=".9"/><circle cx="14" cy="19" r="1.3" fill="#555"/>',
+  callig: '<path d="M10 24l1-13h6l1 13z" fill="#b9bdc6"/><path d="M10.5 11L18 4v7z" fill="var(--tc)"/>',
+  pencil: '<path d="M9 24l5-18 5 18z" fill="#e8c9a0"/><path d="M12.6 11L14 5l1.4 6z" fill="var(--tc)"/>',
+  brush: '<path d="M11 24h6l1-5c0-6-3-10-4-16-1 6-4 10-4 16z" fill="var(--tc)"/>',
+  chisel: '<path d="M9 24V12l10-6v18z" fill="var(--tc)"/>',
+  round: '<path d="M9.5 24V13a4.5 4.5 0 019 0v11z" fill="var(--tc)"/>',
+};
+const tipArt = id => `<svg viewBox="0 0 28 60" width="30" height="62" aria-hidden="true">${NIBS[id] || NIBS.ball}<path d="M8 24h12l1 36H7z" fill="#70757f"/><path d="M7.7 34h12.6l.3 9H7.4z" fill="var(--tc)"/></svg>`;
+const LINE_ART = {
+  solid: '<path d="M4 8h36" stroke-width="3.2"/>',
+  taper: '<path d="M3 8c10-2.2 28-2.2 38 0-10 2.2-28 2.2-38 0z" fill="currentColor" stroke="none"/>',
+  dash: '<path d="M4 8h36" stroke-width="3" stroke-dasharray="9 6"/>',
+  dot: '<path d="M4 8h36" stroke-width="3" stroke-dasharray=".01 5.5"/>',
+};
+// ---------- Cores do painel (a primeira página são as recentes) ----------
+const COLOR_PAGES = [
+  ['#e01515', '#ffffff', '#000000', '#1238e0', '#0aa84f', '#8a1cf0', '#3fe8a0', '#ff8a00'],
+  ['#d40000', '#ffb020', '#ffe600', '#1fd6c0', '#2f9bff', '#1547ff', '#8a2cf5', '#d9d9d9'],
+  ['#ff9aa8', '#ffc9a0', '#fff0a0', '#b8f0c0', '#a8e4f5', '#b4c6ff', '#d8b8ff', '#f5c6e8'],
+  ['#7a1f1f', '#8a5a2b', '#6b6b1f', '#1f5c3a', '#1f5560', '#1f2f6b', '#4b2470', '#444a55'],
+];
+let colorPage = null, showFavs = false, anchorEl = null;
+const hexOf = k => { const c = App.colorOf(App.penColor(k)); return (k === 'marker' ? c.hex : c.ink).toLowerCase(); };
+const stateOf = k => ({ k, w: App.penWidth(k), color: hexOf(k), ...App.penOpt(k) });
+const sameCfg = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+const favs = () => ls.get('le.penFavs', []).filter(f => f && App.PENS[f.k]);
+function redraw(){ if (!pop) return; pop.innerHTML = ''; fillPop(); place(anchorEl); }
+function fillPop(){ if (state.tool === 'erase') eraserOpts(); else penPanel(state.tool === 'ink' ? state.pen : 'pen'); }
+App.penOptions = anchor => {
+  if (pop) { closePenPop(); return; }
+  App.closePop?.();
+  anchorEl = anchor;
+  pop = el('div', 'penPop'); pop.setAttribute('role', 'dialog');
+  fillPop(); place(anchor);
+};
 function preview(k){
   const svg = document.createElementNS(SVGNS, 'svg');
   svg.setAttribute('viewBox', '0 0 200 40'); svg.setAttribute('class', 'ppPreview');
   const path = document.createElementNS(SVGNS, 'path');
-  path.setAttribute('d', 'M14 26 C 50 6, 80 34, 110 20 S 170 10, 186 18');
   svg.append(path);
-  const paint = () => {
-    const c = App.colorOf(App.penColor(k));
-    path.setAttribute('stroke-width', App.penWidth(k) * (k === 'marker' ? 1 : 1.6));
-    path.style.stroke = k === 'marker' ? c.hex : c.ink;
-    path.style.strokeOpacity = k === 'marker' ? '.5' : '1';
-    path.style.strokeLinecap = k === 'marker' ? 'butt' : 'round';
+  const pts = Array.from({ length: 33 }, (_, i) => { const t = i / 32; return [0.07 + t * 0.86, 0.5 + Math.sin(t * Math.PI * 2.2) * 0.2]; });
+  svg.paint = () => {
+    const c = App.colorOf(App.penColor(k)), s = App.penStyle(k);
+    path.style.setProperty('--c', c.hex); path.style.setProperty('--ci', c.ink);
+    App.paintInk(path, pts, { ...s, width: App.penWidth(k) * (k === 'marker' ? 1 : 1.6) }, { w: 200, h: 40 });
   };
-  paint(); svg.paint = paint;
+  svg.paint();
   return svg;
 }
-App.penOptions = anchor => {
-  if (pop) { closePenPop(); return; }
-  App.closePop?.();
-  pop = el('div', 'penPop'); pop.setAttribute('role', 'dialog');
-  if (state.tool === 'erase') eraserOpts(); else widthOpts(state.tool === 'ink' ? state.pen : 'pen');
-  place(anchor);
-};
-function widthOpts(k){
-  const P = App.PENS[k];
-  pop.setAttribute('aria-label', P.label + ': espessura');
-  pop.append(el('div', 'ppTitle', P.label));
-  const pv = preview(k); pop.append(pv);
-  const row = el('div', 'ppRow');
-  const range = el('input'); range.type = 'range'; range.min = P.min; range.max = P.max; range.step = 0.1; range.value = App.penWidth(k);
-  range.setAttribute('aria-label', 'Espessura');
+function iconBtn(cls, title, art, fn){
+  const b = el('button', 'ppIcon ' + cls); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title);
+  if (typeof art === 'string') b.innerHTML = art; else b.append(art);
+  b.onclick = fn; return b;
+}
+function stepRow(cls, label, min, max, step, get, set, fmt){
+  const row = el('div', 'ppRow ' + cls);
+  const range = el('input'); range.type = 'range'; range.min = min; range.max = max; range.step = step; range.value = get();
+  range.setAttribute('aria-label', label);
   const val = el('span', 'ppVal');
-  const show = () => { val.textContent = (+range.value).toFixed(1); };
-  range.oninput = () => { App.setPenWidth(k, range.value); show(); pv.paint(); paintDots(); };
-  show(); row.append(range, val); pop.append(row);
-  const dots = el('div', 'ppDots');
-  const paintDots = () => dots.querySelectorAll('button').forEach(b => b.classList.toggle('on', Math.abs(+b.dataset.w - App.penWidth(k)) < 0.05));
-  PRESETS[k].forEach(w => {
-    const b = el('button', 'ppDot'); b.type = 'button'; b.dataset.w = w; b.title = w.toFixed(1);
-    const d = el('span'); const s = k === 'marker' ? Math.max(4, w * 0.75) : Math.max(3, w * 2.4);
-    d.style.cssText = `width:${s}px;height:${s}px` + (k === 'marker' ? ';border-radius:2px;opacity:.6' : '');
-    b.append(d);
-    b.onclick = () => { range.value = w; range.oninput(); };
+  const show = () => { val.textContent = fmt(+range.value); };
+  const apply = v => { range.value = Math.max(min, Math.min(max, +(+v).toFixed(2))); range.oninput(); };
+  range.oninput = () => { set(+range.value); show(); };
+  show();
+  row.append(iconBtn('ppStep', `Diminuir: ${label}`, App.icon('minus'), () => apply(+range.value - step * 5)), range,
+    iconBtn('ppStep', `Aumentar: ${label}`, App.icon('plus'), () => apply(+range.value + step * 5)), val);
+  return row;
+}
+function switchRow(label, on, set){
+  const row = el('label', 'ppSwitch'); const cb = el('input'); cb.type = 'checkbox'; cb.setAttribute('role', 'switch'); cb.checked = !!on;
+  cb.onchange = () => set(cb.checked);
+  row.append(el('span', null, label), cb, el('i'));
+  return row;
+}
+function applyFav(f){
+  App.setPen(f.k); App.setPenWidth(f.k, f.w); App.setPenColor(f.k, f.color);
+  for (const o of Object.keys(App.penOpt(f.k))) if (f[o] !== undefined) App.setPenOpt(f.k, o, f[o]);
+  redraw();
+}
+function penPanel(k){
+  const P = App.PENS[k], compact = ls.get('le.penCompact', false), cur = stateOf(k), list = favs();
+  const isFav = list.some(f => sameCfg(f, cur));
+  pop.setAttribute('aria-label', P.label + ': opções');
+  pop.style.setProperty('--tc', k === 'marker' ? App.colorOf(App.penColor(k)).hex : App.colorOf(App.penColor(k)).ink);
+  // cabeçalho: favoritos, guardar, compacto e fechar
+  const head = el('div', 'ppHead');
+  head.append(iconBtn('ppFavList' + (showFavs ? ' on' : ''), 'Ver favoritos', PEN_STAR, () => { showFavs = !showFavs; redraw(); }),
+    iconBtn('ppStar' + (isFav ? ' on' : ''), isFav ? 'Tirar dos favoritos' : 'Guardar nos favoritos', STAR(isFav), () => {
+      const next = isFav ? list.filter(f => !sameCfg(f, cur)) : [cur, ...list].slice(0, 8);
+      ls.set('le.penFavs', next); if (!isFav) showFavs = true;
+      App.toast(isFav ? 'Tirado dos favoritos' : 'Guardado nos favoritos'); redraw();
+    }),
+    el('span', 'ppTitle', P.label),
+    iconBtn('ppCompact', compact ? 'Mostrar todas as opções' : 'Painel compacto', App.icon(compact ? 'expand' : 'shrink'), () => { ls.set('le.penCompact', !compact); redraw(); }),
+    iconBtn('ppClose', 'Fechar', App.icon('x'), closePenPop));
+  pop.append(head);
+  if (showFavs) {
+    const row = el('div', 'ppFavs');
+    if (!list.length) row.append(el('span', 'ppHint', 'Toque na estrela para guardar esta configuração.'));
+    list.forEach(f => {
+      const b = el('button', 'ppFav' + (sameCfg(f, cur) ? ' on' : '')); b.type = 'button';
+      b.title = `${App.PENS[f.k].label} · ${f.w}`; b.setAttribute('aria-label', b.title);
+      const d = el('span'); d.style.background = f.color; d.style.height = Math.max(3, Math.min(14, f.w * (f.k === 'marker' ? 0.6 : 1.6))) + 'px';
+      if (f.k === 'marker') d.style.opacity = '.55';
+      b.append(d); b.onclick = () => applyFav(f); row.append(b);
+    });
+    pop.append(row);
+  }
+  // tipos de ponta
+  const tips = el('div', 'ppTips');
+  App.PEN_TIPS[k].forEach(([id, label]) => {
+    const b = el('button', 'ppTip' + (cur.tip === id ? ' on' : '')); b.type = 'button'; b.title = label; b.setAttribute('aria-label', label);
+    b.setAttribute('aria-pressed', String(cur.tip === id)); b.dataset.tip = id; b.innerHTML = tipArt(id);
+    b.onclick = () => { App.setPenOpt(k, 'tip', id); redraw(); };
+    tips.append(b);
+  });
+  pop.append(tips);
+  const pv = preview(k);
+  if (!compact) pop.append(pv);
+  pop.append(stepRow('ppWidth', 'Espessura', P.min, P.max, k === 'marker' ? 0.5 : 0.1, () => App.penWidth(k), v => { App.setPenWidth(k, v); pv.paint(); }, v => v.toFixed(1)));
+  if (k === 'marker') pop.append(stepRow('ppOpacity', 'Opacidade', 10, 100, 1, () => App.penOpt(k, 'opacity'), v => { App.setPenOpt(k, 'opacity', v); pv.paint(); }, v => v + '%'));
+  if (compact) return;
+  if (k === 'pen') {
+    const lines = el('div', 'ppLines');
+    App.PEN_LINES.forEach(([id, label]) => {
+      const b = el('button', 'ppLine' + (cur.line === id ? ' on' : '')); b.type = 'button'; b.title = label; b.setAttribute('aria-label', label); b.dataset.line = id;
+      b.setAttribute('aria-pressed', String(cur.line === id));
+      b.innerHTML = `<svg viewBox="0 0 44 16" width="44" height="16" fill="none" stroke="currentColor" stroke-linecap="round">${LINE_ART[id]}</svg>`;
+      b.onclick = () => { App.setPenOpt(k, 'line', id); redraw(); };
+      lines.append(b);
+    });
+    pop.append(lines);
+  }
+  pop.append(switchRow('Endireitar as linhas', cur.straight, v => { App.setPenOpt(k, 'straight', v); redraw(); }));
+  if (k === 'marker') pop.append(switchRow('Ajustar a espessura ao texto', cur.fit, v => { App.setPenOpt(k, 'fit', v); redraw(); }));
+  pop.append(switchRow('Só a caneta stylus desenha', state.penSeen, v => { state.penSeen = v; ls.set('le.penSeen', v); App.toast(v ? 'Só a caneta stylus desenha; o dedo rola a página.' : 'O dedo também desenha.'); }));
+  colorRow(k, cur.color);
+}
+function colorRow(k, curC){
+  const rec = recents(), base = k === 'marker' ? App.COLORS.map(c => c.hex.toLowerCase()) : slots(), pages = [rec.includes(curC) || !base.includes(curC) && rec.length ? rec : base, ...COLOR_PAGES];
+  if (colorPage === null || colorPage >= pages.length) colorPage = Math.max(0, pages.findIndex(p => p.includes(curC)));
+  const row = el('div', 'ppColors');
+  pages[colorPage].slice(0, 8).forEach(hex => {
+    const b = el('button', 'ppColor' + (hex === curC ? ' on' : '')); b.type = 'button'; b.style.setProperty('--c', hex); b.dataset.hex = hex; b.title = hex; b.setAttribute('aria-label', `Cor ${hex}`);
+    if (hex === curC) b.append(App.icon('check'));
+    b.onclick = () => { App.setPenColor(k, hex); addRecent(hex); redraw(); };
+    row.append(b);
+  });
+  const anchor = anchorEl, done = hex => { App.setPenColor(k, hex); addRecent(hex); App.penOptions(anchor); };
+  if (window.EyeDropper) row.append(iconBtn('ppColorTool', 'Conta-gotas: pegar uma cor da tela', DROPPER, async () => {
+    try { const r = await new window.EyeDropper().open(); if (r && HEX.test(r.sRGBHex)) { App.setPenColor(k, r.sRGBHex.toLowerCase()); addRecent(r.sRGBHex.toLowerCase()); redraw(); } } catch {}
+  }));
+  const more = iconBtn('ppColorTool ppMore', 'Mais cores', '', () => openPicker(more, curC, done));
+  row.append(more);
+  pop.append(row);
+  const dots = el('div', 'ppPages');
+  pages.forEach((_, i) => {
+    const b = el('button', 'ppPage' + (i === colorPage ? ' on' : '') + (i ? '' : ' recent')); b.type = 'button';
+    const t = i ? `Cores ${i}` : 'Cores recentes'; b.title = t; b.setAttribute('aria-label', t);
+    b.onclick = () => { colorPage = i; redraw(); };
     dots.append(b);
   });
-  paintDots(); pop.append(dots);
-  // dedo x caneta stylus
-  const opt = el('label', 'ppCheck'); const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!state.penSeen;
-  cb.onchange = () => { state.penSeen = cb.checked; ls.set('le.penSeen', cb.checked); App.toast(cb.checked ? 'Só a caneta stylus desenha; o dedo rola a página.' : 'O dedo também desenha.'); };
-  opt.append(cb, el('span', null, 'Só a caneta stylus desenha (o dedo rola a página)'));
-  pop.append(opt);
+  pop.append(dots);
 }
 function eraserOpts(){
   pop.setAttribute('aria-label', 'Borracha');
-  pop.append(el('div', 'ppTitle', 'Borracha'));
-  const modes = el('div', 'ppModes');
+  const head = el('div', 'ppHead');
+  head.append(el('span', 'ppTitle', 'Borracha'), iconBtn('ppClose', 'Fechar', App.icon('x'), closePenPop));
+  pop.append(head);
+  const modes = el('div', 'ppModes'); modes.setAttribute('role', 'radiogroup'); modes.setAttribute('aria-label', 'Modo da borracha');
   const mode = () => ls.get('le.eraseMode', 'stroke');
   const sizeRow = el('div', 'ppRow');
-  [['stroke', 'Traço inteiro', 'apaga o traço todo ao tocar nele'], ['area', 'Só onde passar', 'apaga só o pedaço sob a borracha']].forEach(([id, t, sub]) => {
-    const b = el('button', 'ppMode' + (mode() === id ? ' on' : '')); b.type = 'button';
-    b.append(el('strong', null, t), el('small', null, sub));
-    b.onclick = () => { ls.set('le.eraseMode', id); modes.querySelectorAll('.ppMode').forEach(x => x.classList.toggle('on', x === b)); sizeRow.hidden = id !== 'area'; App.updatePenBtn(); };
+  [['stroke', 'Borracha de traço', 'apaga o traço inteiro ao tocar nele'], ['area', 'Borracha de área', 'apaga só o pedaço sob a borracha']].forEach(([id, t, sub]) => {
+    const b = el('button', 'ppMode' + (mode() === id ? ' on' : '')); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(mode() === id));
+    const txt = el('span', 'ppModeTxt'); txt.append(el('strong', null, t), el('small', null, sub));
+    b.append(el('i', 'ppRadio'), txt);
+    b.onclick = () => { ls.set('le.eraseMode', id); App.updatePenBtn(); redraw(); };
     modes.append(b);
   });
   pop.append(modes);
@@ -93,15 +213,16 @@ function eraserOpts(){
   range.oninput = () => { ls.set('le.eraseSize', +range.value); val.textContent = range.value; App.updatePenBtn(); };
   sizeRow.append(el('span', 'ppLbl', 'Tamanho'), range, val); sizeRow.hidden = mode() !== 'area';
   pop.append(sizeRow);
-  const clear = App.btn('Apagar tudo desta página', () => {
-    const pg = state.currentPage || 1;
-    const has = state.highlights.some(h => h.kind === 'ink' && h.parts.some(p => p.page === pg));
-    if (!has) { App.toast('Não há traços de caneta nesta página.'); return; }
+  const only = ls.get('le.eraseOnlyMarker', false);
+  pop.append(switchRow('Apagar somente marca-texto', only, v => { ls.set('le.eraseOnlyMarker', v); redraw(); }));
+  const clear = App.btn(only ? 'Apagar todo o marca-texto da página' : 'Apagar toda a escrita à mão da página', () => {
+    const pg = state.currentPage || 1, alvo = h => h.kind === 'ink' && (!only || h.marker);
+    if (!state.highlights.some(h => alvo(h) && h.parts.some(p => p.page === pg))) { App.toast(only ? 'Não há marca-texto à mão nesta página.' : 'Não há escrita à mão nesta página.'); return; }
     App.snapshot();
-    for (const h of state.highlights) if (h.kind === 'ink') h.parts = h.parts.filter(p => p.page !== pg);
+    for (const h of state.highlights) if (alvo(h)) h.parts = h.parts.filter(p => p.page !== pg);
     state.highlights = state.highlights.filter(h => h.kind !== 'ink' || h.parts.length);
     App.renderPageAnnots(state.pages[pg - 1]); App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed');
-    closePenPop(); App.toast(`Traços da página ${pg} apagados — Ctrl+Z desfaz`);
+    closePenPop(); App.toast(`${only ? 'Marca-texto' : 'Escrita à mão'} da página ${pg} apagado — Ctrl+Z desfaz`);
   }, 'sm outline danger ppClear');
   pop.append(clear);
 }
@@ -387,7 +508,7 @@ function duplicate(){
   const groups = new Map();
   for (const it of sel.items) { const g = groups.get(it.h) || []; g.push(it); groups.set(it.h, g); }
   for (const [h, its] of groups) {
-    const paths = its.map(it => pathsOf(h, it.pi)[it.k].map(([x, y]) => [+Math.min(1, x + dx).toFixed(4), +Math.min(1, y + dy).toFixed(4)]));
+    const paths = its.map(it => pathsOf(h, it.pi)[it.k].map(([x, y, ...resto]) => [+Math.min(1, x + dx).toFixed(4), +Math.min(1, y + dy).toFixed(4), ...resto]));
     const nh = { ...JSON.parse(JSON.stringify(h)), id: App.uid(), created: Date.now(), parts: [{ page: sel.p.num, paths }] };
     state.highlights.push(nh);
     paths.forEach((_, k) => out.push({ h: nh, pi: 0, k }));
