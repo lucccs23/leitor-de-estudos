@@ -62,6 +62,9 @@ async function conectar(){
   });
   ws.send2 = (method, params = {}) => new Promise(r => { const i = ++id; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
   await ws.send2('Runtime.enable');
+  // guarda os avisos (toasts) que o app mostrar, para a falha dizer o que o app respondeu
+  await ev(`window.__avisos = []; new MutationObserver(() => { const t = $('.toast')?.textContent; if (t && __avisos.at(-1) !== t) __avisos.push(t); })
+    .observe(document.body, { childList: true, subtree: true, characterData: true }); return 1`);
 }
 async function ev(code){
   for (let k = 0; k < 150; k++) {
@@ -77,7 +80,7 @@ async function ev(code){
   throw new Error('o app não carregou (leitor não apareceu)');
 }
 const aberto = nome => ev(`const ok = await until(() => S.pdf && S.name === ${JSON.stringify(nome)} && $('.page .textLayer span'), 30000);
-  return { ok, nome: S.name, paginas: S.pdf?.numPages, aviso: $('.toast')?.textContent };`);
+  return { ok, nome: S.name, paginas: S.pdf?.numPages, avisos: window.__avisos };`);
 
 // ---------- PDFs no aparelho, como se tivessem vindo do WhatsApp ou do Drive ----------
 // cada um ganha um endereço content:// do Android (o mesmo tipo que os outros apps mandam)
@@ -90,6 +93,14 @@ async function pdfNoAparelho(local, nome){
   return `content://media/external/file/${id}`;
 }
 const abrirCom = uri => sh(`am start -W -a android.intent.action.VIEW -d '${uri}' -t application/pdf --grant-read-uri-permission -n ${ACT}`);
+// "Compartilhar": o anexo vai em EXTRA_STREAM. Um app de verdade (WhatsApp, Drive) dá a permissão de leitura dele
+// junto; o "am start" do terminal só dá permissão ao endereço principal. Por isso o arquivo compartilhado vem pelo
+// FileProvider do próprio Vetra (o app lê sem precisar de permissão), copiado para o cache dele com run-as.
+function pdfNoCacheDoVetra(local, nome){
+  adb('push', local, `/data/local/tmp/${nome}`); sh(`chmod 644 /data/local/tmp/${nome}`);
+  sh(`run-as ${PKG} sh -c 'mkdir -p cache/compartilhar && cp /data/local/tmp/${nome} cache/compartilhar/${nome}'`);
+  return `content://${PKG}.fileprovider/my_cache_images/compartilhar/${nome}`;
+}
 const compartilhar = uri => sh(`am start -W -a android.intent.action.SEND -t application/pdf --eu android.intent.extra.STREAM '${uri}' --grant-read-uri-permission -n ${ACT}`);
 // quem aparece na lista do "Abrir com" / "Compartilhar" para um PDF
 const quemAbre = (acao, uri) => sh(acao === 'VIEW'
@@ -126,7 +137,7 @@ try {
   check('"Abrir com → Vetra" abre o PDF (app já aberto)', r.ok && r.paginas === 5, r);
 
   passo('"Compartilhar" com o Vetra aberto');
-  const uri2 = await pdfNoAparelho(fx.texto, 'Resumo-compartilhado.pdf');
+  const uri2 = pdfNoCacheDoVetra(fx.texto, 'Resumo-compartilhado.pdf');
   compartilhar(uri2);
   r = await aberto('Resumo-compartilhado.pdf');
   tela('3-compartilhar');
