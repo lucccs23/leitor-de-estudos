@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.23.1';
+App.VERSION = '1.24.0';
 App.VERSION_DATE = '19/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -373,6 +373,8 @@ App.setLoading = frac => {
 
 let loadSeq = 0;
 App.loadDoc = async (buf, name) => {
+  // livro EPUB (um ZIP): abre no leitor de livros, sem converter
+  if (App.isZipData && App.isZipData(buf)) return App.openEpub(buf, name);
   if (!window.pdfjsLib) { App.showLibError(); return false; }
   const seq = ++loadSeq; // só a abertura mais recente vale
   closePopup();
@@ -536,6 +538,7 @@ App.fitMenu = anchor => {
     { label: 'Duas páginas lado a lado', icon: 'book', checked: !!layout.spread, on: () => App.setLayout({ spread: !layout.spread }) },
     { sep: true },
     { label: 'Modo de leitura (tela cheia)', sub: 'F', icon: 'focus', checked: document.body.classList.contains('focus'), on: App.toggleFocus },
+    { label: 'Texto corrido (como um livro)', icon: 'book', on: () => App.openReflow?.() },
   ], { title: 'Tamanho da página', alignRight: true });
 };
 new ResizeObserver(() => {
@@ -1312,6 +1315,7 @@ App.anchorOf = h => {
   return { page: part.page, y: part.rects[0].y, x: part.rects[0].x };
 };
 App.sortedHighlights = list => [...list].sort((a, b) => {
+  if (a.ep && b.ep) return a.ep.ch - b.ep.ch || a.ep.s - b.ep.s;
   const A = App.anchorOf(a), B = App.anchorOf(b);
   return A.page - B.page || A.y - B.y || A.x - B.x;
 });

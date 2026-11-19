@@ -39,6 +39,7 @@ const pageOf = h => App.anchorOf(h).page;
 // por capítulo (sumário do PDF) quando existir; de um PDF, de uma disciplina inteira ou de todos
 const oneLine = t => String(t || '').replace(/\s*\n+\s*/g, ' ').trim();
 async function chaptersFor(rec){
+  if (rec.kind === 'epub') return []; // livro: os capítulos vêm de cada grifo (h.cap)
   if (rec.fp === state.fp) return App.chapters ? App.chapters() : [];
   const f = await safe(() => DB.get('files', rec.fp), null);
   if (!f || !window.pdfjsLib) return [];
@@ -54,19 +55,22 @@ function mdDoc(rec, chaps, opt, level){
   let md = '';
   if (bms.length && opt.bookmarks) {
     md += `\n${H(1)}Marcadores\n\n`;
-    for (const b of bms) md += `- p. ${b.page}${b.title ? ' — ' + b.title : ''}\n`;
+    for (const b of bms) md += rec.kind === 'epub' ? `- ${b.cap || 'Capítulo ' + b.page}: ${oneLine(b.label)}\n` : `- p. ${b.page}${b.title ? ' — ' + b.title : ''}\n`;
   }
   let lastChap, lastPage = null, drawings = 0;
   const useChaps = opt.chapters && chaps.length > 1;
   for (const h of hls) {
     if (h.kind === 'ink') { drawings++; continue; }
     const pg = App.anchorOf(h).page;
-    if (useChaps) {
+    if (rec.kind === 'epub') {
+      const c = h.cap || `Capítulo ${pg}`;
+      if (c !== lastChap) { md += `\n${H(1)}${c}\n\n`; lastChap = c; }
+    } else if (useChaps) {
       const c = App.chapterOf(chaps, pg);
       const key = c ? c.title + c.page : '';
       if (key !== lastChap) { md += `\n${H(1)}${c ? c.title : 'Antes do primeiro capítulo'}\n\n`; lastChap = key; }
     } else if (pg !== lastPage) { md += `\n${H(1)}Página ${pg}\n\n`; lastPage = pg; }
-    const ref = useChaps ? ` _(p. ${pg})_` : '';
+    const ref = useChaps && rec.kind !== 'epub' ? ` _(p. ${pg})_` : '';
     if (h.kind === 'note') { if (h.note.trim()) md += `- 📝 **Nota:** ${oneLine(h.note)}${ref}\n`; continue; }
     const body = h.text ? oneLine(h.text) : (h.kind === 'area' ? '_(figura)_' : '');
     md += `- **[${App.labelOf(h.color)}]** ${body}${ref}\n`;

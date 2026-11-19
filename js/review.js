@@ -10,12 +10,14 @@ const INTERVALS = [0, 1, 3, 7, 16, 35]; // dias até a próxima revisão, por ca
 let deck = [], idx = 0, revealed = false, tally = { 1: 0, 2: 0, 3: 0 }, requeued = new Set();
 let chosen = new Set(App.COLORS.map(c => c.id)), onlyDue = true, shuffle = true, revealFn = null;
 
-const reviewable = () => state.highlights.filter(h => h.kind !== 'ink' && h.kind !== 'note' && (h.text || h.img));
+// livro aberto no leitor (EPUB): os grifos dele viram os cartões
+const fonte = () => App.bookSource?.();
+const reviewable = () => (fonte() ? fonte().highlights() : state.highlights).filter(h => h.kind !== 'ink' && h.kind !== 'note' && (h.text || h.img));
 const isDue = h => !h.srs || h.srs.due <= Date.now();
 App.reviewOpen = false;
 
 App.openReview = () => {
-  if (!state.pdf) return;
+  if (!state.pdf && !fonte()) return;
   if (!reviewable().length) { App.toast('Grife alguns trechos primeiro — eles viram cartões de revisão.'); return; }
   App.closePopup();
   App.reviewOpen = true; box.hidden = false;
@@ -25,7 +27,7 @@ $('#btnReview').onclick = App.openReview;
 
 function close(){
   box.hidden = true; App.reviewOpen = false; deck = [];
-  App.saveDocSoon(); App.renderPanel();
+  if (fonte()) fonte().save(); else { App.saveDocSoon(); App.renderPanel(); }
 }
 
 function setup(){
@@ -125,7 +127,8 @@ function show(){
     if (h.q) App.aiMenu(aiBtn, { text: h.text, image: h.img, page: App.anchorOf(h).page, src: 'trecho' }, { title: `Questão ${h.q.n}`, question: h });
     else App.aiMenu(aiBtn, { text: h.text, image: h.img, note: h.note, page: App.anchorOf(h).page, src: 'trecho' }, { title: 'Este cartão' });
   }, 'soft');
-  foot.append(btn('Ver no PDF', () => { close(); App.jumpTo(h); }), aiBtn, btn('Encerrar (Esc)', finish));
+  const livro = fonte();
+  foot.append(btn(livro ? 'Ver no livro' : 'Ver no PDF', () => { close(); if (livro) livro.jump(h); else App.jumpTo(h); }), aiBtn, btn('Encerrar (Esc)', finish));
   card.append(foot);
   box.append(card);
   rv.focus();
@@ -153,7 +156,7 @@ function grade(g){
     s.box = Math.min(INTERVALS.length - 1, s.box + 1); s.due = now + INTERVALS[s.box] * DAY;
   }
   s.last = now; h.srs = s; tally[g]++;
-  App.saveDocSoon();
+  if (fonte()) fonte().save(); else App.saveDocSoon();
   idx++; show();
 }
 

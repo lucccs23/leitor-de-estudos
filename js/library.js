@@ -238,7 +238,7 @@ async function run(){
   if (q.length < 2) return;
   const words = App.fold(q).split(/\s+/).filter(Boolean);
   const re = new RegExp(words.map(App.escapeRe).join('\\s*'), 'g');
-  const docs = (await safe(() => DB.all('docs'), [])).filter(d => d.hasFile).sort((a, b) => b.ts - a.ts);
+  const docs = (await safe(() => DB.all('docs'), [])).filter(d => d.hasFile && d.kind !== 'epub').sort((a, b) => b.ts - a.ts);
   const scope = App.filterBySubject(docs);
   const status = el('p', 'libStatus muted small'); out.append(status);
   const list = el('div', 'libList'); out.append(list);

@@ -146,7 +146,7 @@ App.readKeyFile = async (file, n, onStatus = () => {}) => {
 App.suggestKeyDoc = async () => {
   const base = App.baseName(App.state.name).toLowerCase();
   const stem = base.replace(/[-_\s]*(caderno|prova|quest[oõ]es|simulado)?$/i, '').replace(/[-_\s]+$/, '');
-  const docs = (await App.safe(() => App.DB.all('docs'), [])).filter(d => d.hasFile && d.fp !== App.state.fp);
+  const docs = (await App.safe(() => App.DB.all('docs'), [])).filter(d => d.hasFile && d.kind !== 'epub' && d.fp !== App.state.fp);
   const norm = s => App.baseName(s).toLowerCase();
   return docs.filter(d => /gabarito|respostas|resolu|coment/i.test(d.name))
     .sort((a, b) => (norm(b.name).startsWith(stem) ? 1 : 0) - (norm(a.name).startsWith(stem) ? 1 : 0) || b.ts - a.ts)[0] || null;

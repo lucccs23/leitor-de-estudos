@@ -50,8 +50,8 @@ App.canInstall = () => !!installEvt;
 // ---------- Textos da tela inicial no aparelho ----------
 if (App.isWeb || App.isTouch) {
   const lead = document.querySelector('.hero .lead'), dz = document.querySelector('.dzText span');
-  if (lead) lead.textContent = 'Leia, grife e revise seus PDFs. Tudo fica salvo neste aparelho, mesmo sem internet.';
-  if (dz) dz.textContent = App.native ? 'Escolha um PDF do aparelho ou use "Abrir com → Vetra" em outro app' : 'Escolha um PDF do aparelho ou use "Compartilhar → Vetra" em outro app';
+  if (lead) lead.textContent = 'Leia, grife e revise seus PDFs e livros (EPUB). Tudo fica salvo neste aparelho, mesmo sem internet.';
+  if (dz) dz.textContent = App.native ? 'Escolha um PDF ou EPUB do aparelho ou use "Abrir com → Vetra" em outro app' : 'Escolha um PDF ou EPUB do aparelho ou use "Compartilhar → Vetra" em outro app';
 }
 
 // ---------- PDFs recebidos pelo "Compartilhar" (WhatsApp, Drive, Arquivos…) ----------
