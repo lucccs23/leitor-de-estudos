@@ -53,5 +53,14 @@ export default async ({ launch, fixtures }) => {
     return { x, barra: $('#updateBar')?.textContent, buscou: __nativo.buscas.length };`);
   await t.check('versão nova no site: aviso com "Baixar o APK novo"', r.x?.temNova && /9\.9\.9/.test(r.barra) && /Baixar o APK novo/.test(r.barra) && r.buscou >= 1, r);
 
+  // EPUB vindo de outro app: abre no leitor de livros (sem converter)
+  const livro = readFileSync(fixtures.livro).toString('base64');
+  t.step('chega um EPUB pelo "Abrir com"');
+  r = await t.ev(`const bin = atob(${JSON.stringify(livro)}), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); window.__pdf = u;
+    (__nativo.ouvintes.arquivo || []).forEach(f => f({ path: '/data/user/0/app.vetra.leitor/cache/abertos/9-Livro.epub', name: 'Livro.epub' }));
+    const ok = await until(() => A.bookState() && A.bookFrame().contentDocument.querySelector('h1'), 15000);
+    return { ok, st: A.bookState(), pdf: !!S.pdf };`);
+  await t.check('EPUB vindo de outro app abre no leitor de livros', r.ok && r.st && r.st.name === 'Livro de Teste' && !r.pdf, r);
+
   await t.close();
 };

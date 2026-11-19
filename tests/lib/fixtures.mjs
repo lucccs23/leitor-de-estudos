@@ -2,6 +2,7 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
+import { deflateRawSync, crc32 } from 'node:zlib';
 
 const ROOT = new URL('../../', import.meta.url);
 function loadPdfLib(){
@@ -63,11 +64,61 @@ function wrap(text, font, size, max){
   return out;
 }
 
+// ---------- EPUB de teste: ZIP feito aqui (3 capítulos, sumário, CSS, imagem, capa e um script que não pode rodar) ----------
+
+function zip(files){ // [{name, data(Buffer|string), store?}]
+  const locais = [], central = []; let off = 0;
+  for (const f of files) {
+    const data = Buffer.isBuffer(f.data) ? f.data : Buffer.from(f.data, 'utf8');
+    const comp = f.store ? data : deflateRawSync(data);
+    const name = Buffer.from(f.name, 'utf8'), crc = crc32(data) >>> 0, method = f.store ? 0 : 8;
+    const lh = Buffer.alloc(30); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(0x0800, 6); lh.writeUInt16LE(method, 8);
+    lh.writeUInt32LE(crc, 14); lh.writeUInt32LE(comp.length, 18); lh.writeUInt32LE(data.length, 22); lh.writeUInt16LE(name.length, 26);
+    locais.push(lh, name, comp);
+    const ch = Buffer.alloc(46); ch.writeUInt32LE(0x02014b50, 0); ch.writeUInt16LE(20, 4); ch.writeUInt16LE(20, 6); ch.writeUInt16LE(0x0800, 8); ch.writeUInt16LE(method, 10);
+    ch.writeUInt32LE(crc, 16); ch.writeUInt32LE(comp.length, 20); ch.writeUInt32LE(data.length, 24); ch.writeUInt16LE(name.length, 28); ch.writeUInt32LE(off, 42);
+    central.push(ch, name);
+    off += 30 + name.length + comp.length;
+  }
+  const cd = Buffer.concat(central), eo = Buffer.alloc(22);
+  eo.writeUInt32LE(0x06054b50, 0); eo.writeUInt16LE(files.length, 8); eo.writeUInt16LE(files.length, 10); eo.writeUInt32LE(cd.length, 12); eo.writeUInt32LE(off, 16);
+  return Buffer.concat([...locais, cd, eo]);
+}
+// PNG 2x2 vermelho
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDK+mmyAAAAABJRU5ErkJggg==', 'base64');
+const PARA_LIVRO = n => `A celula e a unidade basica da vida. Paragrafo ${n}: todas as celulas possuem membrana plasmatica, citoplasma e material genetico. A mitocondria e responsavel pela respiracao celular e pela producao de ATP, a moeda de energia da celula.`;
+const cap = (i, titulo, n, extra = '') => `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="pt-BR">
+<head><title>${titulo}</title><link rel="stylesheet" type="text/css" href="../css/livro.css"/></head>
+<body><section epub:type="chapter"><h1 id="c${i}">${titulo}</h1>
+${Array.from({ length: n }, (_, k) => `<p${k === 2 ? ` id="p${i}-3"` : ''}>${PARA_LIVRO(k + 1)}</p>`).join('\n')}
+${extra}<script>window.parent.document.title='invadido'</script><p onclick="alert(1)">Fim do ${titulo}.</p></section></body></html>`;
+
+function epubBook({ titulo = 'Livro de Teste', autor = 'Autora Exemplo' } = {}){
+  return zip([
+    { name: 'mimetype', data: 'application/epub+zip', store: true },
+    { name: 'META-INF/container.xml', data: '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>' },
+    { name: 'OEBPS/content.opf', data: `<?xml version="1.0" encoding="utf-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">teste-vetra</dc:identifier><dc:title>${titulo}</dc:title><dc:creator>${autor}</dc:creator><dc:language>pt-BR</dc:language></metadata>
+<manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="css" href="css/livro.css" media-type="text/css"/><item id="capa" href="img/capa.png" media-type="image/png" properties="cover-image"/>
+<item id="c1" href="texto/cap1.xhtml" media-type="application/xhtml+xml"/><item id="c2" href="texto/cap2.xhtml" media-type="application/xhtml+xml"/><item id="c3" href="texto/cap%203.xhtml" media-type="application/xhtml+xml"/></manifest>
+<spine><itemref idref="c1"/><itemref idref="c2"/><itemref idref="c3"/></spine></package>` },
+    { name: 'OEBPS/nav.xhtml', data: `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Sumário</title></head><body><nav epub:type="toc"><ol>
+<li><a href="texto/cap1.xhtml">Capítulo 1 - A célula</a></li><li><a href="texto/cap2.xhtml">Capítulo 2 - Mitocôndria</a><ol><li><a href="texto/cap2.xhtml#p2-3">2.1 Respiração</a></li></ol></li><li><a href="texto/cap%203.xhtml">Capítulo 3 - Membrana</a></li></ol></nav></body></html>` },
+    { name: 'OEBPS/css/livro.css', data: 'h1{color:rgb(150,20,20);font-size:1.6em} p{text-indent:1.5em;margin:0 0 .4em} .fig{background:url(../img/capa.png)}' },
+    { name: 'OEBPS/img/capa.png', data: PNG },
+    { name: 'OEBPS/texto/cap1.xhtml', data: cap(1, 'Capítulo 1 - A célula', 6, '<p><img src="../img/capa.png" alt="figura" style="width:120px"/></p><p>Veja o <a href="cap2.xhtml#p2-3">item 2.1</a>.</p>') },
+    { name: 'OEBPS/texto/cap2.xhtml', data: cap(2, 'Capítulo 2 - Mitocôndria', 40) },
+    { name: 'OEBPS/texto/cap 3.xhtml', data: cap(3, 'Capítulo 3 - Membrana', 8) },
+  ]);
+}
+
 export async function makeFixtures(dir){
   mkdirSync(dir, { recursive: true });
   const P = loadPdfLib();
-  const files = { texto: join(dir, 'texto.pdf'), prova: join(dir, 'prova.pdf') };
+  const files = { texto: join(dir, 'texto.pdf'), prova: join(dir, 'prova.pdf'), livro: join(dir, 'livro.epub') };
   writeFileSync(files.texto, await textPdf(P));
   writeFileSync(files.prova, await examPdf(P));
+  writeFileSync(files.livro, epubBook());
   return files;
 }
