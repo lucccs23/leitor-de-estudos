@@ -162,6 +162,37 @@ try {
   sh('settings put system user_rotation 0');
   check('girar a tela não recarrega o app nem troca o PDF', r.deitou && r.mesmaPagina && r.nome === 'Prova-de-quimica.pdf', r);
 
+  // ---------- EPUB direto no leitor ----------
+  passo('"Abrir com" de um EPUB');
+  const uriLivro = await pdfNoAparelho(fx.livro, 'Livro-de-teste.epub');
+  const listaE = sh(`cmd package query-activities --brief -a android.intent.action.VIEW -d '${uriLivro}' -t application/epub+zip`);
+  check('o Vetra aparece no "Abrir com" de EPUB', listaE.includes(PKG), listaE);
+  sh(`am start -W -a android.intent.action.VIEW -d '${uriLivro}' -t application/epub+zip --grant-read-uri-permission -n ${ACT}`);
+  r = await ev(`const ok = await until(() => A.bookState() && !A.bookState().carregando && A.bookFrame().contentDocument.querySelector('h1'), 30000); return { ok, st: A.bookState(), pdf: !!S.pdf };`);
+  tela('6-livro');
+  check('"Abrir com → Vetra" abre o EPUB no leitor de livros (sem converter)', r.ok && r.st.name === 'Livro de Teste' && !r.pdf, r);
+
+  // tela em pé, como no celular
+  const [lw, lh] = (sh('wm size').match(/(\d+)x(\d+)/) || []).slice(1).map(Number);
+  passo('toca na borda direita');
+  await ev(`await until(() => !document.querySelector('#leitor').classList.contains('ui'), 6000); return 1`);
+  const antes = await ev('return A.bookState()');
+  sh(`input tap ${Math.round(lw * 0.93)} ${Math.round(lh * 0.5)}`);
+  r = await ev(`await until(() => { const s = A.bookState(); return !s.carregando && (s.ch > ${antes.ch} || s.pag > ${antes.pag}); }, 8000); return A.bookState();`);
+  check('tocar na borda direita vira a página do livro', r.ch > antes.ch || r.pag > antes.pag, { antes, depois: r });
+  passo('desliza para a esquerda');
+  const meio = await ev('return A.bookState()');
+  sh(`input swipe ${Math.round(lw * 0.8)} ${Math.round(lh * 0.5)} ${Math.round(lw * 0.2)} ${Math.round(lh * 0.5)} 200`);
+  r = await ev(`await until(() => { const s = A.bookState(); return !s.carregando && (s.ch > ${meio.ch} || s.pag > ${meio.pag}); }, 8000); return A.bookState();`);
+  tela('7-livro-virou');
+  check('deslizar o dedo vira a página do livro', r.ch > meio.ch || r.pag > meio.pag, { meio, depois: r });
+
+  passo('botão voltar do Android');
+  sh('input keyevent 4');
+  r = await ev(`const ok = await until(() => !A.bookState(), 6000); return { ok, inicio: !!document.querySelector('#recentList .recent') };`);
+  check('o botão voltar do Android fecha o livro e fica no Vetra', r.ok && !!sh(`pidof ${PKG} || true`), r);
+  tela('8-voltou');
+
   check('sem erros de JavaScript no app', !erros.length, erros);
 } catch (e) {
   check('o teste no Android rodou até o fim', false, String(e.stack || e));
