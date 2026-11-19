@@ -1312,8 +1312,13 @@ body[data-tool=erase] .drawLayer{pointer-events:auto;cursor:cell}
 .penLine{display:block;width:20px;height:var(--pw,3px);border-radius:99px;background:var(--pc,currentColor);transition:height .12s}
 #btnPenOpts.marker .penLine{border-radius:2px;opacity:.6}
 #btnPenOpts.eraserOpts .penLine{width:var(--pw);height:var(--pw);border-radius:50%;background:none;box-shadow:inset 0 0 0 1.5px currentColor}
-.inkLayer path.marker,.drawLayer path.marker{stroke:var(--c);stroke-opacity:.45;stroke-linecap:butt}
-[data-page=invert] .inkLayer path.marker{stroke-opacity:.6}
+.inkLayer path.marker,.drawLayer path.marker,.ppPreview path.marker{stroke:var(--c);stroke-opacity:var(--mo,.45);stroke-linecap:butt}
+.inkLayer path.markerRound,.drawLayer path.markerRound,.ppPreview path.markerRound{stroke-linecap:round}
+.inkLayer path.inkFill,.drawLayer path.inkFill,.ppPreview path.inkFill{fill:var(--ci);stroke:none}
+[data-page=invert] .inkLayer path.inkFill,[data-page=invert] .drawLayer path.inkFill{fill:var(--c)}
+.inkLayer path.inkFill.selected{stroke:var(--ci);stroke-width:1}
+.inkLayer path.tipPencil,.drawLayer path.tipPencil,.ppPreview path.tipPencil{opacity:.72}
+[data-page=invert] .inkLayer path.marker{stroke-opacity:var(--mo,.6)}
 
 /* =========================================================
    v1.15 — plano, siglas, atalhos da IA, ligações, Markdown, sincronização
@@ -1607,10 +1612,10 @@ body.tb-reordering .tooltip,body.tb-reordering [role=tooltip]{display:none!impor
    ========================================================= */
 body[data-tool=lasso] .drawLayer{pointer-events:auto;cursor:crosshair}
 #btnUndo:disabled,#btnRedo:disabled{opacity:.35}
-.penPop{position:fixed;z-index:96;width:260px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:12px 14px 12px;animation:pop .12s ease-out;display:flex;flex-direction:column;gap:10px}
+.penPop{position:fixed;z-index:96;width:min(304px,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:12px 14px 12px;animation:pop .12s ease-out;display:flex;flex-direction:column;gap:10px}
 .ppTitle{font-weight:650;font-size:13px}
 .ppPreview{width:100%;height:46px;background:var(--surface-2);border-radius:10px}
-.ppPreview path{fill:none;stroke-linejoin:round}
+.ppPreview path{fill:none;stroke:var(--ci);stroke-linecap:round;stroke-linejoin:round}
 .ppRow{display:flex;align-items:center;gap:10px}
 .ppRow[hidden]{display:none}
 .ppRow input[type=range]{flex:1;accent-color:var(--accent)}
@@ -1624,9 +1629,51 @@ body[data-tool=lasso] .drawLayer{pointer-events:auto;cursor:crosshair}
 .ppCheck{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--text-2);line-height:1.35;cursor:pointer}
 .ppCheck input{margin-top:1px;accent-color:var(--accent)}
 .ppModes{display:flex;flex-direction:column;gap:6px}
-.ppMode{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:none;color:var(--text)}
+.ppMode{display:flex;align-items:center;gap:10px;text-align:left;padding:8px 6px;border:0;border-radius:10px;background:none;color:var(--text)}
+.ppMode:hover{background:var(--hover)}
+.ppModeTxt{display:flex;flex-direction:column;gap:1px}
 .ppMode small{font-size:11.5px;color:var(--muted)}
-.ppMode.on{border-color:var(--accent);background:var(--accent-soft)}
+.ppRadio{width:18px;height:18px;flex:none;border-radius:50%;border:2px solid var(--muted)}
+.ppMode.on .ppRadio{border-color:var(--accent);box-shadow:inset 0 0 0 3px var(--surface);background:var(--accent)}
+.ppHead{display:flex;align-items:center;gap:2px}
+.ppHead .ppTitle{flex:1;padding-left:6px}
+.ppIcon{width:34px;height:34px;flex:none;display:grid;place-items:center;border:0;border-radius:9px;background:none;color:var(--text-2);padding:0}
+.ppIcon:hover{background:var(--hover)}
+.ppIcon.on{color:var(--accent)}
+.ppStar.on{color:#f5a623}
+.ppFavs{display:flex;flex-wrap:wrap;gap:6px}
+.ppHint{font-size:12px;color:var(--muted)}
+.ppFav{width:42px;height:30px;display:grid;place-items:center;padding:0 7px;border:1px solid var(--border);border-radius:8px;background:none}
+.ppFav span{display:block;width:100%;border-radius:3px}
+.ppFav.on{border-color:var(--accent);background:var(--accent-soft)}
+.ppTips{display:flex;justify-content:space-around;align-items:flex-end;height:68px;overflow:hidden;border-bottom:1px solid var(--border)}
+.ppTip{border:0;background:none;padding:0;height:62px;transform:translateY(16px);transition:transform .12s ease,opacity .12s ease;line-height:0;opacity:.6}
+.ppTip:hover{transform:translateY(10px)}
+.ppTip.on{transform:translateY(2px);opacity:1}
+.ppStep{width:28px;height:28px}
+.ppLines{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ppLine{height:34px;display:grid;place-items:center;padding:0;border:0;border-radius:17px;background:var(--surface-2);color:var(--text-2)}
+.ppLine svg{max-width:100%}
+.ppLine.on{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ppSwitch{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--text);cursor:pointer;position:relative;min-height:26px}
+.ppSwitch input{position:absolute;opacity:0;right:0;width:40px;height:24px;margin:0;cursor:pointer}
+.ppSwitch i{width:40px;height:22px;flex:none;border-radius:11px;background:var(--border);position:relative;transition:background .12s}
+.ppSwitch i::after{content:"";position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .12s}
+.ppSwitch input:checked + i{background:var(--accent)}
+.ppSwitch input:checked + i::after{transform:translateX(18px)}
+.ppSwitch input:focus-visible + i{outline:2px solid var(--accent);outline-offset:2px}
+.ppColors{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.ppColor{width:26px;height:26px;display:grid;place-items:center;padding:0;border:1px solid color-mix(in srgb,var(--text) 22%,transparent);border-radius:50%;background:var(--c);color:#fff}
+.ppColor .i{width:15px;height:15px;filter:drop-shadow(0 0 1px #000)}
+.ppColor.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
+.ppColorTool{width:26px;height:26px;border-radius:50%}
+.ppMore{background:conic-gradient(#f33,#fc3,#3c6,#39f,#a3f,#f33)}
+.ppMore:hover{background:conic-gradient(#f33,#fc3,#3c6,#39f,#a3f,#f33)}
+.ppPages{display:flex;justify-content:center;gap:4px}
+.ppPage{width:20px;height:20px;display:grid;place-items:center;padding:0;border:0;background:none}
+.ppPage::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--border)}
+.ppPage.recent::after{border-radius:2px}
+.ppPage.on::after{background:var(--accent)}
 .ppClear{align-self:stretch;justify-content:center}
 #palette .swatch.addColor{display:grid;place-items:center;background:none;box-shadow:inset 0 0 0 1.5px var(--border-strong);color:var(--muted)}
 #palette .swatch.addColor .i{width:14px;height:14px}
