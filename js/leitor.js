@@ -157,7 +157,7 @@ async function carregarCap(i, alvo = {}){
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   if (meu !== seq) return;
   if (alvo.fim) irPag(paginas() - 1, true);
-  else if (alvo.frag) irFrag(alvo.frag);
+  else if (alvo.frag) { irFrag(alvo.frag); B.ancora = posFrag(alvo.frag); } // subtítulo do sumário: a posição é o próprio subtítulo
   else if (alvo.off) irOff(alvo.off);
   else irPag(0);
   if (alvo.marcar) marcarTemporario(alvo.marcar);
