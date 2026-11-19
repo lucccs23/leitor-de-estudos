@@ -1313,6 +1313,8 @@ body[data-tool=erase] .drawLayer{pointer-events:auto;cursor:cell}
 #btnPenOpts.marker .penLine{border-radius:2px;opacity:.6}
 #btnPenOpts.eraserOpts .penLine{width:var(--pw);height:var(--pw);border-radius:50%;background:none;box-shadow:inset 0 0 0 1.5px currentColor}
 .inkLayer path.marker,.drawLayer path.marker,.ppPreview path.marker{stroke:var(--c);stroke-opacity:var(--mo,.45);stroke-linecap:butt}
+.inkLayer path.marker,.drawLayer path.marker{mix-blend-mode:multiply}
+[data-page=invert] .inkLayer path.marker,[data-page=invert] .drawLayer path.marker{mix-blend-mode:screen}
 .inkLayer path.markerRound,.drawLayer path.markerRound,.ppPreview path.markerRound{stroke-linecap:round}
 .inkLayer path.inkFill,.drawLayer path.inkFill,.ppPreview path.inkFill{fill:var(--ci);stroke:none}
 [data-page=invert] .inkLayer path.inkFill,[data-page=invert] .drawLayer path.inkFill{fill:var(--c)}
@@ -1681,6 +1683,8 @@ body[data-tool=lasso] .drawLayer{pointer-events:auto;cursor:crosshair}
 .colorInput{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 .eraserRing{position:fixed;z-index:60;border-radius:50%;pointer-events:none;border:1.5px solid rgba(120,120,130,.9);box-shadow:0 0 0 1px rgba(255,255,255,.6)}
 .eraserRing[hidden]{display:none}
+.eraserRing.inkRing{border:1px solid rgba(120,120,130,.75);box-shadow:none;background:color-mix(in srgb,var(--rc,#888) 45%,transparent)}
+.ppStepBox{display:flex;flex-direction:column;gap:1px}
 .lassoDraw polygon{fill:color-mix(in srgb,var(--accent) 10%,transparent);stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4;vector-effect:non-scaling-stroke}
 .inkLayer path.lassoSel{filter:drop-shadow(0 0 2px var(--accent))}
 .lassoBox{position:absolute;z-index:4;pointer-events:none;border:1.5px dashed var(--accent);border-radius:6px;background:color-mix(in srgb,var(--accent) 5%,transparent)}

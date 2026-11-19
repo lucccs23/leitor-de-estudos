@@ -82,7 +82,7 @@ function iconBtn(cls, title, art, fn){
   if (typeof art === 'string') b.innerHTML = art; else b.append(art);
   b.onclick = fn; return b;
 }
-function stepRow(cls, label, min, max, step, get, set, fmt){
+function stepRow(cls, label, min, max, step, get, set, fmt, jump = step * 5){
   const row = el('div', 'ppRow ' + cls);
   const range = el('input'); range.type = 'range'; range.min = min; range.max = max; range.step = step; range.value = get();
   range.setAttribute('aria-label', label);
@@ -91,9 +91,10 @@ function stepRow(cls, label, min, max, step, get, set, fmt){
   const apply = v => { range.value = Math.max(min, Math.min(max, +(+v).toFixed(2))); range.oninput(); };
   range.oninput = () => { set(+range.value); show(); };
   show();
-  row.append(iconBtn('ppStep', `Diminuir: ${label}`, App.icon('minus'), () => apply(+range.value - step * 5)), range,
-    iconBtn('ppStep', `Aumentar: ${label}`, App.icon('plus'), () => apply(+range.value + step * 5)), val);
-  return row;
+  row.append(iconBtn('ppStep', `Diminuir: ${label}`, App.icon('minus'), () => apply(+range.value - jump)), range,
+    iconBtn('ppStep', `Aumentar: ${label}`, App.icon('plus'), () => apply(+range.value + jump)), val);
+  const box = el('div', 'ppStepBox'); box.append(el('span', 'ppLbl', label), row);
+  return box;
 }
 function switchRow(label, on, set){
   const row = el('label', 'ppSwitch'); const cb = el('input'); cb.type = 'checkbox'; cb.setAttribute('role', 'switch'); cb.checked = !!on;
@@ -149,6 +150,7 @@ function penPanel(k){
   pop.append(stepRow('ppWidth', 'Espessura', P.min, P.max, k === 'marker' ? 0.5 : 0.1, () => App.penWidth(k), v => { App.setPenWidth(k, v); pv.paint(); }, v => v.toFixed(1)));
   if (k === 'marker') pop.append(stepRow('ppOpacity', 'Opacidade', 10, 100, 1, () => App.penOpt(k, 'opacity'), v => { App.setPenOpt(k, 'opacity', v); pv.paint(); }, v => v + '%'));
   if (compact) return;
+  pop.append(stepRow('ppSmooth', 'Estabilizar o traço', 0, 10, 1, () => App.penOpt(k, 'smooth'), v => App.setPenOpt(k, 'smooth', v), v => v ? String(v) : 'não', 1));
   if (k === 'pen') {
     const lines = el('div', 'ppLines');
     App.PEN_LINES.forEach(([id, label]) => {
@@ -162,6 +164,7 @@ function penPanel(k){
   }
   pop.append(switchRow('Endireitar as linhas', cur.straight, v => { App.setPenOpt(k, 'straight', v); redraw(); }));
   if (k === 'marker') pop.append(switchRow('Ajustar a espessura ao texto', cur.fit, v => { App.setPenOpt(k, 'fit', v); redraw(); }));
+  pop.append(switchRow('Segurar no fim vira reta ou forma', cur.shapes, v => { App.setPenOpt(k, 'shapes', v); redraw(); }));
   pop.append(switchRow('Só a caneta stylus desenha', state.penSeen, v => { state.penSeen = v; ls.set('le.penSeen', v); App.toast(v ? 'Só a caneta stylus desenha; o dedo rola a página.' : 'O dedo também desenha.'); }));
   colorRow(k, cur.color);
 }
@@ -396,14 +399,25 @@ function openPicker(anchor, initial, onDone){
 }
 App.openColorPicker = openPicker;
 
-// ---------- Círculo da borracha (modo "só onde passar") ----------
+// ---------- Círculo da borracha e prévia da ponta (mouse e S Pen pairando sobre a página) ----------
 const ring = el('div', 'eraserRing'); ring.hidden = true; document.body.append(ring);
 addEventListener('pointermove', e => {
-  const show = state.tool === 'erase' && ls.get('le.eraseMode', 'stroke') === 'area' && !!e.target.closest?.('.drawLayer');
+  const dl = e.target.closest?.('.drawLayer'), erase = state.tool === 'erase' && ls.get('le.eraseMode', 'stroke') === 'area';
+  const ink = state.tool === 'ink' && e.pointerType !== 'touch' && !e.buttons;
+  const show = !!dl && (erase || ink);
   ring.hidden = !show; if (!show) return;
-  const s = ls.get('le.eraseSize', 18);
+  let s = ls.get('le.eraseSize', 18);
+  if (ink) { const pg = state.pages[+dl.parentElement.dataset.page - 1]; s = Math.max(3, App.penWidth() * dl.getBoundingClientRect().width / pg.base.w); }
+  ring.classList.toggle('inkRing', ink);
   ring.style.cssText = `width:${s}px;height:${s}px;left:${e.clientX - s / 2}px;top:${e.clientY - s / 2}px`;
+  if (ink) { const c = App.colorOf(App.penColor()); ring.style.setProperty('--rc', state.pen === 'marker' ? c.hex : c.ink); }
 }, { passive: true });
+// [ e ] mudam a espessura da ferramenta atual
+addEventListener('keydown', e => {
+  if ((e.key !== '[' && e.key !== ']') || state.tool !== 'ink' || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input,textarea,[contenteditable]')) return;
+  const P = App.PENS[state.pen], step = state.pen === 'marker' ? 2 : 0.4, w = Math.max(P.min, Math.min(P.max, App.penWidth() + (e.key === ']' ? step : -step)));
+  e.preventDefault(); App.setPenWidth(state.pen, w); App.toast(`${P.label}: espessura ${w.toFixed(1)}`);
+});
 
 // ---------- Laço ----------
 let sel = null; // { p, items: [{ h, pi, k }], box, bar, bb }
