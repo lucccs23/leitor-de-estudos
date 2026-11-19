@@ -10,14 +10,15 @@ const POS = `const p = $('#pager').getBoundingClientRect(), s = $('#stage').getB
   return { meio: Math.round(p.left + p.width / 2 - s.left), centro: Math.round(s.width / 2), pager: $('#pager').parentElement.id, dock: $('#dock').parentElement.id, topo: p.bottom <= s.top };`;
 
 export default async ({ launch, fixtures }) => {
-  // celular: a barra de cima cabe, o Simulado fica à vista e o resto vai para ⋯
+  // celular: a barra de cima cabe, o Simulado fica à vista; o ⋯ aparece só quando algum botão não cabe
   for (const width of [390, 360]) {
     const m = await launch({ width });
     await m.open(fixtures.texto, 'texto.pdf');
     let r = await m.ev(FIT);
-    await m.check('barra de cima cabe, com Simulado e engrenagem à vista', r.cabe && r.engrenagem && r.simulado && r.mais, r);
-    r = await m.ev(`$('#btnTbMore').click(); await until(() => $('.popMenu')); const it = $$('.popMenu .popItem span').map(s => s.textContent); A.closePop(); return it;`);
-    await m.check('⋯ lista os botões que não couberam', r.length >= 2, r);
+    await m.check('barra de cima cabe, com Simulado e engrenagem à vista (⋯ só se algo não coube)', r.cabe && r.engrenagem && r.simulado && r.mais === r.escondidos.length > 0, r);
+    const escondidos = r.escondidos.length;
+    r = await m.ev(`if ($('#btnTbMore').hidden) return []; $('#btnTbMore').click(); await until(() => $('.popMenu')); const it = $$('.popMenu .popItem span').map(s => s.textContent); A.closePop(); return it;`);
+    await m.check('⋯ lista exatamente os botões que não couberam', r.length === escondidos, { lista: r, escondidos });
     r = await m.ev(`$('#btnPomo').click(); await until(() => $('.popMenu')); btnT($('.popMenu'), 'Foco de 25')?.click(); await until(() => $('#btnPomo.running') && !$('#btnPomo').classList.contains('tbFitHide'), 3000); ${FIT}`);
     await m.check('com o timer rodando, o chip fica à vista e nada passa da tela', r.cabe && r.engrenagem && !r.escondidos.includes('pomo'), r);
     r = await m.ev(`A.setTool('text'); const d = $('#dock'); return { sobra: d.scrollWidth - d.clientWidth, cor: $$('#palette .swatch').every(s => s.getBoundingClientRect().right <= innerWidth) };`);
