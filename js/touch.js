@@ -51,7 +51,7 @@ App.canInstall = () => !!installEvt;
 if (App.isWeb || App.isTouch) {
   const lead = document.querySelector('.hero .lead'), dz = document.querySelector('.dzText span');
   if (lead) lead.textContent = 'Leia, grife e revise seus PDFs. Tudo fica salvo neste aparelho, mesmo sem internet.';
-  if (dz) dz.textContent = 'Escolha um PDF do aparelho ou use "Compartilhar → Vetra" em outro app';
+  if (dz) dz.textContent = App.native ? 'Escolha um PDF do aparelho ou use "Abrir com → Vetra" em outro app' : 'Escolha um PDF do aparelho ou use "Compartilhar → Vetra" em outro app';
 }
 
 // ---------- PDFs recebidos pelo "Compartilhar" (WhatsApp, Drive, Arquivos…) ----------
@@ -71,6 +71,16 @@ if (new URLSearchParams(location.search).has('compartilhado')) {
   history.replaceState(null, '', location.pathname);
   setTimeout(() => App.openShared().then(n => { if (!n) App.toast('Não recebi nenhum PDF.'); }), 400);
 }
+// app de Android: "Abrir com → Vetra" e "Compartilhar → Vetra" (o arquivo chega copiado no cache do app)
+const nativeFiles = App.native && window.Capacitor.Plugins.VetraArquivos;
+if (nativeFiles) nativeFiles.addListener('arquivo', async a => {
+  if (!a || a.erro || !a.path) { App.toast('Não consegui abrir o arquivo' + (a && a.erro ? ': ' + a.erro : '.')); return; }
+  try {
+    const res = await fetch(window.Capacitor.convertFileSrc('file://' + a.path));
+    if (!res.ok) throw new Error('não consegui ler o arquivo');
+    await App.loadDoc(await res.arrayBuffer(), a.name || 'documento.pdf');
+  } catch (e) { App.toast('Não consegui abrir o arquivo: ' + (e.message || e)); }
+});
 
 // ---------- Telas estreitas: painéis por cima da página fecham ao tocar fora ----------
 const narrow = () => innerWidth <= 900;
