@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.25.2', title: 'S Pen: segurar o botão na tela', items: ['Segurar o botão da S Pen e passar na tela agora funciona no app de Android (borracha, marca-texto ou laço)', 'Apertar no ar vale quando você solta o botão sem encostar, então segurar para riscar não desfaz mais o último traço'] },
   { v: '1.25.1', title: 'Botão da S Pen no app de Android', items: ['No app de Android, o botão da S Pen agora é lido direto da caneta (o navegador interno não repassava o botão)', 'Painel da caneta → “Testar o botão”: mostra na tela o que o aparelho avisa quando você aperta o botão (no ar e encostando)'] },
   { v: '1.25.0', title: 'Botão da S Pen e visual no grid de 8 pontos', items: ['Botão da S Pen configurável (painel da caneta): apertar no ar desfaz, refaz, liga/desliga a borracha, alterna caneta e texto ou caneta e marca-texto, ou vira a página (também no livro)', 'Segurar o botão e passar na tela: borracha, marca-texto ou laço, sem trocar a ferramenta', 'O botão agora funciona também quando é apertado antes de a caneta encostar na tela', 'Visual mais alinhado: espaços e tamanhos seguem o grid de 8 pontos', 'A barra de cima se ajusta na hora quando o timer começa'] },
   { v: '1.24.1', title: 'Logo novo', items: ['O Vetra ganhou um logo novo: o V creme com a ponta coral, no fundo escuro', 'Aparece na aba do navegador, no app instalado, no ícone e na tela de abertura do Android e no Windows'] },
