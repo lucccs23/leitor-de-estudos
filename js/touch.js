@@ -82,6 +82,20 @@ if (nativeFiles) nativeFiles.addListener('arquivo', async a => {
   } catch (e) { App.toast('Não consegui abrir o arquivo: ' + (e.message || e)); }
 });
 
+// botão voltar do Android (MainActivity pergunta aqui antes de sair do app): fecha o que estiver aberto
+if (App.native) window.vetraVoltar = () => {
+  const dlg = document.querySelector('dialog[open]');
+  if (dlg) { dlg.close(); return true; }
+  const esc = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  if (App.reviewOpen) { esc(); return true; }
+  if (document.querySelector('.popMenu') && App.closePop) { App.closePop(); return true; }
+  if (App.leitorVoltar && App.leitorVoltar()) return true;
+  if (App.examViewOpen || App.sheetOpen) { esc(); return true; }
+  if (document.body.classList.contains('focus')) { App.toggleFocus(); return true; }
+  if (state.pdf) { App.closeDoc(); return true; }
+  return false;
+};
+
 // ---------- Telas estreitas: painéis por cima da página fecham ao tocar fora ----------
 const narrow = () => innerWidth <= 900;
 $('#stage').addEventListener('pointerdown', e => {
