@@ -33,6 +33,7 @@ const MARGENS = [[0.5, 'Estreita'], [1, 'Normal'], [1.6, 'Larga']];
 // ---------- Estado ----------
 let B = null;          // livro aberto: { book, fp, ro, hls, marks, rec, ch, pag, lens }
 let seq = 0;           // só o último carregamento de capítulo vale
+let carregando = false; // capítulo sendo montado: toques e setas esperam
 const blobs = new Map();
 let idoc = null, se = null;
 const M = { mh: 24, mvT: 24 }; // margens em uso
@@ -130,6 +131,10 @@ async function carregarCap(i, alvo = {}){
   const n = B.book.spine.length;
   i = Math.max(0, Math.min(n - 1, i));
   const meu = ++seq;
+  carregando = true;
+  try { await montarCap(i, alvo, meu); } finally { if (meu === seq) carregando = false; }
+}
+async function montarCap(i, alvo, meu){
   const doc = await B.book.chapterDoc(i);
   const href = B.book.chapterHref(i);
   if (meu !== seq || !B) return;
@@ -284,7 +289,7 @@ function pontoDe(pos){
 }
 
 async function proxima(){
-  if (!B) return;
+  if (!B || carregando) return;
   fecharPop(); B.ancora = null;
   if (paginado()) {
     if (B.pag < paginas() - 1) { irPag(B.pag + 1); atualizar(); return true; }
@@ -293,7 +298,7 @@ async function proxima(){
   App.toast('Fim do livro'); return false;
 }
 async function anterior(){
-  if (!B) return;
+  if (!B || carregando) return;
   fecharPop(); B.ancora = null;
   if (paginado()) {
     if (B.pag > 0) { irPag(B.pag - 1); atualizar(); return; }
