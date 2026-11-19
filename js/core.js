@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.25.2';
+App.VERSION = '1.26.0';
 App.VERSION_DATE = '19/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -1421,6 +1421,10 @@ function closePopup(){
   }
 }
 App.closePopup = closePopup;
+// para o menu do botão direito (menupagina.js)
+App.createNoteAt = (p, pt) => createNote(p, pt);
+App.hlAt = (pageEl, x, y) => hitTest(pageEl, x, y);
+App.editHl = (h, x, y) => showEditPopup(h, x, y);
 App.selectionPopup = () => { if (hasSelection()) showSelectionPopup(); };
 App.highlightSelection = color => createHighlight(color || state.color);
 popup.addEventListener('mousedown', e => { if (!e.target.closest('textarea')) e.preventDefault(); });
