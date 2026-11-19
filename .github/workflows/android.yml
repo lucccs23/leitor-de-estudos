@@ -1,0 +1,102 @@
+# O APK do Vetra num Android de verdade: gera um APK de teste, liga um emulador Android e roda
+# tests/android/emulador.mjs (instala, abre, "Abrir com" e "Compartilhar" com o app aberto e fechado, girar a tela).
+#
+# Como no verify: em PR roda com pull_request_target, então o workflow e os testes vêm SEMPRE do main
+# e só o app vem do PR. Nenhum Secret é usado: o APK de teste é assinado com uma chave de depuração descartável.
+# No push de um branch checks/... roda a versão do próprio branch, para testar mudanças nestas checagens antes do merge.
+name: android
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main, 'checks/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGRAS: '^(tests/|\.claude/|\.github/|CLAUDE\.md$|REVIEW\.md$|eslint\.config\.js$|package\.json$|package-lock\.json$|\.gitignore$)'
+
+jobs:
+  emulador:
+    name: Android de verdade (emulador)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Recusa PR vindo de fork
+        if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::PRs vindos de fork não são testados aqui. A mudança precisa vir de um branch deste repositório."
+          exit 1
+
+      - name: Regras e testes (do main, em PR)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: work
+          persist-credentials: false
+
+      - name: App do PR
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          persist-credentials: false
+
+      - name: Junta o app do PR com as regras do main
+        if: github.event_name == 'pull_request_target'
+        run: |
+          (cd pr && git ls-files | grep -vE "$REGRAS" > ../app-files.txt)
+          (cd work && git ls-files | grep -vE "$REGRAS" | xargs -r rm -f)
+          rsync -a --files-from=app-files.txt pr/ work/
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Java 21, Android SDK e aceleração do emulador
+        run: |
+          ln -s "$JAVA_HOME_21_X64" "$RUNNER_TEMP/jdk-21"
+          echo "JAVA_HOME=$RUNNER_TEMP/jdk-21" >> "$GITHUB_ENV"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+          chmod +x work/mobile/android/gradlew
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Gera o APK de teste
+        working-directory: work/mobile
+        run: |
+          # só neste APK de teste: liga o depurador do WebView, por onde o teste confere o que o app fez
+          jq '.android.webContentsDebuggingEnabled = true' capacitor.config.json > c.json && mv c.json capacitor.config.json
+          rm -f assinatura.properties
+          npm ci --no-fund --no-audit
+          npm run apk
+          ls -l dist/
+
+      - name: Testa no emulador
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          working-directory: work
+          script: node tests/android/emulador.mjs "$(ls mobile/dist/Vetra-*-teste.apk)"
+
+      - name: Telas do Android
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ github.run_id }}
+          path: work/tests/out/android/
+          retention-days: 14
