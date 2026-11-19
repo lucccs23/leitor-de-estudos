@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.25.0';
+App.VERSION = '1.25.1';
 App.VERSION_DATE = '19/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -1577,7 +1577,9 @@ document.addEventListener('mouseup', e => {
 // ---------- Área e caneta ----------
 let drawing = null;
 const normPt = (e, r) => [clamp01((e.clientX - r.left) / r.width), clamp01((e.clientY - r.top) / r.height)];
-const isSidePen = e => e.pointerType === 'pen' && (e.button === 2 || e.button === 5 || !!(e.buttons & 34));
+// botão lateral: pelo navegador (botões 2/32) ou pelo app de Android, que lê o botão direto da caneta (spenNativo)
+let spenNativo = false;
+const isSidePen = e => e.pointerType === 'pen' && (e.button === 2 || e.button === 5 || !!(e.buttons & 34) || spenNativo);
 const penTools = new Set(['ink', 'erase', 'lasso']);
 
 // ---------- Botão da S Pen (configurável) ----------
@@ -1610,16 +1612,26 @@ App.spenAcao = acao => {
 // apertar no ar: o Android avisa pela mudança dos botões da caneta (sem contato) ou pelo "menu de contexto" da caneta
 // (um clique no ar nunca vem com a caneta encostando: toque na tela nos últimos instantes = é traço, não clique)
 let spenApertado = false, spenUltimo = 0, spenToque = 0;
-App.spenNoAr = () => { const agora = Date.now(); if (agora - spenUltimo < 450 || agora - spenToque < 400 || drawing) return; spenUltimo = agora; App.spenAcao(App.spen().ar); };
+App.spenNoAr = () => { const agora = Date.now(); if (App.spenTeste || agora - spenUltimo < 450 || agora - spenToque < 400 || drawing) return; spenUltimo = agora; App.spenAcao(App.spen().ar); };
+// registro do que chega do botão (painel da caneta → "Testar o botão"): mostra se o aparelho avisa e como
+App.spenLog = [];
+const spenRegistra = (origem, txt) => { App.spenLog.push({ t: Date.now(), origem, txt }); if (App.spenLog.length > 8) App.spenLog.shift(); App.emit('spen:log'); };
+// app de Android: o MainActivity avisa quando o botão é apertado ou solto
+window.vetraSpenBotao = (apertado, encostada) => {
+  spenNativo = !!apertado;
+  spenRegistra('Android', apertado ? (encostada ? 'apertou, encostada na tela' : 'apertou, no ar') : 'soltou');
+  if (apertado && !encostada) App.spenNoAr();
+};
 App.spenOuvir = doc => {
   doc.addEventListener('pointermove', e => {
     if (e.pointerType !== 'pen') return;
+    if ((e.buttons & 34) && !spenApertado) spenRegistra('navegador', `botão lateral ${e.buttons & 1 ? 'encostada' : 'no ar'} (buttons=${e.buttons})`);
     const lateral = !!(e.buttons & 34);
     if (lateral && !spenApertado && !(e.buttons & 1) && !drawing) App.spenNoAr();
     spenApertado = lateral;
   }, true);
-  for (const tipo of ['pointerdown', 'pointerup']) doc.addEventListener(tipo, e => { if (e.pointerType === 'pen') spenToque = Date.now(); }, true);
-  doc.addEventListener('contextmenu', e => { if (e.pointerType === 'pen' && !(e.buttons & 1) && !drawing) { e.preventDefault(); App.spenNoAr(); } }, true);
+  for (const tipo of ['pointerdown', 'pointerup']) doc.addEventListener(tipo, e => { if (e.pointerType !== 'pen') return; spenToque = Date.now(); if (e.button > 0 || (e.buttons & ~1)) spenRegistra('navegador', `${tipo === 'pointerdown' ? 'encostou' : 'levantou'} (button=${e.button}, buttons=${e.buttons})`); }, true);
+  doc.addEventListener('contextmenu', e => { if (e.pointerType !== 'pen') return; spenRegistra('navegador', `menu de contexto (buttons=${e.buttons})`); if (!(e.buttons & 1) && !drawing) { e.preventDefault(); App.spenNoAr(); } }, true);
 };
 App.spenOuvir(document);
 function beginDraw(e, dl, p, rect, start, side){
@@ -1687,7 +1699,7 @@ pagesEl.addEventListener('pointerdown', comecarTraco);
 let penEncostada = false;
 pagesEl.addEventListener('pointermove', e => {
   if (e.pointerType !== 'pen') return;
-  const encosta = !!(e.buttons & 1), lateral = !!(e.buttons & 34);
+  const encosta = !!(e.buttons & 1), lateral = !!(e.buttons & 34) || spenNativo;
   if (encosta && !penEncostada && lateral && !drawing) comecarTraco(e);
   else if (!encosta && penEncostada && drawing && e.pointerId === drawing.id && drawing.kind === 'pen') finishDrawing(e);
   penEncostada = encosta;
