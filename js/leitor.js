@@ -289,7 +289,8 @@ function pontoDe(pos){
 }
 
 async function proxima(){
-  if (!B || carregando) return;
+  if (!B) return false;
+  if (carregando) return true; // a rolagem automática continua
   fecharPop(); B.ancora = null;
   if (paginado()) {
     if (B.pag < paginas() - 1) { irPag(B.pag + 1); atualizar(); return true; }
