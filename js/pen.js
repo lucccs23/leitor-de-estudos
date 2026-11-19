@@ -8,7 +8,10 @@ const SVGNS = 'http://www.w3.org/2000/svg';
 
 // ---------- Painel de opções (espessura / borracha) ----------
 let pop = null;
-function closePenPop(){ if (pop) { pop.remove(); pop = null; } }
+// fechar o painel também encerra o "Testar o botão" (o botão da S Pen volta a fazer as ações)
+let spenDesenha = null;
+App.on('spen:log', () => { if (spenDesenha) spenDesenha(); });
+function closePenPop(){ if (pop) { pop.remove(); pop = null; } App.spenTeste = false; spenDesenha = null; }
 App.closePenPop = closePenPop;
 addEventListener('pointerdown', e => { if (pop && !pop.contains(e.target) && !e.target.closest('#btnPenOpts,[data-penkind],#penSeg [data-tool=erase]')) closePenPop(); }, true);
 addEventListener('keydown', e => { if (pop && e.key === 'Escape') { e.stopPropagation(); closePenPop(); } }, true);
@@ -107,6 +110,23 @@ function spenBox(){
     row.append(el('span', null, rotulo), s); return row;
   };
   box.append(linha('Apertar no ar', 'ar', App.SPEN_AR), linha('Segurar na tela', 'tela', App.SPEN_TELA));
+  // teste: mostra o que o aparelho avisa quando o botão é apertado (as ações ficam pausadas enquanto testa)
+  const teste = el('div', 'ppSpenTeste'); teste.hidden = true;
+  const lista = el('div', 'ppSpenLog');
+  const desenha = () => {
+    lista.innerHTML = '';
+    const ultimos = App.spenLog.filter(x => x.t >= inicio);
+    if (!ultimos.length) lista.append(el('span', 'muted', 'Nada chegou ainda. Aperte o botão com a caneta perto da tela, e depois encostando.'));
+    for (const x of ultimos.slice(-6)) lista.append(el('span', null, `${x.origem}: ${x.txt}`));
+  };
+  let inicio = 0;
+  const bt = App.btn('Testar o botão', () => {
+    teste.hidden = !teste.hidden; App.spenTeste = !teste.hidden; bt.textContent = teste.hidden ? 'Testar o botão' : 'Parar o teste';
+    spenDesenha = teste.hidden ? null : desenha;
+    if (!teste.hidden) { inicio = Date.now(); desenha(); }
+  }, 'sm outline ppSpenBtn');
+  teste.append(el('span', 'ppLbl', 'Enquanto testa, o botão não faz as ações.'), lista);
+  box.append(bt, teste);
   return box;
 }
 function switchRow(label, on, set){

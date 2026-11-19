@@ -1909,3 +1909,6 @@ body.focus #focusExit{display:none}
 .ppSpen{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid var(--border)}
 .ppSelRow{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--text-2)}
 .ppSel{flex:none;max-width:184px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);font-size:13px}
+.ppSpenBtn{align-self:flex-start}
+.ppSpenTeste{display:flex;flex-direction:column;gap:4px}
+.ppSpenLog{display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:8px;background:var(--surface-2);font-size:12px;color:var(--text-2);min-height:40px}
