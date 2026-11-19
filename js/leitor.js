@@ -758,7 +758,10 @@ function abrirAjustes(){
   fecharPaineis(); veu.hidden = false; folha.hidden = false; mostrarUI(false);
   desenharAjustes();
 }
-function mudar(patch){ opc = { ...opc, ...patch }; salvarOpc(); reajustar(); desenharAjustes(); if ('acesa' in patch) acesa(true); }
+function mudar(patch){
+  // o ponto de leitura é medido antes da troca (com a página ainda montada do jeito antigo)
+  if (B && idoc && B.ancora == null) B.ancora = offAtual();
+  opc = { ...opc, ...patch }; salvarOpc(); reajustar(); desenharAjustes(); if ('acesa' in patch) acesa(true); }
 function chips(lista, atual, fn){
   const row = el('div', 'lrChips');
   for (const [v, nome] of lista) { const b = el('button', 'lrChip' + (v === atual ? ' on' : ''), nome); b.onclick = () => fn(v); row.append(b); }
