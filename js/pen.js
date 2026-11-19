@@ -96,6 +96,19 @@ function stepRow(cls, label, min, max, step, get, set, fmt, jump = step * 5){
   const box = el('div', 'ppStepBox'); box.append(el('span', 'ppLbl', label), row);
   return box;
 }
+// botão lateral da S Pen: o que ele faz no ar e segurando na tela
+function spenBox(){
+  const box = el('div', 'ppSpen'), sp = App.spen();
+  box.append(el('span', 'ppLbl', 'Botão da S Pen'));
+  const linha = (rotulo, k, ops) => {
+    const row = el('label', 'ppSelRow'), s = el('select', 'ppSel');
+    for (const [v, nome] of ops) { const o = el('option', null, nome); o.value = v; o.selected = sp[k] === v; s.append(o); }
+    s.onchange = () => { App.setSpen(k, s.value); App.toast('Botão da S Pen: ' + s.selectedOptions[0].textContent); };
+    row.append(el('span', null, rotulo), s); return row;
+  };
+  box.append(linha('Apertar no ar', 'ar', App.SPEN_AR), linha('Segurar na tela', 'tela', App.SPEN_TELA));
+  return box;
+}
 function switchRow(label, on, set){
   const row = el('label', 'ppSwitch'); const cb = el('input'); cb.type = 'checkbox'; cb.setAttribute('role', 'switch'); cb.checked = !!on;
   cb.onchange = () => set(cb.checked);
@@ -166,6 +179,7 @@ function penPanel(k){
   if (k === 'marker') pop.append(switchRow('Ajustar a espessura ao texto', cur.fit, v => { App.setPenOpt(k, 'fit', v); redraw(); }));
   pop.append(switchRow('Segurar no fim vira reta ou forma', cur.shapes, v => { App.setPenOpt(k, 'shapes', v); redraw(); }));
   pop.append(switchRow('Só a caneta stylus desenha', state.penSeen, v => { state.penSeen = v; ls.set('le.penSeen', v); App.toast(v ? 'Só a caneta stylus desenha; o dedo rola a página.' : 'O dedo também desenha.'); }));
+  pop.append(spenBox());
   colorRow(k, cur.color);
 }
 function colorRow(k, curC){

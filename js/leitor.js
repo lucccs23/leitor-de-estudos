@@ -419,6 +419,7 @@ let down = null, rodaT = 0, selT = null;
 function ligarEventos(){
   idoc.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, t: Date.now(), tipo: e.pointerType }; atividade(); if (auto && e.pointerType !== 'mouse') autoLigar(false); }, true);
   idoc.addEventListener('pointerup', aoSoltar, true);
+  App.spenOuvir?.(idoc); // botão da S Pen dentro do livro (próxima/anterior)
   idoc.addEventListener('pointercancel', () => { if (down) down.cancelado = true; }, true);
   idoc.addEventListener('touchend', e => {
     const t = e.changedTouches && e.changedTouches[0];
