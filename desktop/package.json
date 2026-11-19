@@ -1,7 +1,7 @@
 {
   "name": "vetra",
   "productName": "Vetra",
-  "version": "1.20.8",
+  "version": "1.22.0",
   "description": "Vetra — leia, grife e estude seus PDFs",
   "main": "electron/main.js",
   "private": true,
