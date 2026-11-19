@@ -3,12 +3,15 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.22.1';
+App.VERSION = '1.23.0';
 App.VERSION_DATE = '19/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
 // (aberto do disco ou num servidor local de testes = versão de computador)
-App.isWeb = !/^file:/.test(location.protocol) && !/^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
+// App de Android (APK com Capacitor): os arquivos estão no aparelho, mas funciona como o site (sem serviço do Windows)
+App.native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+document.documentElement.classList.toggle('native', App.native);
+App.isWeb = App.native || !/^file:/.test(location.protocol) && !/^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
 document.documentElement.classList.toggle('web', App.isWeb);
 App.isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 document.documentElement.classList.toggle('touch', App.isTouch);
@@ -144,9 +147,23 @@ App.toast = msg => {
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800);
 };
 App.download = (content, filename, type) => {
+  if (App.native) return nativeSave(content, filename, type);
   const a = el('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = filename;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 };
+// no app de Android não há "baixar": o arquivo vai para o "Compartilhar" (salvar no Drive, em Arquivos, mandar no WhatsApp…)
+async function nativeSave(content, filename, type){
+  const { Filesystem, Share } = window.Capacitor.Plugins;
+  const nome = String(filename).replace(/[\\/:*?"<>|]/g, '-');
+  try {
+    const blob = content instanceof Blob ? content : new Blob([content], { type });
+    const data = await new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => bad(r.error); r.readAsDataURL(blob); });
+    const { uri } = await Filesystem.writeFile({ path: nome, data, directory: 'CACHE' });
+    await Share.share({ title: nome, files: [uri], dialogTitle: 'Salvar ou enviar' });
+  } catch (e) {
+    if (!/cancel/i.test(String(e && e.message))) App.toast('Não consegui salvar o arquivo: ' + ((e && e.message) || e));
+  }
+}
 const uid = App.uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 App.copyText = async t => { try { await navigator.clipboard.writeText(t); App.toast('Copiado'); } catch { App.toast('Não foi possível copiar'); } };
 App.dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

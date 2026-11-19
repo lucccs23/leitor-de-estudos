@@ -9,6 +9,9 @@ const { $, el, ls } = App;
 const D = window.vetraDesktop && window.vetraDesktop.checkUpdate ? window.vetraDesktop : null;
 const RELEASES = 'https://github.com/lucccs23/leitor-de-estudos/releases/latest';
 const SITE = 'https://lucccs23.github.io/leitor-de-estudos/';
+// app de Android: o APK novo fica sempre com o mesmo nome na versão mais recente
+const APK = 'https://github.com/lucccs23/leitor-de-estudos/releases/latest/download/Vetra-Android.apk';
+const maior = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 
 let bar = null;
 function aviso(msg, acoes){
@@ -35,6 +38,20 @@ async function atualizar(r){
 
 App.checkUpdates = async manual => {
   if (manual) App.toast('Procurando atualizações…');
+  // ---- app de Android: compara com a versão do site e oferece o APK novo ----
+  if (App.native) {
+    try {
+      const txt = await (await fetch(SITE + 'sw.js?v=' + Date.now(), { cache: 'no-store' })).text();
+      const nova = (txt.match(/VERSION = '([\d.]+)'/) || [])[1];
+      ls.set('le.updChecked', App.dayKey());
+      if (!nova) throw new Error('versão não encontrada');
+      const temNova = maior(nova, App.VERSION);
+      marcar({ temNova });
+      if (temNova) aviso(`Vetra ${nova} disponível (você tem a ${App.VERSION}).`, [['Depois'], ['Baixar o APK novo', () => { location.href = APK; bar.remove(); }, 'primary sm']]);
+      else if (manual) App.toast(`Você já tem a versão mais nova (${App.VERSION}).`);
+      return { temNova, nova };
+    } catch { if (manual) App.toast('Não consegui verificar agora. Confira a internet e tente de novo.'); return null; }
+  }
   // ---- site / celular: atualização pelo navegador ----
   if (!D) {
     try {
@@ -97,7 +114,7 @@ App.toggleUpdOnOpen = () => {
 // ao abrir: alguns segundos depois (para não atrasar a abertura)
 {
   const sempre = !!ls.get('le.updOnOpen', false);
-  if (D || sempre) setTimeout(() => {
+  if (D || sempre || App.native) setTimeout(() => {
     if (!navigator.onLine) return;
     if (sempre || ls.get('le.updChecked', '') !== App.dayKey()) App.checkUpdates(false);
   }, sempre ? 3000 : 8000);

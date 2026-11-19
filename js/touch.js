@@ -6,7 +6,8 @@ const App = window.App;
 const { $, el, state, ls } = App;
 
 // ---------- App offline (service worker) ----------
-const canSW = 'serviceWorker' in navigator && /^https?:$/.test(location.protocol);
+// no app de Android os arquivos já estão no aparelho: versões novas chegam por um APK novo (veja atualizar.js)
+const canSW = 'serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !App.native;
 if (canSW) {
   navigator.serviceWorker.register('sw.js').then(reg => {
     // versão nova baixada em segundo plano: oferece atualizar

@@ -1,0 +1,21 @@
+{
+  "name": "vetra-android",
+  "productName": "Vetra",
+  "version": "1.23.0",
+  "description": "Vetra para Android (Capacitor): o mesmo app do site, empacotado para funcionar offline",
+  "private": true,
+  "scripts": {
+    "copiar": "node build/copiar-app.js",
+    "sync": "node build/copiar-app.js && cap sync android",
+    "apk": "node build/copiar-app.js && cap sync android && node build/gerar-apk.js"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2"
+  }
+}
