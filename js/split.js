@@ -16,7 +16,7 @@ App.splitOpen = () => !box.hidden;
 App.toggleSplit = anchor => { if (!box.hidden) close(); else choose(anchor && anchor.getBoundingClientRect().width ? anchor : $('#btnSplit')); };
 async function choose(anchor){
   if (!state.pdf) return;
-  const docs = (await safe(() => DB.all('docs'), [])).filter(d => d.hasFile).sort((a, b) => b.ts - a.ts);
+  const docs = (await safe(() => DB.all('docs'), [])).filter(d => d.hasFile && d.kind !== 'epub').sort((a, b) => b.ts - a.ts);
   const items = docs.slice(0, 14).map(d => ({
     label: App.baseName(d.name) + (d.fp === state.fp ? ' (este mesmo)' : ''), icon: 'file',
     sub: d.subject || undefined, checked: d.fp === S.fp,

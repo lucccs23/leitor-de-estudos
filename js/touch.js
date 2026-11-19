@@ -50,8 +50,8 @@ App.canInstall = () => !!installEvt;
 // ---------- Textos da tela inicial no aparelho ----------
 if (App.isWeb || App.isTouch) {
   const lead = document.querySelector('.hero .lead'), dz = document.querySelector('.dzText span');
-  if (lead) lead.textContent = 'Leia, grife e revise seus PDFs. Tudo fica salvo neste aparelho, mesmo sem internet.';
-  if (dz) dz.textContent = App.native ? 'Escolha um PDF do aparelho ou use "Abrir com → Vetra" em outro app' : 'Escolha um PDF do aparelho ou use "Compartilhar → Vetra" em outro app';
+  if (lead) lead.textContent = 'Leia, grife e revise seus PDFs e livros (EPUB). Tudo fica salvo neste aparelho, mesmo sem internet.';
+  if (dz) dz.textContent = App.native ? 'Escolha um PDF ou EPUB do aparelho ou use "Abrir com → Vetra" em outro app' : 'Escolha um PDF ou EPUB do aparelho ou use "Compartilhar → Vetra" em outro app';
 }
 
 // ---------- PDFs recebidos pelo "Compartilhar" (WhatsApp, Drive, Arquivos…) ----------
@@ -81,6 +81,20 @@ if (nativeFiles) nativeFiles.addListener('arquivo', async a => {
     await App.loadDoc(await res.arrayBuffer(), a.name || 'documento.pdf');
   } catch (e) { App.toast('Não consegui abrir o arquivo: ' + (e.message || e)); }
 });
+
+// botão voltar do Android (MainActivity pergunta aqui antes de sair do app): fecha o que estiver aberto
+if (App.native) window.vetraVoltar = () => {
+  const dlg = document.querySelector('dialog[open]');
+  if (dlg) { dlg.close(); return true; }
+  const esc = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  if (App.reviewOpen) { esc(); return true; }
+  if (document.querySelector('.popMenu') && App.closePop) { App.closePop(); return true; }
+  if (App.leitorVoltar && App.leitorVoltar()) return true;
+  if (App.examViewOpen || App.sheetOpen) { esc(); return true; }
+  if (document.body.classList.contains('focus')) { App.toggleFocus(); return true; }
+  if (state.pdf) { App.closeDoc(); return true; }
+  return false;
+};
 
 // ---------- Telas estreitas: painéis por cima da página fecham ao tocar fora ----------
 const narrow = () => innerWidth <= 900;

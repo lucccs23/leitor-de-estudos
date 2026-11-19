@@ -37,7 +37,7 @@ function recentCard(d){
   const item = (icon, text) => { const s = el('span'); s.append(App.icon(icon), text); return s; };
   meta.append(item('highlighter', `${n} ${n === 1 ? 'grifo' : 'grifos'}`));
   if (time >= 60) meta.append(item('clock', App.fmtDuration(time)));
-  meta.append(item('bookmark', `p. ${d.lastPage || 1}${d.pages ? ' de ' + d.pages : ''}`));
+  meta.append(d.kind === 'epub' ? item('book', `cap. ${d.lastPage || 1}${d.pages ? ' de ' + d.pages : ''}`) : item('bookmark', `p. ${d.lastPage || 1}${d.pages ? ' de ' + d.pages : ''}`));
   meta.append(App.subjectTag(d));
   info.append(meta);
   const bar = el('div', 'progress'); const f = el('div'); f.style.width = pct + '%'; bar.append(f); info.append(bar);

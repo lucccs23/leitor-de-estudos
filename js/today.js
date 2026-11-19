@@ -355,7 +355,7 @@ App.renderToday = docs => {
       const b = el('button', 'todayRvRow');
       b.append(App.icon('cards'), el('span', 'nm', App.baseName(d.name)), el('span', 'rvCount', n));
       b.title = 'Abrir e revisar';
-      b.onclick = async () => { await App.switchTab(d.fp, d.name); if (state.fp === d.fp) App.openReview(); };
+      b.onclick = async () => { await App.switchTab(d.fp, d.name); if (state.fp === d.fp || App.bookOpen?.() === d.fp) App.openReview(); };
       rv.append(b);
     }
     box.append(rv);

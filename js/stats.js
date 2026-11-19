@@ -18,7 +18,7 @@ function markVisited(n){
   state.stats.visited.push(n); return true;
 }
 App.isStudying = () => !!state.pdf && !App.reviewOpen && !document.hidden && Date.now() - lastActivity < IDLE || !!(App.examRunning && App.examRunning());
-App.docProgress = rec => rec && rec.pages ? Math.min(100, Math.round(100 * (rec.visited || []).length / rec.pages)) : 0;
+App.docProgress = rec => rec && rec.kind === 'epub' ? Math.min(100, Math.round(rec.pct || 0)) : rec && rec.pages ? Math.min(100, Math.round(100 * (rec.visited || []).length / rec.pages)) : 0;
 App.docTotalTime = rec => Object.values((rec && rec.time) || {}).reduce((a, b) => a + b, 0);
 
 setInterval(() => {
