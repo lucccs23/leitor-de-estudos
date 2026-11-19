@@ -114,14 +114,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VER: ${{ steps.v.outputs.ver }}
         run: |
+          # um arquivo só: o nome fixo é o que o link "sempre o mais novo" e o aviso do app baixam
           cd mobile/dist
           if gh release view "v$VER" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release upload "v$VER" Vetra-Android.apk "Vetra-$VER.apk" --clobber --repo "$GITHUB_REPOSITORY"
+            gh release upload "v$VER" Vetra-Android.apk --clobber --repo "$GITHUB_REPOSITORY"
           else
             # novidades da versão (topo de js/news.js) e o último instalador do Windows publicado
             NOVIDADES=$(VER="$VER" node -e 'const t=require("fs").readFileSync("../../js/news.js","utf8");const L=t.split("\n").find(l=>l.includes("v: \x27"+process.env.VER+"\x27"))||"";const m=L.match(/items: \[(.*)\] \}/);console.log(m?[...m[1].matchAll(/\x27([^\x27]*)\x27/g)].map(x=>"- "+x[1]).join("\n"):"")')
             EXE=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq '[.[] | select(any(.assets[]; .name | endswith(".exe")))][0] | "\(.html_url)"' 2>/dev/null)
             printf '%s\n' "Vetra $VER." "" "## Novidades" "$NOVIDADES" "" "## Android" "Baixe o \`Vetra-Android.apk\` abaixo e abra. Se o Android pedir, permita instalar apps desta fonte; no aviso do Play Protect, toque em **Instalar mesmo assim**. Quem já tem o Vetra instalado recebe o aviso de versão nova no próprio app." "" "## Windows" "O instalador do Windows está em: $EXE (depois de instalado, o Vetra se atualiza sozinho)." "" "Site: https://lucccs23.github.io/leitor-de-estudos/" > notas.md
-            gh release create "v$VER" Vetra-Android.apk "Vetra-$VER.apk" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Vetra $VER" --notes-file notas.md --latest
+            gh release create "v$VER" Vetra-Android.apk --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Vetra $VER" --notes-file notas.md --latest
           fi
           gh release view "v$VER" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[] | "\(.name) \(.size)"'
