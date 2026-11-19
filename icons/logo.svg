@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<title>Vetra</title>
+<defs>
+  <linearGradient id="fold" gradientUnits="userSpaceOnUse" x1="425" y1="640" x2="447" y2="649">
+    <stop stop-color="#FCF6EB"/><stop offset="1" stop-color="#E8DDCF"/>
+  </linearGradient>
+</defs>
+<path fill="url(#fold)" d="M171 280 H347 Q353 280 355 284 L507 589 L419 793 Z"/>
+<path fill="#FCF6EB" d="M419 793 L590 379 Q602 344 640 321 Q702 285 792 366 L586 788 Q584 793 578 793 Z"/>
+<path fill="#FF806E" d="M590 379 C629 286 730 219 853 233 C816 268 802 328 789 369 C720 315 642 313 590 379 Z"/>
+</svg>
