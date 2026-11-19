@@ -199,6 +199,7 @@ mark.lrHl.nota{box-shadow:inset 0 -2px 0 color-mix(in srgb,var(--c) 90%,#000)}
 mark.lrTemp{background:${escuro ? 'rgba(255,214,0,.35)' : 'rgba(255,210,0,.5)'}!important;color:inherit!important;border-radius:2px}
 .vetraPg{display:block;text-align:center;font:600 .72rem/1 system-ui,sans-serif!important;opacity:.45;margin:1.2em 0;letter-spacing:.04em;text-indent:0!important}
 ${paginado() ? `html{height:100vh!important;overflow:hidden!important}
+html{touch-action:pan-y pinch-zoom}
 body{box-sizing:border-box!important;height:100vh!important;max-width:none!important;padding:${mvT}px ${mh}px ${mvB}px!important;column-width:${cw}px!important;column-gap:${2 * mh}px!important;column-fill:auto!important;column-count:auto!important}`
   : `html{overflow-y:auto!important;overflow-x:hidden!important}
 body{box-sizing:border-box!important;max-width:${Math.max(560, Math.min(w, 760))}px!important;margin:0 auto!important;padding:${mvT}px ${mh}px ${mvB + 40}px!important}`}`;
@@ -418,6 +419,14 @@ let down = null, rodaT = 0, selT = null;
 function ligarEventos(){
   idoc.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, t: Date.now(), tipo: e.pointerType }; atividade(); if (auto && e.pointerType !== 'mouse') autoLigar(false); }, true);
   idoc.addEventListener('pointerup', aoSoltar, true);
+  idoc.addEventListener('pointercancel', () => { if (down) down.cancelado = true; }, true);
+  idoc.addEventListener('touchend', e => {
+    const t = e.changedTouches && e.changedTouches[0];
+    if (!down || !down.cancelado || !t) return;
+    const d = down; down = null;
+    const dx = t.clientX - d.x, dy = t.clientY - d.y;
+    if (paginado() && !temSelecao() && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3 && Date.now() - d.t < 900) { if (dx < 0) proxima(); else anterior(); }
+  }, true);
   idoc.addEventListener('mousemove', e => {
     if (App.isTouch) return;
     const perto = e.clientY < 64 || e.clientY > H() - 84;
@@ -922,6 +931,12 @@ addEventListener('popstate', () => {
   fechar(true).then(() => App.emit('home:show'));
 });
 App.closeBook = () => fechar();
+// botão voltar do Android: fecha painel ou janela do leitor; depois, o livro
+App.leitorVoltar = () => {
+  if (!B) return false;
+  if (!pop.hidden || !lado.hidden || !folha.hidden || !busca.hidden) { fecharPaineis(); return true; }
+  fechar(); return true;
+};
 App.bookOpen = () => (B && !B.ro ? B.fp : null);
 App.on('doc:loaded', () => { if (B) fechar(true); });
 
