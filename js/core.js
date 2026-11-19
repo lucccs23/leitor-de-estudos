@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.24.1';
+App.VERSION = '1.25.0';
 App.VERSION_DATE = '19/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -1579,13 +1579,57 @@ let drawing = null;
 const normPt = (e, r) => [clamp01((e.clientX - r.left) / r.width), clamp01((e.clientY - r.top) / r.height)];
 const isSidePen = e => e.pointerType === 'pen' && (e.button === 2 || e.button === 5 || !!(e.buttons & 34));
 const penTools = new Set(['ink', 'erase', 'lasso']);
+
+// ---------- Botão da S Pen (configurável) ----------
+// "ar": apertar o botão com a caneta perto da tela, sem encostar; "tela": segurar o botão e passar a caneta na página
+App.SPEN_AR = [['desfazer', 'Desfazer'], ['refazer', 'Refazer'], ['borracha', 'Ligar/desligar a borracha'], ['caneta', 'Alternar caneta e texto'],
+  ['marcatexto', 'Alternar caneta e marca-texto'], ['proxima', 'Próxima página'], ['anterior', 'Página anterior'], ['nada', 'Nada']];
+App.SPEN_TELA = [['borracha', 'Apagar (borracha)'], ['marcatexto', 'Marca-texto'], ['laco', 'Laço (selecionar)'], ['nada', 'Nada']];
+App.spen = () => ({ ar: 'desfazer', tela: 'borracha', ...ls.get('le.spen', {}) });
+App.setSpen = (k, v) => ls.set('le.spen', { ...App.spen(), [k]: v });
+let spenVolta = null; // ferramenta para onde a borracha (ou o texto) volta
+App.spenAcao = acao => {
+  const livro = App.bookOpen?.() || document.body.classList.contains('lendo');
+  if (acao === 'proxima' || acao === 'anterior') {
+    if (livro) document.dispatchEvent(new KeyboardEvent('keydown', { key: acao === 'proxima' ? 'ArrowRight' : 'ArrowLeft', bubbles: true }));
+    else if (state.pdf) App.pageStep(acao === 'proxima' ? 1 : -1);
+    return;
+  }
+  if (livro || !state.pdf) return;
+  if (acao === 'desfazer') App.undo();
+  else if (acao === 'refazer') App.redo();
+  else if (acao === 'borracha') {
+    if (state.tool === 'erase') { App.setTool(spenVolta && spenVolta !== 'erase' ? spenVolta : 'ink'); App.toast('Borracha desligada'); }
+    else { spenVolta = state.tool; App.setTool('erase'); App.toast('Borracha (aperte o botão de novo para voltar)'); }
+  } else if (acao === 'caneta') {
+    if (state.tool === 'ink') { App.setTool('text'); App.toast('Seleção de texto'); } else { App.setTool('ink'); App.toast(PENS[state.pen].label); }
+  } else if (acao === 'marcatexto') {
+    App.setPen(state.tool === 'ink' && state.pen === 'marker' ? 'pen' : 'marker'); App.toast(PENS[state.pen].label);
+  }
+};
+// apertar no ar: o Android avisa pela mudança dos botões da caneta (sem contato) ou pelo "menu de contexto" da caneta
+// (um clique no ar nunca vem com a caneta encostando: toque na tela nos últimos instantes = é traço, não clique)
+let spenApertado = false, spenUltimo = 0, spenToque = 0;
+App.spenNoAr = () => { const agora = Date.now(); if (agora - spenUltimo < 450 || agora - spenToque < 400 || drawing) return; spenUltimo = agora; App.spenAcao(App.spen().ar); };
+App.spenOuvir = doc => {
+  doc.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'pen') return;
+    const lateral = !!(e.buttons & 34);
+    if (lateral && !spenApertado && !(e.buttons & 1) && !drawing) App.spenNoAr();
+    spenApertado = lateral;
+  }, true);
+  for (const tipo of ['pointerdown', 'pointerup']) doc.addEventListener(tipo, e => { if (e.pointerType === 'pen') spenToque = Date.now(); }, true);
+  doc.addEventListener('contextmenu', e => { if (e.pointerType === 'pen' && !(e.buttons & 1) && !drawing) { e.preventDefault(); App.spenNoAr(); } }, true);
+};
+App.spenOuvir(document);
 function beginDraw(e, dl, p, rect, start, side){
   if (state.tool === 'note') { createNote(p, start); return null; }
   try { dl.setPointerCapture(e.pointerId); } catch {}
   // com caneta stylus, o dedo só rola a página
   if (e.pointerType === 'touch' && state.penSeen && penTools.has(state.tool)) return { type: 'pan', sx: e.clientX, sy: e.clientY, st: viewer.scrollTop, sl: viewer.scrollLeft, cx: e.clientX, cy: e.clientY };
-  if (side || state.tool === 'erase') { const d = { type: 'erase', p, rect, erased: false, cx: e.clientX, cy: e.clientY, last: start }; eraseAt(d, start); return d; }
-  if (state.tool === 'lasso') return App.lassoStart ? App.lassoStart(p, rect, start, dl, e) : null;
+  if (side === 'laco' && App.lassoStart) return App.lassoStart(p, rect, start, dl, e);
+  if (side === 'borracha' || (!side && state.tool === 'erase')) { const d = { type: 'erase', p, rect, erased: false, cx: e.clientX, cy: e.clientY, last: start }; eraseAt(d, start); return d; }
+  if (!side && state.tool === 'lasso') return App.lassoStart ? App.lassoStart(p, rect, start, dl, e) : null;
   if (state.tool === 'area') {
     const col = App.colorOf(state.color), box = el('div', 'areaPreview');
     box.style.setProperty('--c', col.hex); box.style.setProperty('--ci', col.ink);
@@ -1594,7 +1638,10 @@ function beginDraw(e, dl, p, rect, start, side){
   }
   const svg = document.createElementNS(SVGNS, 'svg');
   svg.setAttribute('viewBox', `0 0 ${p.base.w} ${p.base.h}`); svg.setAttribute('preserveAspectRatio', 'none');
+  // botão da S Pen em "marca-texto": este traço sai com o marca-texto, sem trocar a ferramenta
+  const penAntes = state.pen; if (side === 'marcatexto') state.pen = 'marker';
   const path = document.createElementNS(SVGNS, 'path'), P = App.curPen(), pc = App.colorOf(P.color);
+  state.pen = penAntes;
   path.style.setProperty('--c', pc.hex); path.style.setProperty('--ci', pc.ink);
   svg.appendChild(path); dl.appendChild(svg);
   const press = e.pointerType === 'pen' && !P.marker && (P.tip === 'fountain' || P.tip === 'brush');
@@ -1621,8 +1668,8 @@ function addInkPoint(d, ev){
   d.pts.push(d.press ? [...d.sm, +(ev.pressure || 0.5).toFixed(2)] : d.sm);
   if (px(raw, d.holdAt) >= 4) { d.holdAt = raw; armHold(d); }
 }
-pagesEl.addEventListener('pointerdown', e => {
-  const dl = e.target.closest('.drawLayer'), side = isSidePen(e) && penTools.has(state.tool);
+function comecarTraco(e){
+  const telaS = App.spen().tela, dl = e.target.closest('.drawLayer'), side = isSidePen(e) && telaS !== 'nada' && penTools.has(state.tool) ? telaS : null;
   if (!dl || (e.button !== 0 && !side) || state.tool === 'text') return;
   if (drawing) {
     if (e.pointerId === drawing.id) return;
@@ -1633,7 +1680,18 @@ pagesEl.addEventListener('pointerdown', e => {
   e.preventDefault(); closePopup();
   drawing = beginDraw(e, dl, p, rect, start, side);
   if (drawing) { drawing.id = e.pointerId; drawing.kind = e.pointerType; }
-});
+}
+pagesEl.addEventListener('pointerdown', comecarTraco);
+// S Pen com o botão lateral já apertado ao encostar: o navegador não manda "pointerdown" (é um botão a mais num
+// botão já apertado), só um movimento com o encosto junto; e ao levantar, só um movimento sem o encosto
+let penEncostada = false;
+pagesEl.addEventListener('pointermove', e => {
+  if (e.pointerType !== 'pen') return;
+  const encosta = !!(e.buttons & 1), lateral = !!(e.buttons & 34);
+  if (encosta && !penEncostada && lateral && !drawing) comecarTraco(e);
+  else if (!encosta && penEncostada && drawing && e.pointerId === drawing.id && drawing.kind === 'pen') finishDrawing(e);
+  penEncostada = encosta;
+}, true);
 pagesEl.addEventListener('contextmenu', e => { if (e.target.closest('.drawLayer') && (drawing || e.pointerType === 'pen')) e.preventDefault(); });
 pagesEl.addEventListener('pointermove', e => {
   const d = drawing;

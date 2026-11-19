@@ -1904,3 +1904,8 @@ body.lendo #review{z-index:92}
 body.focus #focusExit{display:none}
 @media (max-width:560px){ .lpBar .btn.sm:not(.icon){font-size:0;gap:0;width:32px;padding:0} .lpBar .btn.sm:not(.icon) .i{margin:0} .lpRange{width:64px} .lpSep{display:none} }
 @media (pointer:coarse){ body.focus .dock{display:none} }
+
+/* botão da S Pen (painel da caneta) */
+.ppSpen{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid var(--border)}
+.ppSelRow{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--text-2)}
+.ppSel{flex:none;max-width:184px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);font-size:13px}
