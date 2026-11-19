@@ -109,16 +109,24 @@ const endPinch = () => {
 viewer.addEventListener('touchend', e => { if (e.touches.length < 2) endPinch(); });
 viewer.addEventListener('touchcancel', endPinch);
 
-// ---------- Toque: selecionar texto com o dedo (segurar e arrastar as alças) ----------
-let lastPointer = 'mouse', selT = null;
-addEventListener('pointerdown', e => { lastPointer = e.pointerType; }, true);
-document.addEventListener('selectionchange', () => {
-  if (lastPointer !== 'touch' || !state.pdf) return;
+// ---------- Toque e S Pen: selecionar texto (segurar e arrastar as alças, ou arrastar a caneta) ----------
+// No celular e no tablet a seleção termina sem o "soltou" do mouse (que o computador usa), então ela é tratada aqui.
+let lastPointer = 'mouse', selT = null, penDown = false;
+addEventListener('pointerdown', e => { lastPointer = e.pointerType; penDown = e.pointerType === 'pen'; }, true);
+const finish = ms => {
   clearTimeout(selT);
-  // espera a pessoa terminar de ajustar as alças da seleção
   selT = setTimeout(() => {
-    if (!App.hasSelection()) return;
+    if (penDown || !App.hasSelection()) return; // caneta ainda arrastando: espera ela sair da tela
     if (state.autoHL) App.highlightSelection(); else App.selectionPopup();
-  }, 650);
+  }, ms);
+};
+// a caneta saiu da tela: termina logo (sem esperar as alças)
+addEventListener('pointerup', e => { if (e.pointerType === 'pen' && penDown) { penDown = false; finish(200); } }, true);
+// o navegador assumiu o arraste para selecionar: a caneta pode continuar na tela, então espera como no dedo
+addEventListener('pointercancel', e => { if (e.pointerType === 'pen') penDown = false; }, true);
+document.addEventListener('selectionchange', () => {
+  if (lastPointer === 'mouse' || !state.pdf) return;
+  // espera a pessoa terminar de ajustar a seleção
+  finish(650);
 });
 })();
