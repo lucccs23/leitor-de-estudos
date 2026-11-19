@@ -39,7 +39,36 @@ public class MainActivity extends BridgeActivity {
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
         botaoDaCaneta(ev, true);
+        // caneta encostando com o botão apertado: o WebView trataria como "selecionar texto" (atalho do Android)
+        // e o traço não chegaria à página. Entrega o mesmo movimento sem o botão; o Vetra já sabe do botão
+        // pelo aviso (window.vetraSpenBotao) e faz a ação de "segurar na tela".
+        if (ev.getPointerCount() > 0 && ev.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS && (ev.getButtonState() & BOTOES_CANETA) != 0) {
+            MotionEvent limpo = semBotao(ev);
+            try { return super.dispatchTouchEvent(limpo); } finally { limpo.recycle(); }
+        }
         return super.dispatchTouchEvent(ev);
+    }
+
+    // cópia do evento (com os pontos intermediários, para o traço continuar suave) sem os botões da caneta
+    private static MotionEvent semBotao(MotionEvent ev) {
+        int n = ev.getPointerCount(), h = ev.getHistorySize();
+        MotionEvent.PointerProperties[] pp = new MotionEvent.PointerProperties[n];
+        MotionEvent.PointerCoords[] pc = new MotionEvent.PointerCoords[n];
+        for (int i = 0; i < n; i++) { pp[i] = new MotionEvent.PointerProperties(); ev.getPointerProperties(i, pp[i]); pc[i] = new MotionEvent.PointerCoords(); }
+        MotionEvent out;
+        if (h > 0) {
+            for (int i = 0; i < n; i++) ev.getHistoricalPointerCoords(i, 0, pc[i]);
+            out = MotionEvent.obtain(ev.getDownTime(), ev.getHistoricalEventTime(0), ev.getAction(), n, pp, pc, ev.getMetaState(), 0,
+                ev.getXPrecision(), ev.getYPrecision(), ev.getDeviceId(), ev.getEdgeFlags(), ev.getSource(), ev.getFlags());
+            for (int k = 1; k < h; k++) { for (int i = 0; i < n; i++) ev.getHistoricalPointerCoords(i, k, pc[i]); out.addBatch(ev.getHistoricalEventTime(k), pc, ev.getMetaState()); }
+            for (int i = 0; i < n; i++) ev.getPointerCoords(i, pc[i]);
+            out.addBatch(ev.getEventTime(), pc, ev.getMetaState());
+        } else {
+            for (int i = 0; i < n; i++) ev.getPointerCoords(i, pc[i]);
+            out = MotionEvent.obtain(ev.getDownTime(), ev.getEventTime(), ev.getAction(), n, pp, pc, ev.getMetaState(), 0,
+                ev.getXPrecision(), ev.getYPrecision(), ev.getDeviceId(), ev.getEdgeFlags(), ev.getSource(), ev.getFlags());
+        }
+        return out;
     }
 
     @Override

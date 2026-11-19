@@ -170,11 +170,14 @@
 
 <div id="main">
   <aside id="sidebar">
+    <div class="sideTop">
     <div class="sideTabs">
       <button data-side="outline" title="Sumário"><svg class="i"><use href="#i-list"/></svg><span>Sumário</span></button>
       <button data-side="thumbs" title="Páginas"><svg class="i"><use href="#i-grid"/></svg><span>Páginas</span></button>
       <button data-side="search" title="Busca"><svg class="i"><use href="#i-search"/></svg><span>Busca</span></button>
       <button data-side="bookmarks" title="Marcadores"><svg class="i"><use href="#i-bookmark"/></svg><span>Marcadores</span></button>
+    </div>
+    <button class="btn icon sm sideClose" id="btnSideClose" title="Fechar o painel (Esc)" aria-label="Fechar o painel"><svg class="i"><use href="#i-x"/></svg></button>
     </div>
     <section data-pane="outline"><div id="outline"></div></section>
     <section data-pane="thumbs"><div id="thumbs"></div></section>
@@ -459,6 +462,7 @@
 <script src="js/links.js"></script>
 <script src="js/sync.js"></script>
 <script src="js/leitura-pdf.js"></script>
+<script src="js/menupagina.js"></script>
 <script src="js/touch.js"></script>
 <script src="js/atualizar.js"></script>
 <script src="js/main.js"></script>

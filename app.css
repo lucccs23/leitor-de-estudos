@@ -277,6 +277,9 @@ body[data-tool=note] .drawLayer{cursor:copy}
 /* ---------- Barra lateral esquerda ---------- */
 #sidebar{width:296px;border-right:1px solid var(--border);background:var(--surface);display:none;flex-direction:column;min-height:0;flex:none}
 body.side-open.has-doc #sidebar{display:flex}
+.sideTop{display:flex;align-items:flex-start;gap:4px;margin:12px 8px 8px 12px;flex:none}
+.sideTop .sideTabs{flex:1;min-width:0;margin:0}
+.sideClose{margin-top:4px;color:var(--muted)}
 .sideTabs{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin:12px 12px 8px;padding:4px;background:var(--hover);border-radius:12px;flex:none}
 .sideTabs button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 2px 4px;border:none;background:none;border-radius:8px;color:var(--muted);font-size:11px;font-weight:600}
 .sideTabs button .i{width:16px;height:16px}
@@ -1912,3 +1915,10 @@ body.focus #focusExit{display:none}
 .ppSpenBtn{align-self:flex-start}
 .ppSpenTeste{display:flex;flex-direction:column;gap:4px}
 .ppSpenLog{display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:8px;background:var(--surface-2);font-size:12px;color:var(--text-2);min-height:40px}
+
+/* menu do botão direito: ferramentas Mão e Marcação de zoom */
+body[data-tool=hand] #viewer{cursor:grab}
+body.arrastando #viewer,body.arrastando{cursor:grabbing}
+body[data-tool=zoom] #viewer{cursor:zoom-in}
+body[data-tool=hand] .textLayer,body[data-tool=zoom] .textLayer{pointer-events:none;user-select:none}
+.zoomCaixa{position:fixed;z-index:60;border:2px dashed var(--accent);background:var(--accent-soft);border-radius:4px;pointer-events:none}

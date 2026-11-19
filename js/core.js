@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.25.1';
+App.VERSION = '1.26.0';
 App.VERSION_DATE = '19/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -1421,6 +1421,10 @@ function closePopup(){
   }
 }
 App.closePopup = closePopup;
+// para o menu do botão direito (menupagina.js)
+App.createNoteAt = (p, pt) => createNote(p, pt);
+App.hlAt = (pageEl, x, y) => hitTest(pageEl, x, y);
+App.editHl = (h, x, y) => showEditPopup(h, x, y);
 App.selectionPopup = () => { if (hasSelection()) showSelectionPopup(); };
 App.highlightSelection = color => createHighlight(color || state.color);
 popup.addEventListener('mousedown', e => { if (!e.target.closest('textarea')) e.preventDefault(); });
@@ -1611,26 +1615,32 @@ App.spenAcao = acao => {
 };
 // apertar no ar: o Android avisa pela mudança dos botões da caneta (sem contato) ou pelo "menu de contexto" da caneta
 // (um clique no ar nunca vem com a caneta encostando: toque na tela nos últimos instantes = é traço, não clique)
-let spenApertado = false, spenUltimo = 0, spenToque = 0;
+let spenApertado = false, spenUltimo = 0, spenToque = 0, spenPendenteNav = false;
 App.spenNoAr = () => { const agora = Date.now(); if (App.spenTeste || agora - spenUltimo < 450 || agora - spenToque < 400 || drawing) return; spenUltimo = agora; App.spenAcao(App.spen().ar); };
 // registro do que chega do botão (painel da caneta → "Testar o botão"): mostra se o aparelho avisa e como
 App.spenLog = [];
 const spenRegistra = (origem, txt) => { App.spenLog.push({ t: Date.now(), origem, txt }); if (App.spenLog.length > 8) App.spenLog.shift(); App.emit('spen:log'); };
 // app de Android: o MainActivity avisa quando o botão é apertado ou solto
+// "apertar no ar" = apertar e soltar o botão sem encostar; apertar e depois encostar é "segurar na tela"
+let spenPendenteNativo = false;
 window.vetraSpenBotao = (apertado, encostada) => {
   spenNativo = !!apertado;
   spenRegistra('Android', apertado ? (encostada ? 'apertou, encostada na tela' : 'apertou, no ar') : 'soltou');
-  if (apertado && !encostada) App.spenNoAr();
+  if (apertado) spenPendenteNativo = !encostada;
+  else { if (spenPendenteNativo) App.spenNoAr(); spenPendenteNativo = false; }
 };
 App.spenOuvir = doc => {
   doc.addEventListener('pointermove', e => {
     if (e.pointerType !== 'pen') return;
     if ((e.buttons & 34) && !spenApertado) spenRegistra('navegador', `botão lateral ${e.buttons & 1 ? 'encostada' : 'no ar'} (buttons=${e.buttons})`);
     const lateral = !!(e.buttons & 34);
-    if (lateral && !spenApertado && !(e.buttons & 1) && !drawing) App.spenNoAr();
+    if (lateral && !spenApertado) spenPendenteNav = !(e.buttons & 1) && !drawing; // apertou no ar
+    if (e.buttons & 1) spenPendenteNav = false;                                     // encostou: é traço
+    if (!lateral && spenApertado && spenPendenteNav) App.spenNoAr();               // soltou sem encostar
+    if (!lateral) spenPendenteNav = false;
     spenApertado = lateral;
   }, true);
-  for (const tipo of ['pointerdown', 'pointerup']) doc.addEventListener(tipo, e => { if (e.pointerType !== 'pen') return; spenToque = Date.now(); if (e.button > 0 || (e.buttons & ~1)) spenRegistra('navegador', `${tipo === 'pointerdown' ? 'encostou' : 'levantou'} (button=${e.button}, buttons=${e.buttons})`); }, true);
+  for (const tipo of ['pointerdown', 'pointerup']) doc.addEventListener(tipo, e => { if (e.pointerType !== 'pen') return; spenToque = Date.now(); if (tipo === 'pointerdown') { spenPendenteNativo = false; spenPendenteNav = false; } if (e.button > 0 || (e.buttons & ~1)) spenRegistra('navegador', `${tipo === 'pointerdown' ? 'encostou' : 'levantou'} (button=${e.button}, buttons=${e.buttons})`); }, true);
   doc.addEventListener('contextmenu', e => { if (e.pointerType !== 'pen') return; spenRegistra('navegador', `menu de contexto (buttons=${e.buttons})`); if (!(e.buttons & 1) && !drawing) { e.preventDefault(); App.spenNoAr(); } }, true);
 };
 App.spenOuvir(document);

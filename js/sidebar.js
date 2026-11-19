@@ -25,6 +25,10 @@ App.toggleSide = () => {
 };
 $$('.sideTabs button').forEach(b => { b.onclick = () => App.showSide(b.dataset.side); });
 $('#btnSidebar').onclick = App.toggleSide;
+// X no topo do painel e Esc dentro dele: fecham o painel
+const fecharLado = () => { if (document.body.classList.contains('side-open')) App.toggleSide(); };
+$('#btnSideClose').onclick = fecharLado;
+$('#sidebar').addEventListener('keydown', e => { if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); fecharLado(); $('#viewer').focus({ preventScroll: true }); } });
 
 // ---------- Sumário ----------
 async function buildOutline(){
