@@ -28,6 +28,11 @@ ok(vApp === vSw, `versões diferentes: js/core.js ${vApp} x sw.js ${vSw}`);
 ok(vNews === vApp, `a primeira novidade em js/news.js é ${vNews}, mas a versão é ${vApp}`);
 const vDesk = JSON.parse(read('desktop/package.json')).version;
 if (vDesk !== vApp) warns.push(`desktop/package.json está em ${vDesk} (app ${vApp}) — só importa ao gerar o instalador`);
+// o APK de Android sai sozinho a cada versão nova (.github/workflows/apk.yml), com a versão de mobile/package.json
+if (existsSync(new URL('mobile/package.json', R))) {
+  const vMob = JSON.parse(read('mobile/package.json')).version;
+  ok(vMob === vApp, `mobile/package.json está em ${vMob}, mas a versão do app é ${vApp} (o APK sairia com a versão errada)`);
+}
 
 for (const w of warns) console.log('aviso: ' + w);
 if (fails.length) { console.log('Checagens estáticas FALHARAM:'); for (const f of fails) console.log('  - ' + f); process.exit(1); }

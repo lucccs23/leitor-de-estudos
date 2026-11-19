@@ -6,7 +6,8 @@ Leitor de PDF para estudo (pt-BR). O site é publicado pelo GitHub Pages a parti
 1. Nunca commitar direto no `main` (ele é o site no ar). Trabalhe num branch: `feat/...`, `fix/...`; mudanças de checagens só em `checks/...`.
 2. Antes de **todo commit**: `/verify` (skill em `.claude/skills/verify/`). Antes de **abrir qualquer PR**: `npm run check`, `npm run build` e `npm test` passando, e as telas de `npm run shots` olhadas.
 3. Commit, push e PR só com o OK do Lucas para aquela mudança. Merge no `main` = publicar: também só com OK explícito.
-4. Ao publicar uma versão: aumente `App.VERSION` (js/core.js) **e** `VERSION` (sw.js), escreva a novidade no topo de `js/news.js`, e todo script novo entra no `index.html` e em `FILES` do `sw.js` (o `npm run check` confere).
+4. Ao publicar uma versão: aumente `App.VERSION` (js/core.js), `VERSION` (sw.js) **e** `version` em `mobile/package.json`, escreva a novidade no topo de `js/news.js`, e todo script novo entra no `index.html` e em `FILES` do `sw.js` (o `npm run check` confere).
+5. O APK de Android sai sozinho: depois do merge, `.github/workflows/apk.yml` gera, assina (chave e senha nos Secrets do GitHub, nunca no repositório) e publica `Vetra-Android.apk` na versão do GitHub. Confira o resultado dessa rodada.
 
 ## Falhou? Três rodadas e para
 Rode → conserte → rode. Se a mesma checagem ainda falhar depois de **3 rodadas de conserto**, pare e chame o Lucas com: o que falha, a captura de `tests/out/`, o que tentou e a melhor hipótese. Não continue tentando sozinho.

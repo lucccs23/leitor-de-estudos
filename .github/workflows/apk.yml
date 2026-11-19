@@ -1,0 +1,127 @@
+# Publica o APK do Vetra sozinho.
+# A cada push no main com uma versão nova (App.VERSION em js/core.js), gera o APK, assina com a chave do Lucas
+# e coloca na versão do GitHub (Releases) como Vetra-Android.apk, o arquivo que o aviso do app baixa.
+#
+# Segurança: roda só com o código que já está no main (push), nunca com código de PR.
+# A chave e a senha vêm dos Secrets do repositório (VETRA_CHAVE e VETRA_SENHA) e não aparecem no log.
+name: apk
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      teste:
+        description: 'Só gerar e conferir o APK (não publica nada)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    name: APK de Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Versão e se já foi publicada
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TESTE: ${{ github.event_name == 'workflow_dispatch' && inputs.teste }}
+        run: |
+          VER=$(grep -oP "App\.VERSION = '\K[\d.]+" js/core.js)
+          echo "ver=$VER" >> "$GITHUB_OUTPUT"
+          if [ "$TESTE" = "true" ]; then echo "fazer=sim" >> "$GITHUB_OUTPUT"; echo "Teste: gera e confere, sem publicar."; exit 0; fi
+          if gh release view "v$VER" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx 'Vetra-Android.apk'; then
+            echo "fazer=nao" >> "$GITHUB_OUTPUT"; echo "O APK da $VER já está publicado: nada a fazer."
+          else
+            echo "fazer=sim" >> "$GITHUB_OUTPUT"; echo "Versão $VER sem APK publicado: vou gerar."
+          fi
+
+      - name: Confere se a chave está configurada
+        if: steps.v.outputs.fazer == 'sim'
+        env:
+          CHAVE: ${{ secrets.VETRA_CHAVE }}
+          SENHA: ${{ secrets.VETRA_SENHA }}
+        run: |
+          if [ -z "$CHAVE" ] || [ -z "$SENHA" ]; then
+            echo "::error::Faltam os Secrets VETRA_CHAVE e VETRA_SENHA (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.v.outputs.fazer == 'sim'
+        with:
+          node-version: 22
+
+      - name: Java 21 e Android SDK
+        if: steps.v.outputs.fazer == 'sim'
+        run: |
+          # o script do APK procura uma pasta "jdk-21…" (como no Windows): aponta uma para o Java 21 do runner
+          ln -s "$JAVA_HOME_21_X64" "$RUNNER_TEMP/jdk-21"
+          echo "JAVA_HOME=$RUNNER_TEMP/jdk-21" >> "$GITHUB_ENV"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+          chmod +x mobile/android/gradlew
+
+      - name: Gera o APK assinado
+        if: steps.v.outputs.fazer == 'sim'
+        working-directory: mobile
+        env:
+          CHAVE: ${{ secrets.VETRA_CHAVE }}
+          VETRA_ASSINATURA_SENHA: ${{ secrets.VETRA_SENHA }}
+        run: |
+          printf '%s' "$CHAVE" | base64 -d > "$RUNNER_TEMP/vetra-android.jks"
+          printf 'arquivo=%s\napelido=vetra\n' "$RUNNER_TEMP/vetra-android.jks" > assinatura.properties
+          npm ci --no-fund --no-audit
+          npm run apk
+          rm -f "$RUNNER_TEMP/vetra-android.jks" assinatura.properties
+
+      - name: Confere a assinatura e a versão
+        if: steps.v.outputs.fazer == 'sim'
+        env:
+          VER: ${{ steps.v.outputs.ver }}
+        run: |
+          APK="mobile/dist/Vetra-$VER.apk"
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          "$BT/apksigner" verify --print-certs "$APK" | tee certificado.txt
+          grep -q 'certificate DN: CN=Vetra, O=Vetra' certificado.txt || { echo "::error::O APK não está assinado com a chave do Vetra."; exit 1; }
+          "$BT/aapt" dump badging "$APK" | grep -q "versionName='$VER'" || { echo "::error::O APK não está na versão $VER."; exit 1; }
+          cp "$APK" mobile/dist/Vetra-Android.apk
+          sha256sum mobile/dist/Vetra-Android.apk
+
+      - name: Guarda o APK do teste
+        if: steps.v.outputs.fazer == 'sim' && github.event_name == 'workflow_dispatch' && inputs.teste
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-teste-${{ steps.v.outputs.ver }}
+          path: mobile/dist/Vetra-Android.apk
+          retention-days: 7
+
+      - name: Publica na versão do GitHub
+        if: steps.v.outputs.fazer == 'sim' && !(github.event_name == 'workflow_dispatch' && inputs.teste)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ steps.v.outputs.ver }}
+        run: |
+          cd mobile/dist
+          if gh release view "v$VER" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "v$VER" Vetra-Android.apk "Vetra-$VER.apk" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            # novidades da versão (topo de js/news.js) e o último instalador do Windows publicado
+            NOVIDADES=$(VER="$VER" node -e 'const t=require("fs").readFileSync("../../js/news.js","utf8");const L=t.split("\n").find(l=>l.includes("v: \x27"+process.env.VER+"\x27"))||"";const m=L.match(/items: \[(.*)\] \}/);console.log(m?[...m[1].matchAll(/\x27([^\x27]*)\x27/g)].map(x=>"- "+x[1]).join("\n"):"")')
+            EXE=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq '[.[] | select(any(.assets[]; .name | endswith(".exe")))][0] | "\(.html_url)"' 2>/dev/null)
+            printf '%s\n' "Vetra $VER." "" "## Novidades" "$NOVIDADES" "" "## Android" "Baixe o \`Vetra-Android.apk\` abaixo e abra. Se o Android pedir, permita instalar apps desta fonte; no aviso do Play Protect, toque em **Instalar mesmo assim**. Quem já tem o Vetra instalado recebe o aviso de versão nova no próprio app." "" "## Windows" "O instalador do Windows está em: $EXE (depois de instalado, o Vetra se atualiza sozinho)." "" "Site: https://lucccs23.github.io/leitor-de-estudos/" > notas.md
+            gh release create "v$VER" Vetra-Android.apk "Vetra-$VER.apk" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Vetra $VER" --notes-file notas.md --latest
+          fi
+          gh release view "v$VER" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[] | "\(.name) \(.size)"'
