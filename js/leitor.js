@@ -51,7 +51,7 @@ const tb = (icon, title, fn, cls = '') => { const b = App.ibtn(icon, null, fn, '
 const ttl = el('div', 'lrTitle'), ttlB = el('b'), ttlS = el('span');
 ttl.append(ttlB, ttlS);
 const bMarca = tb('bookmark', 'Marcar esta página', () => alternarMarca());
-const bAuto = tb('play', 'Rolagem automática', () => autoLigar(!auto));
+const bAuto = tb('play', 'Rolagem automática', () => autoLigar(!auto), 'lrAuto');
 top.append(tb('left', 'Voltar (Esc)', () => fechar()), ttl,
   tb('search', 'Buscar no livro', () => abrirBusca()), bMarca, bAuto,
   tb('list', 'Sumário, marcadores e grifos', () => abrirLado()),
@@ -808,7 +808,9 @@ function desenharAjustes(){
     chave('Duas páginas com a tela deitada', opc.duas, v => mudar({ duas: v })));
   const vel = el('input', 'lrRange'); vel.type = 'range'; vel.min = 1; vel.max = 10; vel.value = opc.vel; vel.setAttribute('aria-label', 'Velocidade da rolagem automática');
   vel.oninput = () => { opc.vel = +vel.value; salvarOpc(); if (auto) { autoLigar(false); autoLigar(true); } };
-  sec('Velocidade da rolagem automática', vel);
+  const ligar = el('button', 'lrChip' + (auto ? ' on' : ''), auto ? 'Parar' : 'Ligar'); ligar.onclick = () => { fecharPaineis(); autoLigar(!auto); };
+  const velRow = el('div', 'lrStep lrVel'); velRow.append(ligar, vel);
+  sec('Rolagem automática', velRow);
   const outros = el('div', 'lrSwitches');
   if (!B.ro) outros.append(chave('Cores e letras da editora', opc.estiloLivro, v => { opc.estiloLivro = v; salvarOpc(); carregarCap(B.ch, { off: B.off }); desenharAjustes(); }));
   outros.append(chave('Manter a tela acesa', opc.acesa, v => mudar({ acesa: v })));

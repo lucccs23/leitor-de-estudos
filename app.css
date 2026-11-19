@@ -1885,7 +1885,9 @@ body.lendo #review{z-index:92}
 .lrPopActs .btn{color:var(--text-2)}
 .lrNota{width:min(320px,calc(100vw - 40px));border:1px solid var(--border);border-radius:10px;background:var(--surface-2);padding:8px 10px;resize:vertical;font-size:14px;line-height:1.4}
 @media (pointer:coarse){ .lrB.btn{height:44px;width:44px} .lrTop{gap:0} }
-@media (max-width:480px){ .lrTop .lrB.btn{width:38px} .lrTitle span{display:none} }
+@media (max-width:480px){ .lrTop .lrB.btn{width:38px} .lrTitle span{display:none} .lrTop .lrAuto{display:none} }
+.lrVel{gap:10px}
+.lrVel .lrRange{flex:1}
 
 /* modo leitura do PDF */
 .lpDim{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:6;transition:opacity .2s}
