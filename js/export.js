@@ -195,8 +195,18 @@ App.buildPdfBytes = async () => {
       count++; continue;
     }
     if (h.kind === 'ink') {
+      const b = state.pages[part.page - 1]?.base || { w: vp.width, h: vp.height }, solid = part.paths.filter(pts => !App.inkFilled(pts, h));
+      for (const pts of part.paths) {
+        if (!App.inkFilled(pts, h)) continue;
+        const vx = App.inkOutline(pts, h, b).map(([x, y]) => P(x / b.w, y / b.h)), V = vx.flat(), X = vx.map(q => q[0]), Y = vx.map(q => q[1]);
+        const shape = { ...dict, Subtype: 'Polygon', Vertices: V, IC: rgb(col.ink), BS: { W: 0, S: 'S' }, Rect: [Math.min(...X) - 2, Math.min(...Y) - 2, Math.max(...X) + 2, Math.max(...Y) + 2] };
+        if (h.tip === 'pencil') shape.CA = 0.72;
+        page.node.addAnnot(doc.context.register(doc.context.obj(shape)));
+        count++;
+      }
+      if (!solid.length) continue;
       dict.Subtype = 'Ink';
-      dict.InkList = part.paths.map(pts => pts.flatMap(([x, y]) => { const [px, py] = P(x, y); xs.push(px); ys.push(py); return [px, py]; }));
+      dict.InkList = solid.map(pts => pts.flatMap(([x, y]) => { const [px, py] = P(x, y); xs.push(px); ys.push(py); return [px, py]; }));
       const bw = +((h.width || 2.4) * 0.75).toFixed(2);
       dict.BS = h.line === 'dash' ? { W: bw, S: 'D', D: [+(bw * 2.6).toFixed(2), +(bw * 2.4).toFixed(2)] } : h.line === 'dot' ? { W: bw, S: 'D', D: [bw, +(bw * 2.2).toFixed(2)] } : { W: bw, S: 'S' };
       if (h.marker) dict.CA = h.opacity ? h.opacity / 100 : 0.4;

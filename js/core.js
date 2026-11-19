@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.21.0';
+App.VERSION = '1.22.0';
 App.VERSION_DATE = '18/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -275,7 +275,7 @@ App.setTool = t => {
 // ---------- Caneta: caneta e marca-texto (cada um com cor e espessura próprias) e caneta stylus ----------
 const PENS = App.PENS = {
   pen:    { label: 'Caneta', min: 0.6, max: 9, def: 2.4 },
-  marker: { label: 'Marca-texto', min: 5, max: 28, def: 14, marker: true },
+  marker: { label: 'Marca-texto', min: 5, max: 40, def: 14, marker: true },
 };
 { // versões antigas guardavam fina/média/grossa
   const old = ls.get('le.pen', 'pen'), W = { fine: 1.3, mid: 2.4, bold: 4.5 };
@@ -293,7 +293,7 @@ App.PEN_TIPS = {
   marker: [['chisel', 'Ponta chanfrada'], ['round', 'Ponta redonda']],
 };
 App.PEN_LINES = [['solid', 'Linha contínua'], ['taper', 'Linha afinada nas pontas'], ['dash', 'Linha tracejada'], ['dot', 'Linha pontilhada']];
-const PEN_OPTS = { pen: { tip: 'ball', line: 'solid', straight: false }, marker: { tip: 'chisel', opacity: 45, straight: false, fit: false } };
+const PEN_OPTS = { pen: { tip: 'ball', line: 'solid', straight: false, smooth: 0, shapes: false }, marker: { tip: 'chisel', opacity: 45, straight: false, fit: false, smooth: 0, shapes: false } };
 App.penOpt = (k, o) => { const v = { ...PEN_OPTS[k], ...ls.get(penKey(k, 'Opts'), {}) }; return o ? v[o] : v; };
 App.setPenOpt = (k, o, val) => { ls.set(penKey(k, 'Opts'), { ...ls.get(penKey(k, 'Opts'), {}), [o]: val }); App.updatePenBtn(); };
 // o que fica guardado no traço: só o que difere do padrão (traços antigos continuam iguais)
@@ -304,7 +304,7 @@ App.penStyle = (k = state.pen) => {
   if (k === 'marker' && o.opacity !== PEN_OPTS.marker.opacity) s.opacity = o.opacity;
   return s;
 };
-App.curPen = () => { const o = App.penOpt(state.pen); return { w: App.penWidth(), color: App.penColor(), straight: o.straight, fit: !!o.fit, ...App.penStyle() }; };
+App.curPen = () => { const o = App.penOpt(state.pen); return { w: App.penWidth(), color: App.penColor(), straight: o.straight, fit: !!o.fit, smooth: +o.smooth || 0, shapes: !!o.shapes, ...App.penStyle() }; };
 // com caneta stylus (S Pen etc.): só a caneta desenha, o dedo rola a página
 state.penSeen = ls.get('le.penSeen', false);
 App.setPen = id => {
@@ -1100,19 +1100,26 @@ function inkWidths(P, s){
   for (let pass = 0; pass < 2; pass++) out = out.map((v, i) => (out[Math.max(0, i - 1)] + v + out[Math.min(n - 1, i + 1)]) / 3);
   return out;
 }
-function outlineD(pts, s, b){
-  const P = pts.map(q => [q[0] * b.w, q[1] * b.h, q[2]]), n = P.length, W = inkWidths(P, s), f = v => v.toFixed(1), A = [], B = [];
+function outlineSides(pts, s, b){
+  const P = pts.map(q => [q[0] * b.w, q[1] * b.h, q[2]]), n = P.length, W = inkWidths(P, s), A = [], B = [];
   P.forEach((q, i) => {
     const a = P[Math.max(0, i - 1)], c = P[Math.min(n - 1, i + 1)], dx = c[0] - a[0], dy = c[1] - a[1], m = Math.hypot(dx, dy) || 1, r = W[i] / 2;
     A.push([q[0] - dy / m * r, q[1] + dx / m * r]); B.push([q[0] + dy / m * r, q[1] - dx / m * r]);
   });
+  return { A, B, W, n };
+}
+function outlineD(pts, s, b){
+  const { A, B, W, n } = outlineSides(pts, s, b), f = v => v.toFixed(1);
   const run = L => { let d = ''; for (let i = 1; i < L.length - 1; i++) d += ` Q${f(L[i][0])} ${f(L[i][1])} ${f((L[i][0] + L[i + 1][0]) / 2)} ${f((L[i][1] + L[i + 1][1]) / 2)}`; const e = L[L.length - 1]; return d + ` L${f(e[0])} ${f(e[1])}`; };
   const R = B.slice().reverse(), r1 = f(W[n - 1] / 2), r0 = f(W[0] / 2);
   return `M${f(A[0][0])} ${f(A[0][1])}${run(A)} A${r1} ${r1} 0 0 0 ${f(R[0][0])} ${f(R[0][1])}${run(R)} A${r0} ${r0} 0 0 0 ${f(A[0][0])} ${f(A[0][1])}Z`;
 }
+const inkFilled = (pts, s) => !s.marker && pts.length > 2 && (s.line === 'taper' || ((s.line || 'solid') === 'solid' && VAR_TIPS.has(s.tip)));
+App.inkFilled = inkFilled;
+App.inkOutline = (pts, s, b) => { const { A, B } = outlineSides(pts, s, b); return [...A, ...B.reverse()]; };
 function paintInk(path, pts, s, b){
   const w = s.width || 2.4, line = s.line || 'solid', marker = !!s.marker;
-  const fill = !marker && pts.length > 2 && (line === 'taper' || (line === 'solid' && VAR_TIPS.has(s.tip)));
+  const fill = inkFilled(pts, s);
   path.classList.toggle('marker', marker);
   path.classList.toggle('markerRound', marker && s.tip === 'round');
   path.classList.toggle('inkFill', fill);
@@ -1136,7 +1143,7 @@ function straighten(pts, rect, s){
   if (dev > Math.max(7, L * 0.09)) return pts;
   const ang = Math.abs(Math.atan2(dy, dx)) * 180 / Math.PI, A = [pts[0][0], pts[0][1]], Z = [pts[pts.length - 1][0], pts[pts.length - 1][1]];
   if (ang < 5 || ang > 175) Z[1] = A[1]; else if (Math.abs(ang - 90) < 5) Z[0] = A[0];
-  const n = s.marker || (!VAR_TIPS.has(s.tip) && s.line !== 'taper') ? 1 : Math.max(3, Math.min(24, Math.ceil(L / 12)));
+  const n = denseFor(s, L);
   return Array.from({ length: n + 1 }, (_, i) => [A[0] + (Z[0] - A[0]) * i / n, A[1] + (Z[1] - A[1]) * i / n]);
 }
 // "Ajustar a espessura ao texto": usa a altura da linha de texto sob o marca-texto e centraliza nela
@@ -1149,9 +1156,51 @@ function fitToText(pts, d){
   const ys = pts.map(q => q[1]), my = (Math.min(...ys) + Math.max(...ys)) / 2, flat = Math.max(...ys) - Math.min(...ys) < h * 1.2;
   return { pts: flat ? pts.map(q => [q[0], clamp01(q[1] + cy - my)]) : pts, w: +clampN(h * d.p.base.h * 1.15, 5, 40).toFixed(1) };
 }
+// segurar parado no fim do traço: vira reta, círculo/elipse ou retângulo
+const denseFor = (s, L) => s.marker || (!VAR_TIPS.has(s.tip) && s.line !== 'taper') ? 1 : Math.max(3, Math.min(24, Math.ceil(L / 12)));
+function detectShape(pts, rect, s){
+  if (pts.length < 6) return null;
+  const P = pts.map(q => [q[0] * rect.width, q[1] * rect.height]);
+  let len = 0, x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  P.forEach((q, i) => { if (i) len += Math.hypot(q[0] - P[i - 1][0], q[1] - P[i - 1][1]); x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); });
+  if (len < 30) return null;
+  const a = P[0], z = P[P.length - 1], gap = Math.hypot(z[0] - a[0], z[1] - a[1]), norm = ([x, y]) => [clamp01(x / rect.width), clamp01(y / rect.height)];
+  const sample = (A, B, n) => Array.from({ length: n }, (_, i) => [A[0] + (B[0] - A[0]) * i / n, A[1] + (B[1] - A[1]) * i / n]);
+  if (gap > len * 0.28) {
+    let dev = 0; for (const q of P) dev = Math.max(dev, Math.abs((q[0] - a[0]) * (z[1] - a[1]) - (q[1] - a[1]) * (z[0] - a[0])) / (gap || 1));
+    if (dev > gap * 0.22) return null;
+    const n = denseFor(s, gap); return [...sample(a, z, n), z].map(norm);
+  }
+  const w = x1 - x0, h = y1 - y0; if (w < 14 || h < 14) return null;
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = w / 2, ry = h / 2, m = Math.min(w, h);
+  let eE = 0, eR = 0;
+  for (const [x, y] of P) {
+    const nx = (x - cx) / rx, ny = (y - cy) / ry, dist = Math.hypot(nx, ny) || 1;
+    eE += Math.abs(1 - 1 / dist) * Math.hypot(x - cx, y - cy);
+    eR += Math.min(Math.abs(x - x0), Math.abs(x - x1), Math.abs(y - y0), Math.abs(y - y1));
+  }
+  eE /= P.length; eR /= P.length;
+  if (Math.min(eE, eR) > m * 0.16) return null;
+  if (eE <= eR) return Array.from({ length: 49 }, (_, i) => { const t = i / 48 * Math.PI * 2 - Math.PI / 2; return norm([cx + rx * Math.cos(t), cy + ry * Math.sin(t)]); });
+  const C = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], out = [];
+  C.forEach((q, i) => out.push(q, ...sample(q, C[(i + 1) % 4], denseFor(s, Math.max(w, h)))));
+  return [...out, C[0], C[0]].map(norm);
+}
+// tira pontos que não mudam o desenho (o arquivo fica leve); pontas de espessura variável guardam todos
+function simplify(pts, rect, s){
+  if (pts.length < 4 || inkFilled(pts, s)) return pts;
+  const P = pts.map(q => [q[0] * rect.width, q[1] * rect.height]), keep = new Uint8Array(P.length), stack = [[0, P.length - 1]];
+  keep[0] = keep[P.length - 1] = 1;
+  while (stack.length) {
+    const [i, j] = stack.pop(); let best = 0, at = -1;
+    for (let k = i + 1; k < j; k++) { const e = distSeg(P[k][0], P[k][1], P[i][0], P[i][1], P[j][0], P[j][1]); if (e > best) { best = e; at = k; } }
+    if (best > 0.22) { keep[at] = 1; stack.push([i, at], [at, j]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
 function inkNow(d){
-  const P = d.pen; let pts = d.pts, w = P.w;
-  if (P.straight) pts = straighten(pts, d.rect, P);
+  const P = d.pen; let pts = d.shape || d.pts, w = P.w;
+  if (P.straight && !d.shape) pts = straighten(pts, d.rect, P);
   if (P.marker && P.fit) { const r = fitToText(pts, d); if (r) { pts = r.pts; w = r.w; } }
   return { pts, P: { ...P, w, width: w } };
 }
@@ -1507,49 +1556,67 @@ document.addEventListener('mouseup', e => {
 // ---------- Área e caneta ----------
 let drawing = null;
 const normPt = (e, r) => [clamp01((e.clientX - r.left) / r.width), clamp01((e.clientY - r.top) / r.height)];
-pagesEl.addEventListener('pointerdown', e => {
-  const dl = e.target.closest('.drawLayer');
-  if (!dl || e.button !== 0 || state.tool === 'text') return;
-  const p = state.pages[+dl.parentElement.dataset.page - 1];
-  const rect = p.el.getBoundingClientRect();
-  const start = normPt(e, rect);
-  if (drawing && drawing.type === 'pan') return; // segundo dedo (pinça)
-  e.preventDefault(); closePopup();
-  if (state.tool === 'note') { createNote(p, start); return; }
-  dl.setPointerCapture(e.pointerId);
+const isSidePen = e => e.pointerType === 'pen' && (e.button === 2 || e.button === 5 || !!(e.buttons & 34));
+const penTools = new Set(['ink', 'erase', 'lasso']);
+function beginDraw(e, dl, p, rect, start, side){
+  if (state.tool === 'note') { createNote(p, start); return null; }
+  try { dl.setPointerCapture(e.pointerId); } catch {}
   // com caneta stylus, o dedo só rola a página
-  if (e.pointerType === 'touch' && state.penSeen && (state.tool === 'ink' || state.tool === 'erase' || state.tool === 'lasso')) {
-    drawing = { type: 'pan', sx: e.clientX, sy: e.clientY, st: viewer.scrollTop, sl: viewer.scrollLeft, cx: e.clientX, cy: e.clientY };
-    return;
-  }
-  if (state.tool === 'lasso') { drawing = App.lassoStart ? App.lassoStart(p, rect, start, dl, e) : null; return; }
-  if (state.tool === 'erase') {
-    drawing = { type: 'erase', p, rect, erased: false, cx: e.clientX, cy: e.clientY, last: start };
-    eraseAt(drawing, start);
-    return;
-  }
-  const col = App.colorOf(state.color);
+  if (e.pointerType === 'touch' && state.penSeen && penTools.has(state.tool)) return { type: 'pan', sx: e.clientX, sy: e.clientY, st: viewer.scrollTop, sl: viewer.scrollLeft, cx: e.clientX, cy: e.clientY };
+  if (side || state.tool === 'erase') { const d = { type: 'erase', p, rect, erased: false, cx: e.clientX, cy: e.clientY, last: start }; eraseAt(d, start); return d; }
+  if (state.tool === 'lasso') return App.lassoStart ? App.lassoStart(p, rect, start, dl, e) : null;
   if (state.tool === 'area') {
-    const box = el('div', 'areaPreview');
+    const col = App.colorOf(state.color), box = el('div', 'areaPreview');
     box.style.setProperty('--c', col.hex); box.style.setProperty('--ci', col.ink);
     dl.appendChild(box);
-    drawing = { type: 'area', p, rect, start, end: start, box, cx: e.clientX, cy: e.clientY };
-  } else {
-    const svg = document.createElementNS(SVGNS, 'svg');
-    svg.setAttribute('viewBox', `0 0 ${p.base.w} ${p.base.h}`); svg.setAttribute('preserveAspectRatio', 'none');
-    const path = document.createElementNS(SVGNS, 'path');
-    const P = App.curPen(), pc = App.colorOf(P.color);
-    path.style.setProperty('--c', pc.hex); path.style.setProperty('--ci', pc.ink);
-    svg.appendChild(path); dl.appendChild(svg);
-    const press = e.pointerType === 'pen' && !P.marker && (P.tip === 'fountain' || P.tip === 'brush');
-    const d = drawing = { type: 'ink', p, rect, pts: [press ? [...start, +(e.pressure || 0.5).toFixed(2)] : start], svg, path, cx: e.clientX, cy: e.clientY, pen: P, press };
-    if (P.marker && P.fit) App.pageText(p.num).then(t => { d.textItems = t.items; }).catch(() => {});
-    const now = inkNow(d); paintInk(path, now.pts, now.P, p.base);
+    return { type: 'area', p, rect, start, end: start, box, cx: e.clientX, cy: e.clientY };
   }
+  const svg = document.createElementNS(SVGNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${p.base.w} ${p.base.h}`); svg.setAttribute('preserveAspectRatio', 'none');
+  const path = document.createElementNS(SVGNS, 'path'), P = App.curPen(), pc = App.colorOf(P.color);
+  path.style.setProperty('--c', pc.hex); path.style.setProperty('--ci', pc.ink);
+  svg.appendChild(path); dl.appendChild(svg);
+  const press = e.pointerType === 'pen' && !P.marker && (P.tip === 'fountain' || P.tip === 'brush');
+  const d = { type: 'ink', p, rect, pts: [press ? [...start, +(e.pressure || 0.5).toFixed(2)] : start], svg, path, cx: e.clientX, cy: e.clientY, pen: P, press, far: 0, sm: start, raf: 0, hold: null, holdAt: start, minD: e.pointerType === 'pen' ? 1 : 2 };
+  if (P.marker && P.fit) App.pageText(p.num).then(t => { d.textItems = t.items; }).catch(() => {});
+  armHold(d); paintStroke(d);
+  return d;
+}
+function paintStroke(d){ d.raf = 0; const now = inkNow(d); paintInk(d.path, now.pts, now.P, d.p.base); }
+function armHold(d){
+  clearTimeout(d.hold); d.hold = null;
+  if (!d.pen.shapes) return;
+  d.hold = setTimeout(() => {
+    const s = detectShape(d.pts, d.rect, d.pen); if (!s || drawing !== d) return;
+    d.shape = s; navigator.vibrate?.(8); paintStroke(d);
+  }, 550);
+}
+function addInkPoint(d, ev){
+  const raw = normPt(ev, d.rect), k = d.pen.smooth ? 1 / (1 + d.pen.smooth * 0.75) : 1;
+  d.sm = [d.sm[0] + (raw[0] - d.sm[0]) * k, d.sm[1] + (raw[1] - d.sm[1]) * k];
+  const last = d.pts[d.pts.length - 1], px = (a, b) => Math.hypot((a[0] - b[0]) * d.rect.width, (a[1] - b[1]) * d.rect.height);
+  d.far = Math.max(d.far, px(raw, d.pts[0]));
+  if (px(d.sm, last) < d.minD) return;
+  d.pts.push(d.press ? [...d.sm, +(ev.pressure || 0.5).toFixed(2)] : d.sm);
+  if (px(raw, d.holdAt) >= 4) { d.holdAt = raw; armHold(d); }
+}
+pagesEl.addEventListener('pointerdown', e => {
+  const dl = e.target.closest('.drawLayer'), side = isSidePen(e) && penTools.has(state.tool);
+  if (!dl || (e.button !== 0 && !side) || state.tool === 'text') return;
+  if (drawing) {
+    if (e.pointerId === drawing.id) return;
+    if (e.pointerType === 'pen' && drawing.kind === 'touch') finishDrawing(e, true); // a caneta tem prioridade sobre a mão apoiada
+    else { if (e.pointerType === 'touch' && drawing.kind === 'touch' && drawing.type !== 'pan') finishDrawing(e, true); return; } // dois dedos: é pinça, não traço
+  }
+  const p = state.pages[+dl.parentElement.dataset.page - 1], rect = p.el.getBoundingClientRect(), start = normPt(e, rect);
+  e.preventDefault(); closePopup();
+  drawing = beginDraw(e, dl, p, rect, start, side);
+  if (drawing) { drawing.id = e.pointerId; drawing.kind = e.pointerType; }
 });
+pagesEl.addEventListener('contextmenu', e => { if (e.target.closest('.drawLayer') && (drawing || e.pointerType === 'pen')) e.preventDefault(); });
 pagesEl.addEventListener('pointermove', e => {
-  if (!drawing) return;
   const d = drawing;
+  if (!d || e.pointerId !== d.id) return;
   if (d.type === 'pan') { viewer.scrollTop = d.st - (e.clientY - d.sy); viewer.scrollLeft = d.sl - (e.clientX - d.sx); return; }
   const pt = normPt(e, d.rect);
   if (d.type === 'ext') { d.move(pt, e); return; }
@@ -1564,25 +1631,34 @@ pagesEl.addEventListener('pointermove', e => {
     d.end = pt;
     const r = rectFrom(d.start, pt);
     d.box.style.cssText = `left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%`;
-  } else {
-    const last = d.pts[d.pts.length - 1];
-    if (Math.hypot((pt[0] - last[0]) * d.rect.width, (pt[1] - last[1]) * d.rect.height) >= 2) {
-      d.pts.push(d.press ? [...pt, +(e.pressure || 0.5).toFixed(2)] : pt);
-      const now = inkNow(d); paintInk(d.path, now.pts, now.P, d.p.base);
-    }
+    return;
   }
+  if (d.shape) return;
+  // a caneta manda vários pontos por quadro: usa todos, e desenha uma vez por quadro
+  const all = e.getCoalescedEvents?.();
+  for (const ev of all && all.length ? all : [e]) addInkPoint(d, ev);
+  if (!d.raf) d.raf = requestAnimationFrame(() => { if (drawing === d) paintStroke(d); });
 });
 // borracha: apaga o traço inteiro da caneta que estiver sob o dedo/caneta
 // apaga só o pedaço do traço que fica dentro do círculo da borracha (o resto vira traços separados)
 function cutPath(pts, x, y, r, b){
-  const out = []; let cur = [], changed = false;
-  for (const a of pts) {
-    const ax = a[0] * b.w, ay = a[1] * b.h;
-    if (Math.hypot(ax - x, ay - y) <= r) { changed = true; if (cur.length > 1) out.push(cur); cur = []; continue; }
-    if (cur.length) { const pv = cur[cur.length - 1]; if (distSeg(x, y, pv[0] * b.w, pv[1] * b.h, ax, ay) <= r) { changed = true; if (cur.length > 1) out.push(cur); cur = []; } }
-    cur.push(a);
+  const px = q => [q[0] * b.w, q[1] * b.h], out = [];
+  const inside = q => { const c = px(q); return Math.hypot(c[0] - x, c[1] - y) <= r; };
+  const at = (A, B, t) => { const q = [+(A[0] + (B[0] - A[0]) * t).toFixed(4), +(A[1] + (B[1] - A[1]) * t).toFixed(4)]; if (A.length > 2 && B.length > 2) q.push(+(A[2] + (B[2] - A[2]) * t).toFixed(2)); return q; };
+  if (pts.length === 1) return inside(pts[0]) ? [] : null;
+  let cur = inside(pts[0]) ? [] : [pts[0]], changed = !cur.length;
+  const flush = () => { if (cur.length > 1) out.push(cur); cur = []; };
+  for (let i = 1; i < pts.length; i++) {
+    const A = pts[i - 1], B = pts[i], [ax, ay] = px(A), [bx, by] = px(B), dx = bx - ax, dy = by - ay, fx = ax - x, fy = ay - y;
+    const qa = dx * dx + dy * dy, qb = 2 * (fx * dx + fy * dy), qc = fx * fx + fy * fy - r * r, disc = qb * qb - 4 * qa * qc;
+    const t1 = qa && disc > 0 ? (-qb - Math.sqrt(disc)) / (2 * qa) : 2, t2 = qa && disc > 0 ? (-qb + Math.sqrt(disc)) / (2 * qa) : -1;
+    if (t2 <= 0 || t1 >= 1) { cur.push(B); continue; }
+    changed = true;
+    if (t1 > 0) cur.push(at(A, B, t1));
+    flush();
+    if (t2 < 1) cur = [at(A, B, t2), B];
   }
-  if (cur.length > 1 || (cur.length === 1 && pts.length === 1)) out.push(cur);
+  flush();
   return changed ? out : null;
 }
 function eraseAt(d, [x, y]){
@@ -1627,21 +1703,28 @@ function finishDrawing(e, cancel){
   if (d.type === 'pan') return;
   if (d.type === 'ext') { d.end(e, cancel); return; }
   if (d.type === 'erase') { if (d.erased) { App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed'); } return; }
+  if (d.type === 'ink') { clearTimeout(d.hold); cancelAnimationFrame(d.raf); }
   (d.box || d.svg).remove();
   if (cancel) return;
-  if (Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < 4) {
-    const h = hitTest(d.p.el, e.clientX, e.clientY);
+  const tap = d.type === 'ink' ? d.far < 4 : Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < 4;
+  if (tap) {
+    const h = d.kind === 'pen' && d.type === 'ink' ? null : hitTest(d.p.el, e.clientX, e.clientY);
     if (h) showEditPopup(h, e.clientX, e.clientY);
+    // toque da caneta (ou clique no vazio) faz um ponto: pingo do i, ponto final
+    else if (d.type === 'ink' && d.kind !== 'touch' && !d.pen.marker) commitInk(d.p, [d.pts[0]], { ...d.pen, width: d.pen.w });
     return;
   }
   if (d.type === 'area') {
     const r = rectFrom(d.start, d.end);
     if (r.w * d.rect.width < 6 || r.h * d.rect.height < 6) return;
     createAreaHighlight(d.p, r);
-  } else { const now = inkNow(d); commitInk(d.p, now.pts, now.P); }
+  } else {
+    if (!d.shape && d.pen.smooth) d.pts.push(normPt(e, d.rect)); // o fim do traço fica onde a caneta parou
+    const now = inkNow(d); commitInk(d.p, d.shape ? now.pts : simplify(now.pts, d.rect, now.P), now.P);
+  }
 }
-pagesEl.addEventListener('pointerup', e => finishDrawing(e));
-pagesEl.addEventListener('pointercancel', e => finishDrawing(e, true));
+pagesEl.addEventListener('pointerup', e => { if (drawing && e.pointerId === drawing.id) finishDrawing(e); });
+pagesEl.addEventListener('pointercancel', e => { if (drawing && e.pointerId === drawing.id) finishDrawing(e, true); });
 
 // ---------- Modo foco ----------
 App.toggleFocus = () => {
