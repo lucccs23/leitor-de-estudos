@@ -252,7 +252,8 @@ more.onclick = () => {
   })), { alignRight: true });
 };
 new ResizeObserver(reqFit).observe(toolbar);
-const fitWatch = new MutationObserver(reqFit);
+// botões que aparecem ou mudam (timer começou, simulado): reencaixa na hora, antes de a tela ser desenhada
+const fitWatch = new MutationObserver(() => { if (fitRaf) cancelAnimationFrame(fitRaf); fitBar(); });
 fitWatch.observe(zone,{ subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'hidden'] });
 ['doc:loaded', 'doc:closed', 'layout:changed'].forEach(ev => App.on(ev, reqFit));
 window.visualViewport?.addEventListener('resize', reqFit);
