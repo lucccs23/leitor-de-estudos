@@ -111,6 +111,7 @@ let pinch = null;
 const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 viewer.addEventListener('touchstart', e => {
   if (e.touches.length !== 2 || !state.pdf) return;
+  if (state.penSeen && App.penRecente?.(700)) return; // mão apoiada enquanto escreve, não pinça
   const [a, b] = e.touches;
   const mid = { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
   const pr = pagesEl.getBoundingClientRect();

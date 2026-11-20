@@ -252,7 +252,7 @@ const soon = (ms = 15000) => {
   const at = Date.now() + ms;
   if (autoT && autoAt <= at) return;
   clearTimeout(autoT); autoAt = at;
-  autoT = setTimeout(() => { autoT = null; App.syncNow(); }, ms);
+  autoT = setTimeout(() => { autoT = null; if (App.penOcupada?.()) soon(3000); else App.syncNow(); }, ms);
 };
 App.on('doc:saved', () => soon(20000));
 App.on('doc:loaded', () => soon(1500));
