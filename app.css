@@ -1922,3 +1922,12 @@ body.arrastando #viewer,body.arrastando{cursor:grabbing}
 body[data-tool=zoom] #viewer{cursor:zoom-in}
 body[data-tool=hand] .textLayer,body[data-tool=zoom] .textLayer{pointer-events:none;user-select:none}
 .zoomCaixa{position:fixed;z-index:60;border:2px dashed var(--accent);background:var(--accent-soft);border-radius:4px;pointer-events:none}
+/* S Pen: ponta e borracha mostradas sob a caneta (pairando), aviso da ação do botão perto da ponta */
+.penAnel{position:fixed;left:0;top:0;z-index:60;pointer-events:none;border-radius:50%;will-change:transform}
+.penAnel.borracha{border:1.5px solid var(--text);background:color-mix(in srgb,var(--surface) 30%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--bg) 70%,transparent)}
+.penAnel.borracha.traco{border-style:dashed}
+.penAnel.ponta{background:var(--pc);opacity:.6;box-shadow:0 0 0 1px color-mix(in srgb,var(--bg) 70%,transparent)}
+.penAnel.marca{border-radius:4px;background:var(--pc);opacity:.4}
+.spenAviso{position:fixed;left:0;top:0;z-index:61;display:flex;align-items:center;gap:8px;height:32px;padding:0 12px 0 8px;border-radius:16px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);box-shadow:var(--shadow-md);font-size:13px;font-weight:600;color:var(--text);pointer-events:none;white-space:nowrap;opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s}
+.spenAviso.show{opacity:1;transform:none}
+.spenAviso .i{width:16px;height:16px;flex:none}
