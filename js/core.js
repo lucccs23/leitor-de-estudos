@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App = {};
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.26.0';
+App.VERSION = '1.26.1';
 App.VERSION_DATE = '19/11/2026';
 const $ = App.$ = s => document.querySelector(s);
 // Aberto pelo link publicado (celular, tablet ou navegador): sem o serviço local do Windows.
@@ -825,11 +825,28 @@ const updUndo = () => { const u = $('#btnUndo'), r = $('#btnRedo'); if (u) u.dis
 App.updateUndoBtns = updUndo;
 function snapshot(){ undoStack.push(JSON.stringify(state.highlights)); if (undoStack.length > 80) undoStack.shift(); redoStack.length = 0; updUndo(); }
 App.snapshot = snapshot;
+// "assinatura" de cada página: o que está desenhado nela (para redesenhar só as páginas que mudaram)
+function porPagina(hls){
+  const m = new Map();
+  for (const h of hls) { const s = JSON.stringify(h); for (const pt of h.parts) m.set(pt.page, (m.get(pt.page) || '') + s); }
+  return m;
+}
+let painelDepois = 0;
 function restoreFrom(from, to, msg){
-  to.push(JSON.stringify(state.highlights));
-  state.highlights = JSON.parse(from.pop()).map(normHl);
+  const antes = porPagina(state.highlights), selAntes = state.highlights.find(h => h.id === state.selected);
+  // a lista que sai da tela não muda mais (a nova é outra cópia): guarda ela mesma, sem copiar o caderno de novo
+  to.push(state.highlights);
+  const v = from.pop();
+  state.highlights = typeof v === 'string' ? JSON.parse(v).map(normHl) : v;
   state.lastInk = null; closePopup();
-  renderAllAnnots(); App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed'); App.emit('undo:changed');
+  // desfazer pela S Pen tem de ser imediato: redesenhar todas as páginas levava meio segundo num caderno cheio
+  const depois = porPagina(state.highlights), sujas = new Set(selAntes ? selAntes.parts.map(pt => pt.page) : []);
+  for (const n of new Set([...antes.keys(), ...depois.keys()])) if (antes.get(n) !== depois.get(n)) sujas.add(n);
+  for (const n of sujas) renderPageAnnots(state.pages[n - 1]);
+  App.emit('page:annots');
+  cancelAnimationFrame(painelDepois);
+  painelDepois = requestAnimationFrame(() => { painelDepois = 0; App.renderPanel(); });
+  App.saveDocSoon(); App.emit('hl:changed'); App.emit('undo:changed');
   updUndo();
   App.toast(msg);
 }
@@ -1616,7 +1633,13 @@ App.spenAcao = acao => {
 // apertar no ar: o Android avisa pela mudança dos botões da caneta (sem contato) ou pelo "menu de contexto" da caneta
 // (um clique no ar nunca vem com a caneta encostando: toque na tela nos últimos instantes = é traço, não clique)
 let spenApertado = false, spenUltimo = 0, spenToque = 0, spenPendenteNav = false;
-App.spenNoAr = () => { const agora = Date.now(); if (App.spenTeste || agora - spenUltimo < 450 || agora - spenToque < 400 || drawing) return; spenUltimo = agora; App.spenAcao(App.spen().ar); };
+let spenViaAndroid = false; // o app de Android avisa o botão: ele é a fonte (o navegador às vezes avisa o mesmo clique)
+App.spenNoAr = (nativo) => {
+  const agora = Date.now();
+  if (App.spenTeste || drawing || (!nativo && spenViaAndroid)) return;
+  if (agora - spenUltimo < 120 || (!nativo && agora - spenToque < 400)) return;
+  spenUltimo = agora; App.spenAcao(App.spen().ar);
+};
 // registro do que chega do botão (painel da caneta → "Testar o botão"): mostra se o aparelho avisa e como
 App.spenLog = [];
 const spenRegistra = (origem, txt) => { App.spenLog.push({ t: Date.now(), origem, txt }); if (App.spenLog.length > 8) App.spenLog.shift(); App.emit('spen:log'); };
@@ -1624,10 +1647,10 @@ const spenRegistra = (origem, txt) => { App.spenLog.push({ t: Date.now(), origem
 // "apertar no ar" = apertar e soltar o botão sem encostar; apertar e depois encostar é "segurar na tela"
 let spenPendenteNativo = false;
 window.vetraSpenBotao = (apertado, encostada) => {
-  spenNativo = !!apertado;
+  spenNativo = !!apertado; spenViaAndroid = true;
   spenRegistra('Android', apertado ? (encostada ? 'apertou, encostada na tela' : 'apertou, no ar') : 'soltou');
-  if (apertado) spenPendenteNativo = !encostada;
-  else { if (spenPendenteNativo) App.spenNoAr(); spenPendenteNativo = false; }
+  if (apertado) { spenPendenteNativo = !encostada; if (encostada) spenConverteTraco(); }
+  else { if (spenPendenteNativo) App.spenNoAr(true); spenPendenteNativo = false; }
 };
 App.spenOuvir = doc => {
   doc.addEventListener('pointermove', e => {
@@ -1672,7 +1695,11 @@ function beginDraw(e, dl, p, rect, start, side){
   armHold(d); paintStroke(d);
   return d;
 }
-function paintStroke(d){ d.raf = 0; const now = inkNow(d); paintInk(d.path, now.pts, now.P, d.p.base); }
+function paintStroke(d){
+  d.raf = 0; const now = inkNow(d);
+  const extra = d.pred && !d.shape && !d.pen.straight && !(d.pen.marker && d.pen.fit) ? d.pred.map(q => d.press ? [...q, now.pts[now.pts.length - 1][2] ?? 0.5] : q) : null;
+  paintInk(d.path, extra ? now.pts.concat(extra) : now.pts, now.P, d.p.base);
+}
 function armHold(d){
   clearTimeout(d.hold); d.hold = null;
   if (!d.pen.shapes) return;
@@ -1701,7 +1728,19 @@ function comecarTraco(e){
   const p = state.pages[+dl.parentElement.dataset.page - 1], rect = p.el.getBoundingClientRect(), start = normPt(e, rect);
   e.preventDefault(); closePopup();
   drawing = beginDraw(e, dl, p, rect, start, side);
-  if (drawing) { drawing.id = e.pointerId; drawing.kind = e.pointerType; }
+  if (drawing) { drawing.id = e.pointerId; drawing.kind = e.pointerType; drawing.t0 = performance.now(); drawing.dl = dl; drawing.side = side; drawing.e0 = { pointerId: e.pointerId, pointerType: e.pointerType, clientX: e.clientX, clientY: e.clientY, pressure: e.pressure }; }
+}
+function spenConverteTraco(){
+  const d = drawing, tela = App.spen().tela;
+  if (!d || d.kind !== 'pen' || d.type !== 'ink' || d.side || !d.e0 || performance.now() - d.t0 > 400) return;
+  if (tela === 'nada' || !penTools.has(state.tool)) return;
+  const pts = d.pts.map(q => [q[0], q[1]]);
+  finishDrawing(null, true);
+  const nd = beginDraw(d.e0, d.dl, d.p, d.rect, pts[0], tela);
+  if (!nd) return;
+  Object.assign(nd, { id: d.id, kind: 'pen', t0: d.t0, dl: d.dl, side: tela, e0: d.e0 });
+  drawing = nd;
+  for (const q of pts.slice(1)) moverTraco(nd, q, { clientX: d.rect.left + q[0] * d.rect.width, clientY: d.rect.top + q[1] * d.rect.height, pressure: 0.5, pointerId: d.id });
 }
 pagesEl.addEventListener('pointerdown', comecarTraco);
 // S Pen com o botão lateral já apertado ao encostar: o navegador não manda "pointerdown" (é um botão a mais num
@@ -1719,7 +1758,9 @@ pagesEl.addEventListener('pointermove', e => {
   const d = drawing;
   if (!d || e.pointerId !== d.id) return;
   if (d.type === 'pan') { viewer.scrollTop = d.st - (e.clientY - d.sy); viewer.scrollLeft = d.sl - (e.clientX - d.sx); return; }
-  const pt = normPt(e, d.rect);
+  moverTraco(d, normPt(e, d.rect), e);
+});
+function moverTraco(d, pt, e){
   if (d.type === 'ext') { d.move(pt, e); return; }
   if (d.type === 'erase') {
     // passa também pelos pontos entre um movimento e outro (gesto rápido)
@@ -1738,8 +1779,11 @@ pagesEl.addEventListener('pointermove', e => {
   // a caneta manda vários pontos por quadro: usa todos, e desenha uma vez por quadro
   const all = e.getCoalescedEvents?.();
   for (const ev of all && all.length ? all : [e]) addInkPoint(d, ev);
+  // pontos previstos (para onde a caneta está indo): só na tela, enquanto desenha, para a tinta não ficar atrás da ponta
+  const prev = e.getPredictedEvents?.();
+  d.pred = prev && prev.length ? prev.slice(0, 2).map(ev => normPt(ev, d.rect)) : null;
   if (!d.raf) d.raf = requestAnimationFrame(() => { if (drawing === d) paintStroke(d); });
-});
+}
 // borracha: apaga o traço inteiro da caneta que estiver sob o dedo/caneta
 // apaga só o pedaço do traço que fica dentro do círculo da borracha (o resto vira traços separados)
 function cutPath(pts, x, y, r, b){
@@ -1795,7 +1839,7 @@ function eraseAt(d, [x, y]){
     }
     if (hit && h.parts.every(pt => !pt.paths || !pt.paths.length)) state.highlights = state.highlights.filter(x => x !== h);
   }
-  if (changed) { d.erased = true; renderPageAnnots(p); }
+  if (changed) { d.erased = true; if (!d.raf) d.raf = requestAnimationFrame(() => { d.raf = 0; renderPageAnnots(p); }); }
 }
 const rectFrom = (a, b) => ({ x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(a[0] - b[0]), h: Math.abs(a[1] - b[1]) });
 function finishDrawing(e, cancel){
@@ -1803,7 +1847,7 @@ function finishDrawing(e, cancel){
   const d = drawing; drawing = null;
   if (d.type === 'pan') return;
   if (d.type === 'ext') { d.end(e, cancel); return; }
-  if (d.type === 'erase') { if (d.erased) { App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed'); } return; }
+  if (d.type === 'erase') { if (d.raf) { cancelAnimationFrame(d.raf); d.raf = 0; renderPageAnnots(d.p); } if (d.erased) { App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed'); } return; }
   if (d.type === 'ink') { clearTimeout(d.hold); cancelAnimationFrame(d.raf); }
   (d.box || d.svg).remove();
   if (cancel) return;
