@@ -243,7 +243,7 @@ function commitInk(p, pts, P){
   const li = state.lastInk;
   const same = (a, b) => (a || '') === (b || '');
   let h = li && state.highlights.includes(li.h) && li.page === p.num && li.h.color === P.color && (li.h.width || 2.4) === P.w && !!li.h.marker === !!P.marker
-    && same(li.h.tip, P.tip) && same(li.h.line, P.line) && same(li.h.opacity, P.opacity) && now - li.t < 2500 ? li.h : null;
+    && same(li.h.tip, P.tip) && same(li.h.line, P.line) && same(li.h.opacity, P.opacity) && !!li.h.pressao === !!P.pressao && now - li.t < 2500 ? li.h : null;
   snapshot();
   if (h) h.parts[0].paths.push(rounded);
   else {
@@ -251,6 +251,7 @@ function commitInk(p, pts, P){
     if (P.marker) h.marker = true;
     if (P.tip) h.tip = P.tip;
     if (P.line) h.line = P.line;
+    if (P.pressao) h.pressao = true;
     if (P.opacity) h.opacity = P.opacity;
     state.highlights.push(h);
   }

@@ -34,6 +34,7 @@ function inkWidths(P, s){
     if (s.tip === 'fountain') f = 0.45 + 0.95 * pr;
     else if (s.tip === 'brush') f = 0.2 + 1.7 * Math.pow(pr, 1.4);
     else if (s.tip === 'callig') f = 0.22 + 1.15 * Math.abs(Math.sin(Math.atan2(b[1] - a[1], b[0] - a[0]) + Math.PI / 4));
+    else if (s.pressao) f = 0.5 + 0.85 * pr; // esferográfica sensível à pressão: varia menos que o tinteiro
     if (L) f *= Math.max(0.08, Math.sin(Math.min(1, Math.min(len[i], total - len[i]) / L) * Math.PI / 2));
     return w * f;
   });
@@ -54,14 +55,14 @@ function outlineD(pts, s, b){
   const R = B.slice().reverse(), r1 = f(W[n - 1] / 2), r0 = f(W[0] / 2);
   return `M${f(A[0][0])} ${f(A[0][1])}${run(A)} A${r1} ${r1} 0 0 0 ${f(R[0][0])} ${f(R[0][1])}${run(R)} A${r0} ${r0} 0 0 0 ${f(A[0][0])} ${f(A[0][1])}Z`;
 }
-const inkFilled = (pts, s) => !s.marker && pts.length > 2 && (s.line === 'taper' || ((s.line || 'solid') === 'solid' && VAR_TIPS.has(s.tip)));
+const inkFilled = (pts, s) => !s.marker && pts.length > 2 && (s.line === 'taper' || ((s.line || 'solid') === 'solid' && (VAR_TIPS.has(s.tip) || !!s.pressao)));
 App.inkFilled = inkFilled;
 App.inkOutline = (pts, s, b) => { const { A, B } = outlineSides(pts, s, b); return [...A, ...B.reverse()]; };
 // o contorno de cada traço só é recalculado quando o traço muda (a chave inclui os pontos das pontas e do meio,
 // porque mover com o laço altera os pontos no lugar)
 const dMemo = new WeakMap();
 function inkD(pts, s, b, fill){
-  const n = pts.length, k = `${fill ? 'f' : 's'}|${s.width || 2.4}|${s.tip || ''}|${s.line || ''}|${b.w}|${b.h}|${n}|${pts[0]}|${pts[n >> 1]}|${pts[n - 1]}`;
+  const n = pts.length, k = `${fill ? 'f' : 's'}|${s.width || 2.4}|${s.tip || ''}|${s.line || ''}|${s.pressao ? 'p' : ''}|${b.w}|${b.h}|${n}|${pts[0]}|${pts[n >> 1]}|${pts[n - 1]}`;
   let m = dMemo.get(pts);
   if (!m || m.k !== k) { m = { k, d: fill ? outlineD(pts, s, b) : pathD(pts, b) }; dMemo.set(pts, m); }
   return m.d;

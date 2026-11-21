@@ -75,7 +75,9 @@ function preview(k){
   svg.paint = () => {
     const c = App.colorOf(App.penColor(k)), s = App.penStyle(k);
     path.style.setProperty('--c', c.hex); path.style.setProperty('--ci', c.ink);
-    App.paintInk(path, pts, { ...s, width: App.penWidth(k) * (k === 'marker' ? 1 : 1.6) }, { w: 200, h: 40 });
+    // com "Sensível à pressão", a prévia mostra a caneta apertando mais no meio do traço
+    const pp = s.pressao ? pts.map((q, i) => [q[0], q[1], +(0.3 + 0.65 * Math.sin(i / 32 * Math.PI)).toFixed(2)]) : pts;
+    App.paintInk(path, pp, { ...s, width: App.penWidth(k) * (k === 'marker' ? 1 : 1.6) }, { w: 200, h: 40 });
   };
   svg.paint();
   return svg;
@@ -195,6 +197,7 @@ function penPanel(k){
     });
     pop.append(lines);
   }
+  if (k === 'pen' && cur.tip === 'ball') pop.append(switchRow('Sensível à pressão (S Pen)', cur.pressao, v => { App.setPenOpt(k, 'pressao', v); pv.paint(); redraw(); }));
   pop.append(switchRow('Endireitar as linhas', cur.straight, v => { App.setPenOpt(k, 'straight', v); redraw(); }));
   if (k === 'marker') pop.append(switchRow('Ajustar a espessura ao texto', cur.fit, v => { App.setPenOpt(k, 'fit', v); redraw(); }));
   pop.append(switchRow('Segurar no fim vira reta ou forma', cur.shapes, v => { App.setPenOpt(k, 'shapes', v); redraw(); }));
