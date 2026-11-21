@@ -43,7 +43,7 @@ export default async ({ launch, fixtures }) => {
   await t.check('H liga a Mão e Z liga a Marcação de zoom', r.h === 'hand' && r.z === 'zoom', r);
 
   t.step('clique direito num grifo');
-  const G = await t.ev(`A.fitWidth(); await until(() => $$('.page .textLayer span').length);
+  const G = await t.ev(`A.fitWidth(); await until(() => S.pages[0].renderedScale === S.scale && !S.pages[0].rendering && $$('.page .textLayer span').length, 8000);
     const sp = $$('.page .textLayer span').find(s => s.textContent.length > 20); sp.scrollIntoView({ block: 'center', behavior: 'instant' }); const rg = document.createRange(); rg.selectNodeContents(sp.firstChild);
     getSelection().removeAllRanges(); getSelection().addRange(rg); A.highlightSelection(); await until(() => S.highlights.some(h => h.kind === 'text'));
     getSelection().removeAllRanges(); sp.scrollIntoView({ block: 'center', behavior: 'instant' }); const q = sp.getBoundingClientRect(); return { x: q.left + 10, y: q.top + q.height / 2 };`);
