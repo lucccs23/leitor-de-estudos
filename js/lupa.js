@@ -80,6 +80,7 @@ async function pintaFundo(){
   if (!alvo || !state.pdf) return;
   const p = alvo.p, W = vista.clientWidth, H = vista.clientHeight;
   if (!W || !H) return;
+  if (p.folha) { fundoDaFolha(p, W, H); return; }
   try {
     tarefa?.cancel();
     const page = await state.pdf.getPage(p.num);
@@ -92,6 +93,21 @@ async function pintaFundo(){
     fundo.width = c.width; fundo.height = c.height;
     fundo.getContext('2d').drawImage(c, 0, 0);
   } catch (e) { if (e?.name !== 'RenderingCancelledException') console.warn('lupa', e); }
+}
+
+// folha de anotação: fundo branco com as linhas (ou quadrículas) da folha, no trecho ampliado
+function fundoDaFolha(p, W, H){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), k = W / (alvo.w * p.base.w), passo = (p.base.h / 34) * k;
+  fundo.width = Math.floor(W * dpr); fundo.height = Math.floor(H * dpr);
+  const g = fundo.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  const estilo = p.el.dataset.estilo; if (estilo === 'lisa') return;
+  g.strokeStyle = 'rgba(70,110,170,.28)'; g.lineWidth = 1;
+  const y0 = -((alvo.y * p.base.h * k) % passo), x0 = -((alvo.x * p.base.w * k) % passo);
+  g.beginPath();
+  for (let y = y0; y < H; y += passo) { g.moveTo(0, y + passo); g.lineTo(W, y + passo); }
+  if (estilo === 'quadriculada') for (let x = x0; x < W; x += passo) { g.moveTo(x + passo, 0); g.lineTo(x + passo, H); }
+  g.stroke();
 }
 
 // ---------- Escrever na lupa ----------
@@ -167,7 +183,7 @@ function proximaLinha(){
   if (!alvo) return;
   alvo.x = alvo.x0;
   if (alvo.y + alvo.h * 2 <= 1.0001) alvo.y += alvo.h;
-  else if (alvo.p.num < state.pages.length) { trocaPagina(state.pages[alvo.p.num]); alvo.y = 0.04; }
+  else if (!alvo.p.folha && alvo.p.num < state.pages.length) { trocaPagina(state.pages[alvo.p.num]); alvo.y = 0.04; }
   else alvo.y = 1;
   ajusta(); mostraTrecho();
 }

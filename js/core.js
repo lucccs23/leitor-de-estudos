@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App; // criado em util.js
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.28.1';
+App.VERSION = '1.29.0';
 App.VERSION_DATE = '19/11/2026';
 const { $, $$, el, btn, ls, DB, safe, uid, SVGNS, CSS_UNITS, clamp01, distSeg } = App;
 
@@ -30,7 +30,7 @@ const THEMES = App.THEMES = {
 // ---------- Estado ----------
 const state = App.state = {
   pdf:null, fp:null, name:'', bytes:null, pages:[], scale:1, currentPage:1,
-  highlights:[], bookmarks:[], stats:{ time:{}, visited:[] }, ocr:{}, exams:[],
+  highlights:[], bookmarks:[], folhas:[], stats:{ time:{}, visited:[] }, ocr:{}, exams:[],
   color:ls.get('le.color', 'y'), autoHL:false, tool:'text', style:ls.get('le.style', 'fill'), autoFit:true,
   filter:new Set(), selected:null, token:0, textCache:new Map(), lastInk:null,
 };
@@ -198,7 +198,7 @@ App.loadDoc = async (buf, name) => {
   Object.assign(state, {
     pdf, fp, name, bytes: buf, highlights: (rec.highlights || []).map(normHl), bookmarks: rec.bookmarks || [],
     stats: { time: rec.time || {}, visited: rec.visited || [] }, selected: null, filter: new Set(), query: '',
-    ocr: rec.ocr || {}, exams: rec.exams || [],
+    ocr: rec.ocr || {}, exams: rec.exams || [], folhas: rec.folhas || [],
     textCache: new Map(), currentPage: 1, lastInk: null, thumb: rec.thumb || null,
   });
   App.undoStack.length = 0; App.redoStack.length = 0; updUndo();
@@ -212,6 +212,7 @@ App.loadDoc = async (buf, name) => {
 
   pagesEl.innerHTML = '';
   state.pages = sizes.map((s, i) => makePage(i + 1, s));
+  App.folhas?.montar(); // folhas de anotação entre as páginas (folhas.js)
   document.body.classList.add('has-doc');
   document.title = name + ' — Vetra';
   $('#pageCount').textContent = '/ ' + pdf.numPages; pageInput.max = pdf.numPages;
@@ -249,7 +250,7 @@ App.closeDoc = async () => {
   await App.saveDoc();
   loadSeq++; state.token++; closePopup();
   if (state.pdf) state.pdf.destroy();
-  Object.assign(state, { pdf:null, fp:null, name:'', bytes:null, pages:[], highlights:[], bookmarks:[], textCache:new Map(), stats:{ time:{}, visited:[] }, thumb:null, ocr:{}, exams:[] });
+  Object.assign(state, { pdf:null, fp:null, name:'', bytes:null, pages:[], highlights:[], bookmarks:[], textCache:new Map(), stats:{ time:{}, visited:[] }, thumb:null, ocr:{}, exams:[], folhas:[] });
   pagesEl.innerHTML = ''; document.body.classList.remove('has-doc');
   document.title = 'Vetra'; viewer.scrollTop = 0;
   App.emit('doc:closed');
@@ -329,6 +330,7 @@ App.setScale = (s, keepAnchor = true, at = null) => {
   }
   state.scale = s;
   for (const p of state.pages) { p.el.style.width = p.base.w * s + 'px'; p.el.style.height = p.base.h * s + 'px'; }
+  App.folhas?.escala();
   // duas páginas: a largura da área fica exata para caberem 2 por linha
   if (layout.spread && state.pages.length) {
     const mw = Math.max(...state.pages.slice(0, 6).map(p => p.base.w)) * s;
@@ -765,7 +767,7 @@ App.renderPanel = () => {
   let last = null;
   for (const h of list) {
     const pg = App.anchorOf(h).page;
-    if (pg !== last) { hlList.append(el('div', 'pgHead', 'Página ' + pg)); last = pg; }
+    if (pg !== last) { hlList.append(el('div', 'pgHead', App.rotuloPagina ? App.rotuloPagina(pg) : 'Página ' + pg)); last = pg; }
     const item = el('button', 'hlItem'); item.style.setProperty('--c', App.colorOf(h.color).hex);
     if (h.img) { const im = el('img', 'hlImg'); im.src = h.img; im.alt = ''; item.append(im); }
     if (h.kind === 'note') item.append(el('div', 'hlText noteText', h.note || '(nota vazia)'));
@@ -801,7 +803,7 @@ App.saveDoc = async () => {
   const cp = state.pages[state.currentPage - 1];
   const lastFrac = cp ? Math.max(0, Math.min(1, +((viewer.scrollTop - cp.el.offsetTop) / cp.el.offsetHeight).toFixed(4))) : 0;
   await safe(() => DB.update('docs', fp, (rec = {}) => ({
-    ...rec, fp, name: state.name, highlights: state.highlights, bookmarks: state.bookmarks,
+    ...rec, fp, name: state.name, highlights: state.highlights, bookmarks: state.bookmarks, folhas: state.folhas,
     time: state.stats.time, visited: state.stats.visited, lastPage: state.currentPage, lastFrac, scale: state.scale,
     // quando a posição de leitura mudou de verdade (para a sincronização saber qual aparelho leu por último)
     posTs: rec.lastPage !== state.currentPage || Math.abs((rec.lastFrac || 0) - lastFrac) > 0.05 ? Date.now() : (rec.posTs || 0),
@@ -836,6 +838,7 @@ if (chan) chan.onmessage = async ({ data }) => {
   // simulados: a versão desta janela prevalece (o cronômetro do simulado em andamento roda aqui)
   state.exams = mergeById(state.exams, rec.exams || []);
   App.emit('exams:reload');
+  state.folhas = pending ? mergeById(state.folhas, rec.folhas || []) : (rec.folhas || []); App.folhas?.montar();
   if (state.selected && !state.highlights.some(h => h.id === state.selected)) closePopup();
   renderAllAnnots(); App.renderPanel(); markSelected();
   App.emit('bookmarks:reload'); App.emit('hl:changed'); App.renderStats?.();

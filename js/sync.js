@@ -66,7 +66,7 @@ function merge3(L = [], R = [], B = {}){
 const hashes = list => Object.fromEntries((list || []).filter(x => x && x.id).map(x => [x.id, H(x)]));
 // campo simples: mudou só de um lado → vale esse lado
 const pick3 = (l, r, b) => (H(r) !== b && H(l) === b ? r : l);
-const SHARED = ['name', 'pages', 'subject', 'highlights', 'bookmarks', 'time', 'visited', 'lastPage', 'lastFrac', 'posTs', 'dev', 'plan', 'ocr', 'exams', 'thumb', 'focus'];
+const SHARED = ['name', 'pages', 'subject', 'highlights', 'bookmarks', 'time', 'visited', 'lastPage', 'lastFrac', 'posTs', 'dev', 'plan', 'ocr', 'exams', 'thumb', 'focus', 'folhas'];
 const payload = rec => { const o = { v: 1, fp: rec.fp }; for (const k of SHARED) if (rec[k] !== undefined) o[k] = rec[k]; if (o.plan) { o.plan = { ...o.plan }; delete o.plan.day; } return o; };
 function mergeDoc(L, R, B){
   if (!R) return L;
@@ -75,6 +75,7 @@ function mergeDoc(L, R, B){
   m.highlights = merge3(L.highlights, R.highlights, B.hl || {});
   m.bookmarks = merge3(L.bookmarks, R.bookmarks, B.bm || {});
   m.exams = merge3(L.exams, R.exams, B.ex || {});
+  m.folhas = merge3(L.folhas, R.folhas, B.fl || {});
   m.time = { ...(R.time || {}) };
   for (const [k, v] of Object.entries(L.time || {})) m.time[k] = Math.max(v, m.time[k] || 0);
   m.visited = [...new Set([...(L.visited || []), ...(R.visited || [])])].sort((a, b) => a - b);
@@ -89,7 +90,7 @@ function mergeDoc(L, R, B){
   if (!m.pages) m.pages = R.pages;
   return m;
 }
-const baseOf = rec => ({ hl: hashes(rec.highlights), bm: hashes(rec.bookmarks), ex: hashes(rec.exams), plan: H(rec.plan ? { ...rec.plan, day: undefined } : null), subject: H(rec.subject || '') });
+const baseOf = rec => ({ hl: hashes(rec.highlights), bm: hashes(rec.bookmarks), ex: hashes(rec.exams), fl: hashes(rec.folhas), plan: H(rec.plan ? { ...rec.plan, day: undefined } : null), subject: H(rec.subject || '') });
 
 // documento aberto: recarrega o que veio de outro aparelho
 async function reloadCurrent(){
@@ -98,7 +99,7 @@ async function reloadCurrent(){
   state.highlights = (rec.highlights || []).map(App.normHl);
   state.bookmarks = rec.bookmarks || [];
   state.stats.time = rec.time || {}; state.stats.visited = rec.visited || [];
-  state.ocr = rec.ocr || {}; state.exams = rec.exams || [];
+  state.ocr = rec.ocr || {}; state.exams = rec.exams || []; state.folhas = rec.folhas || []; App.folhas?.montar();
   for (const n of Object.keys(state.ocr)) App.ocrUpdated(+n);
   if (state.selected && !state.highlights.some(h => h.id === state.selected)) App.closePopup();
   App.renderAllAnnots(); App.renderPanel();

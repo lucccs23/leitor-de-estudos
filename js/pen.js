@@ -233,6 +233,7 @@ function penPanel(k){
   pop.append(switchRow('Segurar no fim vira reta ou forma', cur.shapes, v => { App.setPenOpt(k, 'shapes', v); redraw(); }));
   pop.append(switchRow('Só a caneta stylus desenha', state.penSeen, v => { state.penSeen = v; ls.set('le.penSeen', v); App.toast(v ? 'Só a caneta stylus desenha; o dedo rola a página.' : 'O dedo também desenha.'); }));
   pop.append(App.btn(App.lupa?.aberta() ? 'Fechar a lupa de escrita' : 'Lupa de escrita', () => { closePenPop(); App.lupa?.alternar(); }, 'sm outline ppLupa'));
+  pop.append(App.btn('Folha de anotação depois desta página', () => { closePenPop(); App.folhas?.inserir(state.currentPage); }, 'sm outline ppFolha'));
   pop.append(spenBox());
   colorRow(k, cur.color);
 }
@@ -292,7 +293,7 @@ function eraserOpts(){
     App.snapshot();
     for (const h of state.highlights) if (alvo(h)) h.parts = h.parts.filter(p => p.page !== pg);
     state.highlights = state.highlights.filter(h => h.kind !== 'ink' || h.parts.length);
-    App.renderPageAnnots(state.pages[pg - 1]); App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed');
+    App.renderPageAnnots(App.paginaDe(pg)); App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed');
     closePenPop(); App.toast(`${only ? 'Marca-texto' : 'Escrita à mão'} da página ${pg} apagado — Ctrl+Z desfaz`);
   }, 'sm outline danger ppClear');
   pop.append(clear);
@@ -475,7 +476,7 @@ addEventListener('pointermove', e => {
   const show = !!dl && (erase || ink);
   ring.hidden = !show; if (!show) return;
   let s = ls.get('le.eraseSize', 18);
-  if (ink) { const pg = state.pages[+dl.parentElement.dataset.page - 1]; s = Math.max(3, App.penWidth() * dl.getBoundingClientRect().width / pg.base.w); }
+  if (ink) { const pg = App.paginaDe(+dl.parentElement.dataset.page); s = Math.max(3, App.penWidth() * dl.getBoundingClientRect().width / pg.base.w); }
   ring.classList.toggle('inkRing', ink);
   ring.style.cssText = `width:${s}px;height:${s}px;left:${e.clientX - s / 2}px;top:${e.clientY - s / 2}px`;
   if (ink) { const c = App.colorOf(App.penColor()); ring.style.setProperty('--rc', state.pen === 'marker' ? c.hex : c.ink); }
