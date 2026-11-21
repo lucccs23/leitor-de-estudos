@@ -19,8 +19,8 @@ export default async ({ launch, fixtures }) => {
     await t.ev(`await until(() => ${N_PATH} > ${n}); return 1`);
   };
 
-  let r = await t.ev(`$('[data-penkind=pen]').click(); await until(() => $('.penPop')); return { pontas: $$('.ppTip').length, linhas: $$('.ppLine').length, sw: $$('.ppSwitch').length, cores: $$('.ppColor').length, pag: $$('.ppPage').length };`);
-  await t.check('tocar de novo na caneta abre o painel completo', r.pontas === 5 && r.linhas === 4 && r.sw === 3 && r.cores >= 6 && r.pag === 5, r);
+  let r = await t.ev(`$('[data-penkind=pen]').click(); await until(() => $('.penPop')); return { pontas: $$('.ppTip').length, linhas: $$('.ppLine').length, chaves: $$('.ppSwitch span').map(s => s.textContent), cores: $$('.ppColor').length, pag: $$('.ppPage').length };`);
+  await t.check('tocar de novo na caneta abre o painel completo', r.pontas === 5 && r.linhas === 4 && ['Endireitar as linhas', 'Segurar no fim vira reta ou forma', 'Só a caneta stylus desenha'].every(n => r.chaves.includes(n)) && r.cores >= 6 && r.pag === 5, r);
   r = await t.ev(`$('.ppTip[data-tip=fountain]').click(); const a = A.penOpt('pen', 'tip'); $('.ppLine[data-line=dash]').click(); const b = A.penOpt('pen', 'line'); $('.ppLine[data-line=solid]').click(); return { a, b, aberto: !!$('.penPop') };`);
   await t.check('painel troca ponta e linha sem fechar', r.a === 'fountain' && r.b === 'dash' && r.aberto, r);
   await t.ev(`A.closePenPop(); return 1`);
