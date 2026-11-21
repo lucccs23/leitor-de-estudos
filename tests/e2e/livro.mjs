@@ -141,14 +141,14 @@ export default async ({ launch, fixtures }) => {
   t = await launch({ width: 390, height: 800 });
   await abrirLivro(t, fixtures.livro);
   const tap = async (x, y) => { await t.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] }); await t.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); };
-  r = await t.ev(`await until(() => !document.querySelector('#leitor').classList.contains('ui'), 4000); return A.bookState();`);
+  r = await t.ev(`await until(() => !document.querySelector('section.leitor').classList.contains('ui'), 4000); return A.bookState();`);
   t.step('toca na borda direita');
   await tap(370, 420);
   r = await t.ev(`await until(() => A.bookState().pag === ${r.pag + 1} || A.bookState().ch > ${r.ch}, 3000); return A.bookState();`);
   const virou = r.pag === 1 || r.ch === 1;
   t.step('toca no meio');
   await tap(195, 420);
-  const meio = await t.ev(`await until(() => document.querySelector('#leitor').classList.contains('ui'), 2000); return { ui: $('#leitor').classList.contains('ui'), largura: document.documentElement.scrollWidth, barra: $('.lrTop').getBoundingClientRect().right };`);
+  const meio = await t.ev(`await until(() => document.querySelector('section.leitor').classList.contains('ui'), 2000); return { ui: $('section.leitor').classList.contains('ui'), largura: document.documentElement.scrollWidth, barra: $('.lrTop').getBoundingClientRect().right };`);
   await t.check('celular: toque na borda vira a página, no meio mostra o menu, e nada passa da largura', virou && meio.ui && meio.largura <= 390 && meio.barra <= 390, { r, meio });
   await t.shot('livro-celular');
   await t.close();
