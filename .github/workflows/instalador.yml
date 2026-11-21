@@ -1,0 +1,119 @@
+# Publica o instalador do Windows sozinho.
+# A cada push no main com uma versão nova (App.VERSION em js/core.js), gera o instalador (electron-builder, NSIS)
+# numa máquina Windows e coloca na mesma versão do GitHub (Releases) do APK, como Vetra-Instalador-<versão>.exe.
+#
+# Segurança: roda só com o código que já está no main (push), nunca com código de PR. Não usa nenhum Secret.
+# Instaladores de versões antigas não são apagados aqui (isso fica com o Lucas).
+name: instalador
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      teste:
+        description: 'Só gerar e conferir o instalador (não publica nada)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: instalador
+  cancel-in-progress: false
+
+jobs:
+  instalador:
+    name: Instalador do Windows
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Versão e se já foi publicada
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TESTE: ${{ github.event_name == 'workflow_dispatch' && inputs.teste }}
+        run: |
+          VER=$(grep -oP "App\.VERSION = '\K[\d.]+" js/core.js)
+          echo "ver=$VER" >> "$GITHUB_OUTPUT"
+          if [ "$TESTE" = "true" ]; then echo "fazer=sim" >> "$GITHUB_OUTPUT"; echo "Teste: gera e confere, sem publicar."; exit 0; fi
+          if gh release view "v$VER" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "Vetra-Instalador-$VER.exe"; then
+            echo "fazer=nao" >> "$GITHUB_OUTPUT"; echo "O instalador da $VER já está publicado: nada a fazer."
+          else
+            echo "fazer=sim" >> "$GITHUB_OUTPUT"; echo "Versão $VER sem instalador publicado: vou gerar."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.v.outputs.fazer == 'sim'
+        with:
+          node-version: 22
+
+      - name: Gera o instalador
+        if: steps.v.outputs.fazer == 'sim'
+        working-directory: desktop
+        env:
+          VER: ${{ steps.v.outputs.ver }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm ci --no-fund --no-audit
+          # a versão do instalador é a do app (sem precisar mudar desktop/package.json à mão)
+          npm version "$VER" --no-git-tag-version --allow-same-version
+          npm run dist
+          ls -la dist
+
+      - name: Confere o instalador
+        if: steps.v.outputs.fazer == 'sim'
+        env:
+          VER: ${{ steps.v.outputs.ver }}
+        run: |
+          EXE="desktop/dist/Vetra-Instalador-$VER.exe"
+          [ -f "$EXE" ] || { echo "::error::Não achei $EXE."; exit 1; }
+          TAM=$(stat -c %s "$EXE")
+          [ "$TAM" -gt 30000000 ] || { echo "::error::O instalador ficou pequeno demais ($TAM bytes)."; exit 1; }
+          # o app dentro do instalador é desta versão
+          grep -q "App.VERSION = '$VER'" desktop/app/js/core.js || { echo "::error::O app copiado não está na versão $VER."; exit 1; }
+          sha256sum "$EXE"
+
+      - name: Guarda o instalador do teste
+        if: steps.v.outputs.fazer == 'sim' && github.event_name == 'workflow_dispatch' && inputs.teste
+        uses: actions/upload-artifact@v4
+        with:
+          name: instalador-teste-${{ steps.v.outputs.ver }}
+          path: desktop/dist/Vetra-Instalador-${{ steps.v.outputs.ver }}.exe
+          retention-days: 7
+
+      - name: Publica na versão do GitHub
+        if: steps.v.outputs.fazer == 'sim' && !(github.event_name == 'workflow_dispatch' && inputs.teste)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ steps.v.outputs.ver }}
+        run: |
+          EXE="desktop/dist/Vetra-Instalador-$VER.exe"
+          # a versão do GitHub é criada pelo workflow do APK (com as novidades): espera ela existir
+          for i in $(seq 1 40); do
+            gh release view "v$VER" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 && break
+            echo "Esperando a versão v$VER ser criada ($i/40)…"; sleep 30
+          done
+          if ! gh release view "v$VER" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "v$VER" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Vetra $VER" --notes "Vetra $VER." --latest
+          fi
+          gh release upload "v$VER" "$EXE" --clobber --repo "$GITHUB_REPOSITORY"
+          # as notas passam a apontar para o instalador desta versão
+          gh release view "v$VER" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notas.md
+          VER="$VER" node -e '
+            const fs = require("fs"), v = process.env.VER;
+            let t = fs.readFileSync("notas.md", "utf8");
+            const nova = "Baixe o `Vetra-Instalador-" + v + ".exe` abaixo e abra (depois de instalado, o Vetra se atualiza sozinho).";
+            if (/^O instalador do Windows está em:.*$/m.test(t)) t = t.replace(/^O instalador do Windows está em:.*$/m, nova);
+            else if (!t.includes("Vetra-Instalador-" + v)) t += "\n\n## Windows\n" + nova + "\n";
+            fs.writeFileSync("notas.md", t);'
+          gh release edit "v$VER" --repo "$GITHUB_REPOSITORY" --notes-file notas.md
+          gh release view "v$VER" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[] | "\(.name) \(.size)"'
