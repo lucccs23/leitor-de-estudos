@@ -218,8 +218,12 @@ App.on('doc:loaded', () => App.lupa.fechar());
 // zoom ou tamanho da tela mudou: a página foi redesenhada e a lupa se reposiciona
 new ResizeObserver(() => { if (alvo) { lugar(); ajusta(); } }).observe(stage);
 App.on('page:annots', () => { if (alvo) copiaTinta(); });
-addEventListener('keydown', e => {
-  if (!alvo || e.target.closest?.('input,textarea,[contenteditable]')) return;
-  if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { e.preventDefault(); App.lupa.fechar(); }
-});
+// Esc fecha a lupa (se não houver painel, menu ou janela aberta) e para aí: a ferramenta continua a mesma
+// (no documento, na captura: painéis que fecham com Esc antes dela, na janela, interrompem o evento; menus que já
+// trataram o Esc marcam defaultPrevented)
+document.addEventListener('keydown', e => {
+  if (!alvo || e.key !== 'Escape' || e.defaultPrevented || e.target.closest?.('input,textarea,[contenteditable]')) return;
+  if (document.querySelector('dialog[open], .penPop, .popMenu') || !$('#popup').hidden) return;
+  e.preventDefault(); e.stopPropagation(); App.lupa.fechar();
+}, true);
 })();

@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.28.1', title: 'Lupa: Esc fecha sem trocar de ferramenta', items: ['Fechar a lupa de escrita com Esc mantém a caneta (antes voltava para a seleção de texto)', 'Com o painel da caneta aberto, o Esc fecha só o painel'] },
   { v: '1.28.0', title: 'Estudo no tablet', items: ['Lupa de escrita: uma faixa ampliada embaixo da tela para escrever letra pequena em cima do texto (painel da caneta ou clique direito → Lupa de escrita aqui); ← → e Próxima linha andam pelo trecho, e ela avança sozinha perto da borda', 'Toque com dois dedos desfaz, com três refaz', 'Canetas favoritas sempre à mão: guarde com a estrela do painel da caneta e elas aparecem num trilho na lateral', 'Esferográfica sensível à pressão (opção no painel da caneta)', 'Desfazer e refazer mais leves em cadernos cheios', 'Livro: virar a página logo depois de mudar o tamanho da tela não volta mais para a página anterior'] },
   { v: '1.27.2', title: 'Por dentro: núcleo do app em partes', items: ['O núcleo do Vetra foi dividido em partes menores (utilidades, grifos, traço da caneta, caneta e S Pen). Nada muda no uso; mexer numa parte não arrisca mais as outras'] },
   { v: '1.27.1', title: 'S Pen: ponto da ponta não fica mais parado na tela', items: ['O ponto que mostra a ponta da caneta some assim que a S Pen se afasta da tela (antes podia ficar parado no meio da página)', 'Ele também some ao rolar a página ou tocar com o dedo'] },
