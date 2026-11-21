@@ -260,8 +260,9 @@ body[data-tool=note] .drawLayer{cursor:copy}
 .noteMark.selected{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ci)}
 .noteMark.empty{opacity:.7}
 .hlText.noteText{font-family:var(--font);font-size:13.5px;white-space:pre-wrap;-webkit-line-clamp:6}
-.drawLayer svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-.areaPreview{position:absolute;border:2px dashed var(--ci);background:color-mix(in srgb,var(--c) 28%,transparent);border-radius:4px}
+/* o desenho provisório não recebe toques: eles vão sempre para a camada, que nunca sai da página (um traço cancelado não leva junto os toques do outro dedo) */
+.drawLayer svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.areaPreview{position:absolute;pointer-events:none;border:2px dashed var(--ci);background:color-mix(in srgb,var(--c) 28%,transparent);border-radius:4px}
 
 .ribbon{position:absolute;top:-8px;right:24px;width:24px;height:32px;background:var(--danger);clip-path:polygon(0 0,100% 0,100% 100%,50% 76%,0 100%);cursor:pointer;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
 
@@ -1931,3 +1932,24 @@ body[data-tool=hand] .textLayer,body[data-tool=zoom] .textLayer{pointer-events:n
 .spenAviso{position:fixed;left:0;top:0;z-index:61;display:flex;align-items:center;gap:8px;height:32px;padding:0 12px 0 8px;border-radius:16px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);box-shadow:var(--shadow-md);font-size:13px;font-weight:600;color:var(--text);pointer-events:none;white-space:nowrap;opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s}
 .spenAviso.show{opacity:1;transform:none}
 .spenAviso .i{width:16px;height:16px;flex:none}
+/* canetas favoritas: trilho na lateral da área de leitura (com a Caneta, quando há favoritos) */
+.favRail{position:absolute;left:8px;top:50%;transform:translateY(-50%);z-index:15;display:flex;flex-direction:column;gap:4px;padding:4px;border-radius:20px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);box-shadow:var(--shadow-md)}
+.favRail.direita{left:auto;right:24px}
+.favRail[hidden]{display:none}
+.favPen{width:32px;height:32px;display:grid;place-items:center;padding:0;border:none;border-radius:16px;background:none;cursor:pointer}
+.favPen:hover{background:var(--hover)}
+.favPen.on{background:var(--active);box-shadow:inset 0 0 0 2px var(--accent)}
+.favPen span{display:block;border-radius:50%}
+.favPen span.marca{border-radius:4px;opacity:.6}
+/* lupa de escrita: faixa ampliada embaixo da tela e o retângulo do trecho na página */
+.lupa{position:absolute;z-index:16;display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-lg)}
+.lupa[hidden]{display:none}
+.lupaBarra{display:flex;align-items:center;gap:4px;padding:4px 8px;border-bottom:1px solid var(--border)}
+.lupaBarra .lupaLinha{gap:4px}
+.lupaDica{flex:1;min-width:0;font-size:12px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lupaVista{position:relative;background:#fff;touch-action:none;cursor:crosshair}
+.lupaVista .lupaCanvas{border-radius:0}
+.lupaTinta,.lupaViva{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.lupaAlvo{position:absolute;z-index:4;border:2px dashed var(--accent);border-radius:4px;background:color-mix(in srgb,var(--accent) 6%,transparent);pointer-events:none}
+.lupaPega{position:absolute;left:-2px;top:-26px;width:32px;height:24px;display:grid;place-items:center;padding:0;border:none;border-radius:8px 8px 0 0;background:var(--accent);color:#fff;cursor:grab;pointer-events:auto;touch-action:none}
+.lupaPega .i{width:16px;height:16px}

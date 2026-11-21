@@ -57,7 +57,37 @@ const hexOf = k => { const c = App.colorOf(App.penColor(k)); return (k === 'mark
 const stateOf = k => ({ k, w: App.penWidth(k), color: hexOf(k), ...App.penOpt(k) });
 const sameCfg = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 const favs = () => ls.get('le.penFavs', []).filter(f => f && App.PENS[f.k]);
-function redraw(){ if (!pop) return; pop.innerHTML = ''; fillPop(); place(anchorEl); }
+function redraw(){ montaTrilho(); if (!pop) return; pop.innerHTML = ''; fillPop(); place(anchorEl); }
+
+// ---------- Canetas favoritas sempre à mão: trilho na lateral da área de leitura ----------
+// Aparece com a Caneta, quando há favoritos (estrela no painel da caneta) e a tela não é de celular.
+const trilho = el('div', 'favRail'); trilho.hidden = true;
+trilho.setAttribute('role', 'toolbar'); trilho.setAttribute('aria-label', 'Canetas favoritas');
+$('#stage').append(trilho);
+function montaTrilho(){
+  const list = favs();
+  const mostra = !!state.pdf && state.tool === 'ink' && list.length > 0 && innerWidth > 600 && !document.body.classList.contains('lendo');
+  trilho.hidden = !mostra;
+  if (!mostra) return;
+  // dock em pé encostado à esquerda: o trilho vai para a direita
+  const dock = $('#dock'), st = $('#stage').getBoundingClientRect(), dr = dock.getBoundingClientRect();
+  trilho.classList.toggle('direita', dock.classList.contains('vertical') && dr.left + dr.width / 2 < st.left + st.width / 2);
+  const cur = stateOf(state.pen);
+  trilho.replaceChildren(...list.map(f => {
+    const on = f.k === state.pen && sameCfg(f, cur), b = el('button', 'favPen' + (on ? ' on' : ''));
+    b.type = 'button'; b.title = `${App.PENS[f.k].label} · ${f.w}`; b.setAttribute('aria-label', b.title); b.setAttribute('aria-pressed', String(on));
+    const d = el('span'), lado = Math.max(8, Math.min(20, f.w * (f.k === 'marker' ? 0.9 : 2.4)));
+    d.style.background = f.color; d.style.width = d.style.height = lado + 'px';
+    if (f.k === 'marker') d.classList.add('marca');
+    b.append(d);
+    b.onmousedown = e => e.preventDefault();
+    b.onclick = () => applyFav(f);
+    return b;
+  }));
+}
+App.on('tool:changed', montaTrilho); App.on('doc:loaded', montaTrilho); App.on('doc:closed', montaTrilho);
+addEventListener('resize', montaTrilho);
+new MutationObserver(montaTrilho).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 function fillPop(){ if (state.tool === 'erase') eraserOpts(); else penPanel(state.tool === 'ink' ? state.pen : 'pen'); }
 App.penOptions = anchor => {
   if (pop) { closePenPop(); return; }
@@ -75,7 +105,9 @@ function preview(k){
   svg.paint = () => {
     const c = App.colorOf(App.penColor(k)), s = App.penStyle(k);
     path.style.setProperty('--c', c.hex); path.style.setProperty('--ci', c.ink);
-    App.paintInk(path, pts, { ...s, width: App.penWidth(k) * (k === 'marker' ? 1 : 1.6) }, { w: 200, h: 40 });
+    // com "Sensível à pressão", a prévia mostra a caneta apertando mais no meio do traço
+    const pp = s.pressao ? pts.map((q, i) => [q[0], q[1], +(0.3 + 0.65 * Math.sin(i / 32 * Math.PI)).toFixed(2)]) : pts;
+    App.paintInk(path, pp, { ...s, width: App.penWidth(k) * (k === 'marker' ? 1 : 1.6) }, { w: 200, h: 40 });
   };
   svg.paint();
   return svg;
@@ -138,7 +170,7 @@ function switchRow(label, on, set){
 function applyFav(f){
   App.setPen(f.k); App.setPenWidth(f.k, f.w); App.setPenColor(f.k, f.color);
   for (const o of Object.keys(App.penOpt(f.k))) if (f[o] !== undefined) App.setPenOpt(f.k, o, f[o]);
-  redraw();
+  redraw(); montaTrilho();
 }
 function penPanel(k){
   const P = App.PENS[k], compact = ls.get('le.penCompact', false), cur = stateOf(k), list = favs();
@@ -150,7 +182,7 @@ function penPanel(k){
   head.append(iconBtn('ppFavList' + (showFavs ? ' on' : ''), 'Ver favoritos', PEN_STAR, () => { showFavs = !showFavs; redraw(); }),
     iconBtn('ppStar' + (isFav ? ' on' : ''), isFav ? 'Tirar dos favoritos' : 'Guardar nos favoritos', STAR(isFav), () => {
       const next = isFav ? list.filter(f => !sameCfg(f, cur)) : [cur, ...list].slice(0, 8);
-      ls.set('le.penFavs', next); if (!isFav) showFavs = true;
+      ls.set('le.penFavs', next); if (!isFav) showFavs = true; montaTrilho();
       App.toast(isFav ? 'Tirado dos favoritos' : 'Guardado nos favoritos'); redraw();
     }),
     el('span', 'ppTitle', P.label),
@@ -195,10 +227,12 @@ function penPanel(k){
     });
     pop.append(lines);
   }
+  if (k === 'pen' && cur.tip === 'ball') pop.append(switchRow('Sensível à pressão (S Pen)', cur.pressao, v => { App.setPenOpt(k, 'pressao', v); pv.paint(); redraw(); }));
   pop.append(switchRow('Endireitar as linhas', cur.straight, v => { App.setPenOpt(k, 'straight', v); redraw(); }));
   if (k === 'marker') pop.append(switchRow('Ajustar a espessura ao texto', cur.fit, v => { App.setPenOpt(k, 'fit', v); redraw(); }));
   pop.append(switchRow('Segurar no fim vira reta ou forma', cur.shapes, v => { App.setPenOpt(k, 'shapes', v); redraw(); }));
   pop.append(switchRow('Só a caneta stylus desenha', state.penSeen, v => { state.penSeen = v; ls.set('le.penSeen', v); App.toast(v ? 'Só a caneta stylus desenha; o dedo rola a página.' : 'O dedo também desenha.'); }));
+  pop.append(App.btn(App.lupa?.aberta() ? 'Fechar a lupa de escrita' : 'Lupa de escrita', () => { closePenPop(); App.lupa?.alternar(); }, 'sm outline ppLupa'));
   pop.append(spenBox());
   colorRow(k, cur.color);
 }
@@ -615,9 +649,10 @@ function moveGesture(p, rect, start){
       sel.bar.hidden = false;
       if (cancel || Math.hypot(d[0] * p.base.w, d[1] * p.base.h) < 1) { els.forEach(x => x.removeAttribute('transform')); showSel(); return; }
       App.snapshot();
+      // pontos novos (os antigos ficam como estavam, para o desfazer)
       for (const it of sel.items) {
-        const path = pathsOf(it.h, it.pi)[it.k];
-        for (const q of path) { q[0] = +(q[0] + d[0]).toFixed(4); q[1] = +(q[1] + d[1]).toFixed(4); }
+        const paths = pathsOf(it.h, it.pi);
+        paths[it.k] = paths[it.k].map(q => [+(q[0] + d[0]).toFixed(4), +(q[1] + d[1]).toFixed(4), ...q.slice(2)]);
       }
       commit(p);
     },

@@ -32,7 +32,7 @@ App.PEN_TIPS = {
   marker: [['chisel', 'Ponta chanfrada'], ['round', 'Ponta redonda']],
 };
 App.PEN_LINES = [['solid', 'Linha contínua'], ['taper', 'Linha afinada nas pontas'], ['dash', 'Linha tracejada'], ['dot', 'Linha pontilhada']];
-const PEN_OPTS = { pen: { tip: 'ball', line: 'solid', straight: false, smooth: 0, shapes: false }, marker: { tip: 'chisel', opacity: 45, straight: false, fit: false, smooth: 0, shapes: false } };
+const PEN_OPTS = { pen: { tip: 'ball', line: 'solid', straight: false, smooth: 0, shapes: false, pressao: false }, marker: { tip: 'chisel', opacity: 45, straight: false, fit: false, smooth: 0, shapes: false } };
 App.penOpt = (k, o) => { const v = { ...PEN_OPTS[k], ...ls.get(penKey(k, 'Opts'), {}) }; return o ? v[o] : v; };
 App.setPenOpt = (k, o, val) => { ls.set(penKey(k, 'Opts'), { ...ls.get(penKey(k, 'Opts'), {}), [o]: val }); App.updatePenBtn(); };
 // o que fica guardado no traço: só o que difere do padrão (traços antigos continuam iguais)
@@ -40,6 +40,8 @@ App.penStyle = (k = state.pen) => {
   const o = App.penOpt(k), s = { marker: k === 'marker' };
   if (o.tip !== PEN_OPTS[k].tip) s.tip = o.tip;
   if (k === 'pen' && o.line !== 'solid') s.line = o.line;
+  // esferográfica sensível à pressão (opção): a espessura acompanha a força da caneta
+  if (k === 'pen' && o.pressao && o.tip === 'ball') s.pressao = true;
   if (k === 'marker' && o.opacity !== PEN_OPTS.marker.opacity) s.opacity = o.opacity;
   return s;
 };
@@ -175,7 +177,7 @@ App.spenOuvir = doc => {
 App.spenOuvir(document);
 function beginDraw(e, dl, p, rect, start, side){
   if (state.tool === 'note') { createNote(p, start); return null; }
-  try { dl.setPointerCapture(e.pointerId); } catch {}
+  if (!e.lupa) try { dl.setPointerCapture(e.pointerId); } catch {} // da lupa: o ponteiro fica com ela
   // com caneta stylus, o dedo só rola a página
   if (e.pointerType === 'touch' && state.penSeen && penTools.has(state.tool)) return { type: 'pan', sx: e.clientX, sy: e.clientY, st: viewer.scrollTop, sl: viewer.scrollLeft, cx: e.clientX, cy: e.clientY };
   if (side === 'laco' && App.lassoStart) return App.lassoStart(p, rect, start, dl, e);
@@ -195,7 +197,7 @@ function beginDraw(e, dl, p, rect, start, side){
   state.pen = penAntes;
   path.style.setProperty('--c', pc.hex); path.style.setProperty('--ci', pc.ink);
   svg.appendChild(path); dl.appendChild(svg);
-  const press = e.pointerType === 'pen' && !P.marker && (P.tip === 'fountain' || P.tip === 'brush');
+  const press = e.pointerType === 'pen' && !P.marker && (P.tip === 'fountain' || P.tip === 'brush' || P.pressao);
   const d = { type: 'ink', p, rect, pts: [press ? [...start, +(e.pressure || 0.5).toFixed(2)] : start], svg, path, cx: e.clientX, cy: e.clientY, pen: P, press, far: 0, sm: start, raf: 0, hold: null, holdAt: start, minD: e.pointerType === 'pen' ? 1 : 2 };
   if (P.marker && P.fit) App.pageText(p.num).then(t => { d.textItems = t.items; }).catch(() => {});
   armHold(d); paintStroke(d);
@@ -378,5 +380,12 @@ function finishDrawing(e, cancel){
 pagesEl.addEventListener('pointerup', e => { if (drawing && e.pointerId === drawing.id) finishDrawing(e); });
 pagesEl.addEventListener('pointercancel', e => { if (drawing && e.pointerId === drawing.id) finishDrawing(e, true); });
 
+// lupa de escrita (lupa.js): o traço feito nela entra pelo mesmo caminho do desenho na página
+App.lupaTraco = {
+  inicio: e => comecarTraco(e),
+  move: e => { const d = drawing; if (!d || e.pointerId !== d.id || d.type === 'pan') return; moverTraco(d, normPt(e, d.rect), e); },
+  fim: (e, cancela) => { if (drawing && e.pointerId === drawing.id) finishDrawing(e, cancela); },
+  atual: () => drawing,
+};
 App.updatePenBtn(); // botão da caneta já com a cor e a espessura guardadas
 })();

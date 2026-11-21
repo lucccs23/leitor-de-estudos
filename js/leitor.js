@@ -316,7 +316,8 @@ function reajustar(){
   const off = B.ancora != null ? B.ancora : offAtual();
   B.ancora = off;
   aplicarCss(); textosCache = null; reajustando = true;
-  requestAnimationFrame(() => { irOff(off); atualizar(); setTimeout(() => { reajustando = false; }, 200); });
+  // se a pessoa virou a página nesse meio-tempo (virar zera a âncora), não volta para a posição anotada
+  requestAnimationFrame(() => { if (B && B.ancora === off) irOff(off); atualizar(); setTimeout(() => { reajustando = false; }, 200); });
 }
 new ResizeObserver(() => { if (B && !root.hidden) reajustarDepois(); }).observe(root);
 

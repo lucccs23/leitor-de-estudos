@@ -133,6 +133,32 @@ const endPinch = () => {
   if (Math.abs(ratio - 1) > 0.03) App.zoomBy(ratio, mid);
 };
 viewer.addEventListener('touchend', e => { if (e.touches.length < 2) endPinch(); });
+
+// ---------- Toque com dois dedos desfaz, com três refaz (como nos apps de notas) ----------
+// Só vale um toque rápido (sem arrastar nem pinçar), fora do simulado e sem a S Pen por perto (seria a mão apoiada).
+let gesto = null;
+viewer.addEventListener('touchstart', e => {
+  if (!state.pdf) return;
+  if (!gesto) gesto = { t0: performance.now(), max: 0, ini: new Map(), mexeu: false };
+  gesto.max = Math.max(gesto.max, e.touches.length);
+  for (const t of e.changedTouches) gesto.ini.set(t.identifier, [t.clientX, t.clientY]);
+}, { passive: true });
+viewer.addEventListener('touchmove', e => {
+  if (!gesto || gesto.mexeu) return;
+  for (const t of e.changedTouches) { const p = gesto.ini.get(t.identifier); if (p && Math.hypot(t.clientX - p[0], t.clientY - p[1]) > 12) { gesto.mexeu = true; return; } }
+}, { passive: true });
+const fimGesto = e => {
+  if (!gesto || e.touches.length) return;
+  const g = gesto; gesto = null;
+  if (e.type === 'touchcancel' || g.mexeu || g.max < 2 || g.max > 3 || performance.now() - g.t0 > 350) return;
+  if (App.examOpen?.() || App.examViewOpen || (state.penSeen && App.penRecente?.(700))) return;
+  const refaz = g.max === 3, tinha = (refaz ? App.redoStack : App.undoStack)?.length;
+  App.calarAvisos(true);
+  try { refaz ? App.redo() : App.undo(); } finally { App.calarAvisos(false); }
+  App.toast(refaz ? (tinha ? 'Refeito (três dedos)' : 'Nada para refazer') : (tinha ? 'Desfeito (dois dedos; três refazem)' : 'Nada para desfazer'));
+};
+viewer.addEventListener('touchend', fimGesto);
+viewer.addEventListener('touchcancel', fimGesto);
 viewer.addEventListener('touchcancel', endPinch);
 
 // ---------- Toque e S Pen: selecionar texto (segurar e arrastar as alças, ou arrastar a caneta) ----------
