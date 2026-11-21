@@ -26,6 +26,7 @@ document.addEventListener('contextmenu', e => {
   const ferramenta = (id, nome, icone, sub) => ({ label: nome, icon: icone, sub, checked: state.tool === id, on: () => App.setTool(id) });
   App.popMenu(ponto(e.clientX, e.clientY), [
     { label: 'Adicionar nota aqui', icon: 'note', on: () => App.createNoteAt(p, pt) },
+    { label: 'Lupa de escrita aqui', icon: 'search', on: () => App.lupa.abrir(p, pt) },
     { label: marcada ? `Remover o marcador da página ${p.num}` : `Marcar a página ${p.num}`, icon: 'bookmark', checked: marcada, on: () => { App.goToPage(p.num, 0); setTimeout(App.toggleBookmark, 50); } },
     { label: 'Copiar o texto desta página', icon: 'copy', on: async () => { const t = await App.pageText(p.num); App.copyText((t.text || '').replace(/\s+/g, ' ').trim()); } },
     { sep: true },

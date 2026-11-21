@@ -177,7 +177,7 @@ App.spenOuvir = doc => {
 App.spenOuvir(document);
 function beginDraw(e, dl, p, rect, start, side){
   if (state.tool === 'note') { createNote(p, start); return null; }
-  try { dl.setPointerCapture(e.pointerId); } catch {}
+  if (!e.lupa) try { dl.setPointerCapture(e.pointerId); } catch {} // da lupa: o ponteiro fica com ela
   // com caneta stylus, o dedo só rola a página
   if (e.pointerType === 'touch' && state.penSeen && penTools.has(state.tool)) return { type: 'pan', sx: e.clientX, sy: e.clientY, st: viewer.scrollTop, sl: viewer.scrollLeft, cx: e.clientX, cy: e.clientY };
   if (side === 'laco' && App.lassoStart) return App.lassoStart(p, rect, start, dl, e);
@@ -380,5 +380,12 @@ function finishDrawing(e, cancel){
 pagesEl.addEventListener('pointerup', e => { if (drawing && e.pointerId === drawing.id) finishDrawing(e); });
 pagesEl.addEventListener('pointercancel', e => { if (drawing && e.pointerId === drawing.id) finishDrawing(e, true); });
 
+// lupa de escrita (lupa.js): o traço feito nela entra pelo mesmo caminho do desenho na página
+App.lupaTraco = {
+  inicio: e => comecarTraco(e),
+  move: e => { const d = drawing; if (!d || e.pointerId !== d.id || d.type === 'pan') return; moverTraco(d, normPt(e, d.rect), e); },
+  fim: (e, cancela) => { if (drawing && e.pointerId === drawing.id) finishDrawing(e, cancela); },
+  atual: () => drawing,
+};
 App.updatePenBtn(); // botão da caneta já com a cor e a espessura guardadas
 })();

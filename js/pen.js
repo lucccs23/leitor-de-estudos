@@ -232,6 +232,7 @@ function penPanel(k){
   if (k === 'marker') pop.append(switchRow('Ajustar a espessura ao texto', cur.fit, v => { App.setPenOpt(k, 'fit', v); redraw(); }));
   pop.append(switchRow('Segurar no fim vira reta ou forma', cur.shapes, v => { App.setPenOpt(k, 'shapes', v); redraw(); }));
   pop.append(switchRow('Só a caneta stylus desenha', state.penSeen, v => { state.penSeen = v; ls.set('le.penSeen', v); App.toast(v ? 'Só a caneta stylus desenha; o dedo rola a página.' : 'O dedo também desenha.'); }));
+  pop.append(App.btn(App.lupa?.aberta() ? 'Fechar a lupa de escrita' : 'Lupa de escrita', () => { closePenPop(); App.lupa?.alternar(); }, 'sm outline ppLupa'));
   pop.append(spenBox());
   colorRow(k, cur.color);
 }

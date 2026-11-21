@@ -10,7 +10,7 @@ const FILES = [
   './js/util.js', './js/core.js', './js/traco.js', './js/grifos.js', './js/caneta.js', './js/epub.js', './js/leitor.js', './js/dock.js', './js/pen.js', './js/sidebar.js', './js/search.js', './js/review.js', './js/export.js', './js/stats.js',
   './js/tabs.js', './js/home.js', './js/ocr.js', './js/tools.js', './js/gabarito.js', './js/exam.js', './js/library.js',
   './js/today.js', './js/summary.js', './js/split.js', './js/tts.js', './js/focus.js', './js/look.js', './js/file.js',
-  './js/ai.js', './js/airespostas.js', './js/toolbar.js', './js/palette.js', './js/news.js', './js/atualizar.js', './js/estatisticas.js', './js/plan.js', './js/siglas.js', './js/links.js', './js/sync.js', './js/leitura-pdf.js', './js/menupagina.js', './js/spen-visual.js', './js/touch.js', './js/main.js',
+  './js/ai.js', './js/airespostas.js', './js/toolbar.js', './js/palette.js', './js/news.js', './js/atualizar.js', './js/estatisticas.js', './js/plan.js', './js/siglas.js', './js/links.js', './js/sync.js', './js/leitura-pdf.js', './js/menupagina.js', './js/spen-visual.js', './js/lupa.js', './js/touch.js', './js/main.js',
 ];
 
 self.addEventListener('install', e => {
