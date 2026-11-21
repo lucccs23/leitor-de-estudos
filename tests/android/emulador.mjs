@@ -175,7 +175,7 @@ try {
   // tela em pé, como no celular
   const [lw, lh] = (sh('wm size').match(/(\d+)x(\d+)/) || []).slice(1).map(Number);
   passo('toca na borda direita');
-  await ev(`await until(() => !document.querySelector('#leitor').classList.contains('ui'), 6000); return 1`);
+  await ev(`await until(() => !document.querySelector('section.leitor').classList.contains('ui'), 6000); return 1`);
   const antes = await ev('return A.bookState()');
   sh(`input tap ${Math.round(lw * 0.93)} ${Math.round(lh * 0.5)}`);
   r = await ev(`await until(() => { const s = A.bookState(); return !s.carregando && (s.ch > ${antes.ch} || s.pag > ${antes.pag}); }, 8000); return A.bookState();`);
