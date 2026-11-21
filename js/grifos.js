@@ -14,20 +14,33 @@ function updateCurrentPage(...a){ return App.updateCurrentPage(...a); }
 const undoStack = [], redoStack = [];
 const updUndo = () => { const u = $('#btnUndo'), r = $('#btnRedo'); if (u) u.disabled = !undoStack.length; if (r) r.disabled = !redoStack.length; };
 App.updateUndoBtns = updUndo;
-function snapshot(){ undoStack.push(JSON.stringify(state.highlights)); if (undoStack.length > 80) undoStack.shift(); redoStack.length = 0; updUndo(); }
+// Cópia de cada passo do desfazer: copia os grifos e as partes, mas COMPARTILHA a lista de pontos de cada traço.
+// Os pontos de um traço nunca são alterados no lugar (apagar, mover ou mudar um traço cria pontos novos), então
+// guardar 80 passos de um caderno cheio custa poucos objetos, não 80 cópias de todos os pontos.
+function copiaGrifo(h){
+  const { parts, ...resto } = h, c = structuredClone(resto);
+  c.parts = parts.map(p => { const { paths, ...r } = p, cp = structuredClone(r); if (paths) cp.paths = paths.slice(); return cp; });
+  return c;
+}
+function snapshot(){ undoStack.push(state.highlights.map(copiaGrifo)); if (undoStack.length > 80) undoStack.shift(); redoStack.length = 0; updUndo(); }
 App.snapshot = snapshot;
-// "assinatura" de cada página: o que está desenhado nela (para redesenhar só as páginas que mudaram)
+// "assinatura" de cada página: o que está desenhado nela (para redesenhar só as páginas que mudaram).
+// Cada lista de pontos é reconhecida pela identidade (sem converter os pontos em texto).
+const idPontos = new WeakMap(); let nPontos = 0;
+const idDe = a => { let i = idPontos.get(a); if (!i) idPontos.set(a, i = ++nPontos); return i; };
 function porPagina(hls){
   const m = new Map();
-  for (const h of hls) { const s = JSON.stringify(h); for (const pt of h.parts) m.set(pt.page, (m.get(pt.page) || '') + s); }
+  for (const h of hls) {
+    const { parts, ...resto } = h, s = JSON.stringify(resto);
+    for (const pt of parts) m.set(pt.page, (m.get(pt.page) || '') + s + '|' + (pt.rects ? JSON.stringify(pt.rects) : '') + '|' + (pt.paths ? pt.paths.map(idDe).join(',') : '') + ';');
+  }
   return m;
 }
 function restoreFrom(from, to, msg){
   const antes = porPagina(state.highlights), selAntes = state.highlights.find(h => h.id === state.selected);
-  // a lista que sai da tela não muda mais (a nova é outra cópia): guarda ela mesma, sem copiar o caderno de novo
+  // a lista que sai da tela não muda mais (a que entra é outra cópia): guarda ela mesma
   to.push(state.highlights);
-  const v = from.pop();
-  state.highlights = typeof v === 'string' ? JSON.parse(v).map(normHl) : v;
+  state.highlights = from.pop();
   state.lastInk = null; closePopup();
   // desfazer pela S Pen tem de ser imediato: redesenhar todas as páginas levava meio segundo num caderno cheio
   const depois = porPagina(state.highlights), sujas = new Set(selAntes ? selAntes.parts.map(pt => pt.page) : []);

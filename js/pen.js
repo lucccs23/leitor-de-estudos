@@ -615,9 +615,10 @@ function moveGesture(p, rect, start){
       sel.bar.hidden = false;
       if (cancel || Math.hypot(d[0] * p.base.w, d[1] * p.base.h) < 1) { els.forEach(x => x.removeAttribute('transform')); showSel(); return; }
       App.snapshot();
+      // pontos novos (os antigos ficam como estavam, para o desfazer)
       for (const it of sel.items) {
-        const path = pathsOf(it.h, it.pi)[it.k];
-        for (const q of path) { q[0] = +(q[0] + d[0]).toFixed(4); q[1] = +(q[1] + d[1]).toFixed(4); }
+        const paths = pathsOf(it.h, it.pi);
+        paths[it.k] = paths[it.k].map(q => [+(q[0] + d[0]).toFixed(4), +(q[1] + d[1]).toFixed(4), ...q.slice(2)]);
       }
       commit(p);
     },
