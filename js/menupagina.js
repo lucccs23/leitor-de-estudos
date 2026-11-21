@@ -8,7 +8,7 @@ const App = window.App;
 const { $, el, state } = App;
 const viewer = $('#viewer'), pagesEl = $('#pages');
 const ponto = (x, y) => ({ getBoundingClientRect: () => ({ left: x, right: x, top: y, bottom: y, width: 1, height: 1 }) });
-const paginaEm = (x, y) => { const pe = document.elementFromPoint(x, y)?.closest?.('.page'); return pe ? state.pages[+pe.dataset.page - 1] : null; };
+const paginaEm = (x, y) => { const pe = document.elementFromPoint(x, y)?.closest?.('.page'); return pe ? App.paginaDe(+pe.dataset.page) : null; };
 
 // ---------- O menu ----------
 document.addEventListener('contextmenu', e => {
@@ -24,9 +24,23 @@ document.addEventListener('contextmenu', e => {
   const r = p.el.getBoundingClientRect(), pt = [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height];
   const marcada = state.bookmarks.some(b => b.page === p.num);
   const ferramenta = (id, nome, icone, sub) => ({ label: nome, icon: icone, sub, checked: state.tool === id, on: () => App.setTool(id) });
+  // folha de anotação: só o que vale numa folha (sem PDF: sem texto, marcador ou marcar área)
+  if (p.folha) {
+    App.popMenu(ponto(e.clientX, e.clientY), [
+      { label: 'Adicionar nota aqui', icon: 'note', on: () => App.createNoteAt(p, pt) },
+      { label: 'Lupa de escrita aqui', icon: 'search', on: () => App.lupa.abrir(p, pt) },
+      { sep: true },
+      ferramenta('text', 'Ferramenta Selecionar', 'text', 'V'),
+      ferramenta('hand', 'Ferramenta Mão', 'pointer', 'H'),
+      { sep: true },
+      { label: 'Apagar esta folha', icon: 'trash', on: () => App.folhas.apagar(p.num) },
+    ]);
+    return;
+  }
   App.popMenu(ponto(e.clientX, e.clientY), [
     { label: 'Adicionar nota aqui', icon: 'note', on: () => App.createNoteAt(p, pt) },
     { label: 'Lupa de escrita aqui', icon: 'search', on: () => App.lupa.abrir(p, pt) },
+    { label: 'Folha de anotação depois desta página', icon: 'file', on: () => App.folhas.inserir(p.num) },
     { label: marcada ? `Remover o marcador da página ${p.num}` : `Marcar a página ${p.num}`, icon: 'bookmark', checked: marcada, on: () => { App.goToPage(p.num, 0); setTimeout(App.toggleBookmark, 50); } },
     { label: 'Copiar o texto desta página', icon: 'copy', on: async () => { const t = await App.pageText(p.num); App.copyText((t.text || '').replace(/\s+/g, ' ').trim()); } },
     { sep: true },

@@ -234,7 +234,9 @@ function comecarTraco(e){
     if (e.pointerType === 'pen' && drawing.kind === 'touch') finishDrawing(e, true); // a caneta tem prioridade sobre a mão apoiada
     else { if (e.pointerType === 'touch' && drawing.kind === 'touch' && drawing.type !== 'pan') finishDrawing(e, true); return; } // dois dedos: é pinça, não traço
   }
-  const p = state.pages[+dl.parentElement.dataset.page - 1], rect = p.el.getBoundingClientRect(), start = normPt(e, rect);
+  const p = App.paginaDe(+dl.parentElement.dataset.page); if (!p) return;
+  if (p.folha && state.tool === 'area') return; // marcar área recorta a imagem do PDF: não há PDF na folha
+  const rect = p.el.getBoundingClientRect(), start = normPt(e, rect);
   e.preventDefault(); closePopup();
   drawing = beginDraw(e, dl, p, rect, start, side);
   if (drawing) { drawing.id = e.pointerId; drawing.kind = e.pointerType; drawing.t0 = performance.now(); drawing.dl = dl; drawing.side = side; drawing.e0 = { pointerId: e.pointerId, pointerType: e.pointerType, clientX: e.clientX, clientY: e.clientY, pressure: e.pressure }; }

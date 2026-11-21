@@ -45,7 +45,7 @@ function restoreFrom(from, to, msg){
   // desfazer pela S Pen tem de ser imediato: redesenhar todas as páginas levava meio segundo num caderno cheio
   const depois = porPagina(state.highlights), sujas = new Set(selAntes ? selAntes.parts.map(pt => pt.page) : []);
   for (const n of new Set([...antes.keys(), ...depois.keys()])) if (antes.get(n) !== depois.get(n)) sujas.add(n);
-  for (const n of sujas) renderPageAnnots(state.pages[n - 1]);
+  for (const n of sujas) renderPageAnnots(App.paginaDe(n));
   App.emit('page:annots');
   App.renderPanelSoon();
   App.saveDocSoon(); App.emit('hl:changed'); App.emit('undo:changed');
@@ -276,7 +276,7 @@ pagesEl.addEventListener('pointerdown', e => {
   if (!m || e.button !== 0) return;
   e.preventDefault(); e.stopPropagation();
   const h = state.highlights.find(x => x.id === m.dataset.id); if (!h) return;
-  const p = state.pages[h.parts[0].page - 1], pr = p.el.getBoundingClientRect();
+  const p = App.paginaDe(h.parts[0].page), pr = p.el.getBoundingClientRect();
   const start = { x: e.clientX, y: e.clientY }, r0 = { ...h.parts[0].rects[0] };
   let moved = false;
   m.setPointerCapture(e.pointerId);
@@ -346,12 +346,12 @@ function renderPageAnnots(p){
     p.hl.appendChild(g);
   }
 }
-const renderAllAnnots = App.renderAllAnnots = () => { state.pages.forEach(renderPageAnnots); App.emit('page:annots'); };
+const renderAllAnnots = App.renderAllAnnots = () => { state.pages.forEach(renderPageAnnots); App.folhas?.lista().forEach(renderPageAnnots); App.emit('page:annots'); };
 App.renderPageAnnots = p => { renderPageAnnots(p); App.emit('page:annots', p); };
 let painelT = 0;
 App.renderPanelSoon = () => { if (painelT) return; painelT = requestAnimationFrame(() => setTimeout(() => { painelT = 0; App.renderPanel(); }, 0)); };
 function refreshHighlight(h){
-  new Set(h.parts.map(x => x.page)).forEach(n => renderPageAnnots(state.pages[n - 1]));
+  new Set(h.parts.map(x => x.page)).forEach(n => renderPageAnnots(App.paginaDe(n)));
   App.renderPanelSoon(); App.saveDocSoon(); App.emit('hl:changed');
 }
 App.refreshHighlight = refreshHighlight;
@@ -362,7 +362,7 @@ function markSelected(){
 function hitTest(pageEl, cx, cy){
   const r = pageEl.getBoundingClientRect();
   const x = (cx - r.left) / r.width, y = (cy - r.top) / r.height, num = +pageEl.dataset.page;
-  const b = state.pages[num - 1].base;
+  const b = App.paginaDe(num).base;
   for (let i = state.highlights.length - 1; i >= 0; i--) {
     const h = state.highlights[i];
     if (h.kind === 'note') continue; // notas têm o próprio botão
@@ -393,10 +393,10 @@ App.anchorOf = h => {
 App.sortedHighlights = list => [...list].sort((a, b) => {
   if (a.ep && b.ep) return a.ep.ch - b.ep.ch || a.ep.s - b.ep.s;
   const A = App.anchorOf(a), B = App.anchorOf(b);
-  return A.page - B.page || A.y - B.y || A.x - B.x;
+  return App.ordemPagina(A.page) - App.ordemPagina(B.page) || A.y - B.y || A.x - B.x;
 });
 App.jumpTo = h => {
-  const a = App.anchorOf(h), p = state.pages[a.page - 1];
+  const a = App.anchorOf(h), p = App.paginaDe(a.page);
   if (!p) return;
   viewer.scrollTop = p.el.offsetTop + a.y * p.el.offsetHeight - viewer.clientHeight * 0.3;
   updateCurrentPage(); scheduleRender();

@@ -1953,3 +1953,12 @@ body[data-tool=hand] .textLayer,body[data-tool=zoom] .textLayer{pointer-events:n
 .lupaAlvo{position:absolute;z-index:4;border:2px dashed var(--accent);border-radius:4px;background:color-mix(in srgb,var(--accent) 6%,transparent);pointer-events:none}
 .lupaPega{position:absolute;left:-2px;top:-26px;width:32px;height:24px;display:grid;place-items:center;padding:0;border:none;border-radius:8px 8px 0 0;background:var(--accent);color:#fff;cursor:grab;pointer-events:auto;touch-action:none}
 .lupaPega .i{width:16px;height:16px}
+/* folhas de anotação do Vetra entre as páginas do PDF */
+.page.folha{background-color:#fff;--fl:rgba(70,110,170,.28)}
+.page.folha[data-estilo=pautada]{background-image:linear-gradient(to bottom,transparent calc(var(--linha) - 1px),var(--fl) calc(var(--linha) - 1px));background-size:100% var(--linha)}
+.page.folha[data-estilo=quadriculada]{background-image:linear-gradient(to bottom,transparent calc(var(--linha) - 1px),var(--fl) calc(var(--linha) - 1px)),linear-gradient(to right,transparent calc(var(--linha) - 1px),var(--fl) calc(var(--linha) - 1px));background-size:var(--linha) var(--linha)}
+[data-page=invert] .page.folha{background-color:#1f1f22;--fl:rgba(160,180,220,.18)}
+[data-page=sepia] .page.folha{background-color:#f6efdf}
+.folhaBarra{position:absolute;top:8px;right:8px;z-index:5;display:flex;align-items:center;gap:4px;padding:4px 4px 4px 12px;border-radius:12px;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);box-shadow:var(--shadow-sm);opacity:.55;transition:opacity .15s}
+.folha:hover .folhaBarra,.folhaBarra:focus-within{opacity:1}
+.folhaNome{font-size:12px;font-weight:600;color:var(--muted);margin-right:4px;white-space:nowrap}
