@@ -6,7 +6,7 @@
 (() => {
 'use strict';
 const App = window.App;
-const { el, state, ls } = App;
+const { $, el, state, ls } = App;
 const PEN_TOOLS = new Set(['ink', 'erase', 'lasso']);
 
 const anel = el('div', 'penAnel'); anel.hidden = true; document.body.append(anel);
@@ -40,15 +40,25 @@ function desenha(e){
   anel.style.transform = `translate(${e.clientX - d / 2}px, ${e.clientY - d / 2}px)`;
   anel.hidden = false;
 }
-addEventListener('pointerdown', e => { if (e.pointerType !== 'pen') return; encostada = true; desenha(e); }, { capture: true, passive: true });
-addEventListener('pointermove', e => { if (e.pointerType !== 'pen') return; encostada = !!(e.buttons & 1); desenha(e); }, { capture: true, passive: true });
-addEventListener('pointerup', e => { if (e.pointerType !== 'pen') return; encostada = false; desenha(e); }, { capture: true, passive: true });
+// O Android nem sempre avisa a página quando a caneta se afasta da tela, e o ponto ficava parado no meio dela.
+// Então o ponto só vive enquanto chegam sinais da caneta: pairando, a S Pen manda movimentos o tempo todo;
+// sem sinal por um instante, ele some. Também some ao rolar, ao tocar com o dedo e com o aviso do app de Android.
+let vidaT = null;
+const esconde = () => { clearTimeout(vidaT); anel.hidden = true; };
+const vive = () => { clearTimeout(vidaT); if (!anel.hidden) vidaT = setTimeout(esconde, encostada ? 1500 : 350); };
+addEventListener('pointerdown', e => { if (e.pointerType !== 'pen') { esconde(); return; } encostada = true; desenha(e); vive(); }, { capture: true, passive: true });
+addEventListener('pointermove', e => { if (e.pointerType !== 'pen') return; encostada = !!(e.buttons & 1); desenha(e); vive(); }, { capture: true, passive: true });
+addEventListener('pointerup', e => { if (e.pointerType !== 'pen') return; encostada = false; desenha(e); vive(); }, { capture: true, passive: true });
 // a caneta saiu de perto da tela (ou de cima da página)
-const some = e => { if (e.pointerType === 'pen' && (!e.relatedTarget || !e.relatedTarget.closest?.('#pages .page'))) anel.hidden = true; };
+const some = e => { if (e.pointerType === 'pen' && (!e.relatedTarget || !e.relatedTarget.closest?.('#pages .page'))) esconde(); };
 addEventListener('pointerout', some, true);
-addEventListener('pointercancel', e => { if (e.pointerType === 'pen') { encostada = false; anel.hidden = true; } }, true);
-App.on('tool:changed', () => { anel.hidden = true; });
-addEventListener('blur', () => { anel.hidden = true; });
+addEventListener('pointercancel', e => { if (e.pointerType === 'pen') { encostada = false; esconde(); } }, true);
+$('#viewer')?.addEventListener('scroll', () => { if (!encostada) esconde(); }, { passive: true });
+App.on('tool:changed', esconde);
+addEventListener('blur', esconde);
+document.addEventListener('visibilitychange', esconde);
+// app de Android: a caneta saiu do alcance da tela
+window.vetraSpenLonge = () => { encostada = false; esconde(); };
 
 // ---------- aviso perto da ponta ----------
 const aviso = el('div', 'spenAviso'); aviso.setAttribute('role', 'status'); document.body.append(aviso);

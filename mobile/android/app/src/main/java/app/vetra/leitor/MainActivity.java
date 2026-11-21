@@ -74,6 +74,11 @@ public class MainActivity extends BridgeActivity {
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent ev) {
         botaoDaCaneta(ev, false);
+        // a caneta saiu do alcance da tela: o Vetra apaga o ponto da ponta (a página nem sempre fica sabendo)
+        if (ev.getActionMasked() == MotionEvent.ACTION_HOVER_EXIT && ev.getPointerCount() > 0
+                && ev.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS && getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().evaluateJavascript("window.vetraSpenLonge && window.vetraSpenLonge()", null);
+        }
         return super.dispatchGenericMotionEvent(ev);
     }
 
