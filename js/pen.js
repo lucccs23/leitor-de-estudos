@@ -57,7 +57,37 @@ const hexOf = k => { const c = App.colorOf(App.penColor(k)); return (k === 'mark
 const stateOf = k => ({ k, w: App.penWidth(k), color: hexOf(k), ...App.penOpt(k) });
 const sameCfg = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 const favs = () => ls.get('le.penFavs', []).filter(f => f && App.PENS[f.k]);
-function redraw(){ if (!pop) return; pop.innerHTML = ''; fillPop(); place(anchorEl); }
+function redraw(){ montaTrilho(); if (!pop) return; pop.innerHTML = ''; fillPop(); place(anchorEl); }
+
+// ---------- Canetas favoritas sempre à mão: trilho na lateral da área de leitura ----------
+// Aparece com a Caneta, quando há favoritos (estrela no painel da caneta) e a tela não é de celular.
+const trilho = el('div', 'favRail'); trilho.hidden = true;
+trilho.setAttribute('role', 'toolbar'); trilho.setAttribute('aria-label', 'Canetas favoritas');
+$('#stage').append(trilho);
+function montaTrilho(){
+  const list = favs();
+  const mostra = !!state.pdf && state.tool === 'ink' && list.length > 0 && innerWidth > 600 && !document.body.classList.contains('lendo');
+  trilho.hidden = !mostra;
+  if (!mostra) return;
+  // dock em pé encostado à esquerda: o trilho vai para a direita
+  const dock = $('#dock'), st = $('#stage').getBoundingClientRect(), dr = dock.getBoundingClientRect();
+  trilho.classList.toggle('direita', dock.classList.contains('vertical') && dr.left + dr.width / 2 < st.left + st.width / 2);
+  const cur = stateOf(state.pen);
+  trilho.replaceChildren(...list.map(f => {
+    const on = f.k === state.pen && sameCfg(f, cur), b = el('button', 'favPen' + (on ? ' on' : ''));
+    b.type = 'button'; b.title = `${App.PENS[f.k].label} · ${f.w}`; b.setAttribute('aria-label', b.title); b.setAttribute('aria-pressed', String(on));
+    const d = el('span'), lado = Math.max(8, Math.min(20, f.w * (f.k === 'marker' ? 0.9 : 2.4)));
+    d.style.background = f.color; d.style.width = d.style.height = lado + 'px';
+    if (f.k === 'marker') d.classList.add('marca');
+    b.append(d);
+    b.onmousedown = e => e.preventDefault();
+    b.onclick = () => applyFav(f);
+    return b;
+  }));
+}
+App.on('tool:changed', montaTrilho); App.on('doc:loaded', montaTrilho); App.on('doc:closed', montaTrilho);
+addEventListener('resize', montaTrilho);
+new MutationObserver(montaTrilho).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 function fillPop(){ if (state.tool === 'erase') eraserOpts(); else penPanel(state.tool === 'ink' ? state.pen : 'pen'); }
 App.penOptions = anchor => {
   if (pop) { closePenPop(); return; }
@@ -140,7 +170,7 @@ function switchRow(label, on, set){
 function applyFav(f){
   App.setPen(f.k); App.setPenWidth(f.k, f.w); App.setPenColor(f.k, f.color);
   for (const o of Object.keys(App.penOpt(f.k))) if (f[o] !== undefined) App.setPenOpt(f.k, o, f[o]);
-  redraw();
+  redraw(); montaTrilho();
 }
 function penPanel(k){
   const P = App.PENS[k], compact = ls.get('le.penCompact', false), cur = stateOf(k), list = favs();
@@ -152,7 +182,7 @@ function penPanel(k){
   head.append(iconBtn('ppFavList' + (showFavs ? ' on' : ''), 'Ver favoritos', PEN_STAR, () => { showFavs = !showFavs; redraw(); }),
     iconBtn('ppStar' + (isFav ? ' on' : ''), isFav ? 'Tirar dos favoritos' : 'Guardar nos favoritos', STAR(isFav), () => {
       const next = isFav ? list.filter(f => !sameCfg(f, cur)) : [cur, ...list].slice(0, 8);
-      ls.set('le.penFavs', next); if (!isFav) showFavs = true;
+      ls.set('le.penFavs', next); if (!isFav) showFavs = true; montaTrilho();
       App.toast(isFav ? 'Tirado dos favoritos' : 'Guardado nos favoritos'); redraw();
     }),
     el('span', 'ppTitle', P.label),

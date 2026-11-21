@@ -1932,3 +1932,12 @@ body[data-tool=hand] .textLayer,body[data-tool=zoom] .textLayer{pointer-events:n
 .spenAviso{position:fixed;left:0;top:0;z-index:61;display:flex;align-items:center;gap:8px;height:32px;padding:0 12px 0 8px;border-radius:16px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);box-shadow:var(--shadow-md);font-size:13px;font-weight:600;color:var(--text);pointer-events:none;white-space:nowrap;opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s}
 .spenAviso.show{opacity:1;transform:none}
 .spenAviso .i{width:16px;height:16px;flex:none}
+/* canetas favoritas: trilho na lateral da área de leitura (com a Caneta, quando há favoritos) */
+.favRail{position:absolute;left:8px;top:50%;transform:translateY(-50%);z-index:15;display:flex;flex-direction:column;gap:4px;padding:4px;border-radius:20px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);box-shadow:var(--shadow-md)}
+.favRail.direita{left:auto;right:24px}
+.favRail[hidden]{display:none}
+.favPen{width:32px;height:32px;display:grid;place-items:center;padding:0;border:none;border-radius:16px;background:none;cursor:pointer}
+.favPen:hover{background:var(--hover)}
+.favPen.on{background:var(--active);box-shadow:inset 0 0 0 2px var(--accent)}
+.favPen span{display:block;border-radius:50%}
+.favPen span.marca{border-radius:4px;opacity:.6}
