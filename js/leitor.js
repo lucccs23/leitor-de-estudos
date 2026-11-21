@@ -40,7 +40,8 @@ const M = { mh: 24, mvT: 24 }; // margens em uso
 
 // ---------- Tela ----------
 const ic = n => App.icon(n);
-const root = el('section', 'leitor'); root.id = 'leitor'; root.hidden = true;
+// id diferente de "leitor": todo id vira variável global, e window.leitor é a ponte do app (main.js)
+const root = el('section', 'leitor'); root.id = 'leitorLivro'; root.hidden = true;
 root.setAttribute('aria-label', 'Leitor de livros');
 const frame = el('iframe', 'lrFrame');
 frame.setAttribute('sandbox', 'allow-same-origin'); // sem scripts do livro; o Vetra monta e lê o conteúdo
