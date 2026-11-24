@@ -1,7 +1,7 @@
 {
   "name": "vetra-android",
   "productName": "Vetra",
-  "version": "1.29.0",
+  "version": "1.29.1",
   "description": "Vetra para Android (Capacitor): o mesmo app do site, empacotado para funcionar offline",
   "private": true,
   "scripts": {
