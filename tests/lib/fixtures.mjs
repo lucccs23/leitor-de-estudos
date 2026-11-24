@@ -3,6 +3,7 @@ import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
 import { deflateRawSync, crc32 } from 'node:zlib';
+import { createHash, randomBytes } from 'node:crypto';
 
 const ROOT = new URL('../../', import.meta.url);
 function loadPdfLib(){
@@ -113,12 +114,54 @@ function epubBook({ titulo = 'Livro de Teste', autor = 'Autora Exemplo' } = {}){
   ]);
 }
 
+// PDF protegido pela senha "vetra123" (padrão do PDF: Standard Security Handler R2, RC4 de 40 bits), feito à mão
+// porque o pdf-lib não criptografa. Uma página com o texto "Texto secreto do Vetra".
+export const SENHA_TESTE = 'vetra123';
+function protectedPdf(senha){
+  const PAD = Buffer.from('28BF4E5E4E758A4164004E56FFFA01082E2E00B6D0683E802F0CA9FE6453697A', 'hex');
+  const pad = s => Buffer.concat([Buffer.from(s, 'latin1'), PAD]).subarray(0, 32);
+  const md5 = (...b) => createHash('md5').update(Buffer.concat(b)).digest();
+  const rc4 = (key, data) => {
+    const S = [...Array(256).keys()]; let j = 0;
+    for (let i = 0; i < 256; i++) { j = (j + S[i] + key[i % key.length]) & 255; [S[i], S[j]] = [S[j], S[i]]; }
+    const out = Buffer.alloc(data.length); let i = 0; j = 0;
+    for (let k = 0; k < data.length; k++) { i = (i + 1) & 255; j = (j + S[i]) & 255; [S[i], S[j]] = [S[j], S[i]]; out[k] = data[k] ^ S[(S[i] + S[j]) & 255]; }
+    return out;
+  };
+  const ID = randomBytes(16), P = -4, Pb = Buffer.alloc(4); Pb.writeInt32LE(P);
+  const O = rc4(md5(pad('dono-' + senha)).subarray(0, 5), pad(senha));
+  const KEY = md5(pad(senha), O, Pb, ID).subarray(0, 5), U = rc4(KEY, PAD);
+  const chaveObj = n => md5(KEY, Buffer.from([n & 255, (n >> 8) & 255, (n >> 16) & 255, 0, 0])).subarray(0, 10);
+  const hex = b => '<' + b.toString('hex') + '>';
+  const conteudo = Buffer.from('BT /F1 28 Tf 72 700 Td (Texto secreto do Vetra) Tj ET\nBT /F1 14 Tf 72 660 Td (Pagina protegida por senha, para os testes.) Tj ET', 'latin1');
+  const cifrado = rc4(chaveObj(4), conteudo);
+  const objs = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n',
+    null,
+    '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+    `6 0 obj\n<< /Filter /Standard /V 1 /R 2 /O ${hex(O)} /U ${hex(U)} /P ${P} >>\nendobj\n`,
+  ];
+  const partes = [Buffer.from('%PDF-1.4\n%\xe2\xe3\xcf\xd3\n', 'latin1')], offs = [];
+  let pos = partes[0].length;
+  for (const o of objs) {
+    offs.push(pos);
+    const b = o ? Buffer.from(o, 'latin1') : Buffer.concat([Buffer.from(`4 0 obj\n<< /Length ${cifrado.length} >>\nstream\n`, 'latin1'), cifrado, Buffer.from('\nendstream\nendobj\n', 'latin1')]);
+    partes.push(b); pos += b.length;
+  }
+  const xref = ['xref', `0 ${objs.length + 1}`, '0000000000 65535 f ', ...offs.map(o => String(o).padStart(10, '0') + ' 00000 n ')].join('\n') + '\n';
+  partes.push(Buffer.from(xref + `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R /Encrypt 6 0 R /ID [${hex(ID)} ${hex(ID)}] >>\nstartxref\n${pos}\n%%EOF\n`, 'latin1'));
+  return Buffer.concat(partes);
+}
+
 export async function makeFixtures(dir){
   mkdirSync(dir, { recursive: true });
   const P = loadPdfLib();
-  const files = { texto: join(dir, 'texto.pdf'), prova: join(dir, 'prova.pdf'), livro: join(dir, 'livro.epub') };
+  const files = { texto: join(dir, 'texto.pdf'), prova: join(dir, 'prova.pdf'), livro: join(dir, 'livro.epub'), protegido: join(dir, 'protegido.pdf') };
   writeFileSync(files.texto, await textPdf(P));
   writeFileSync(files.prova, await examPdf(P));
   writeFileSync(files.livro, epubBook());
+  writeFileSync(files.protegido, protectedPdf(SENHA_TESTE));
   return files;
 }
