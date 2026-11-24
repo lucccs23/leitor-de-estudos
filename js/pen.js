@@ -476,7 +476,7 @@ addEventListener('pointermove', e => {
   const show = !!dl && (erase || ink);
   ring.hidden = !show; if (!show) return;
   let s = ls.get('le.eraseSize', 18);
-  if (ink) { const pg = App.paginaDe(+dl.parentElement.dataset.page); s = Math.max(3, App.penWidth() * dl.getBoundingClientRect().width / pg.base.w); }
+  if (ink) { const pg = App.paginaDe(+dl.parentElement.dataset.page); s = Math.max(3, App.penWidth() * pg.el.offsetWidth / ((pg.el.dataset.rot || 0) % 180 ? pg.base.h : pg.base.w)); }
   ring.classList.toggle('inkRing', ink);
   ring.style.cssText = `width:${s}px;height:${s}px;left:${e.clientX - s / 2}px;top:${e.clientY - s / 2}px`;
   if (ink) { const c = App.colorOf(App.penColor()); ring.style.setProperty('--rc', state.pen === 'marker' ? c.hex : c.ink); }
@@ -527,7 +527,7 @@ function showSel(){
   if (!sel.items.length) { clearSel(); return; }
   markSel();
   const b = sel.bb = bbox();
-  if (!sel.box) { sel.box = el('div', 'lassoBox'); sel.p.el.append(sel.box); }
+  if (!sel.box) { sel.box = el('div', 'lassoBox'); sel.p.draw.append(sel.box); } // na camada de desenho: gira com a página
   sel.box.style.cssText = `left:${b.x * 100}%;top:${b.y * 100}%;width:${b.w * 100}%;height:${b.h * 100}%`;
   if (!sel.bar) {
     sel.bar = el('div', 'lassoBar'); sel.bar.setAttribute('role', 'toolbar'); sel.bar.setAttribute('aria-label', 'Traços selecionados');
@@ -538,10 +538,11 @@ function showSel(){
       App.ibtn('x', null, clearSel, 'sm', 'Tirar a seleção (Esc)'));
     sel.p.el.append(sel.bar);
   }
-  sel.bar.style.left = (b.x + b.w / 2) * 100 + '%';
-  sel.bar.style.top = b.y * 100 + '%';
-  sel.bar.classList.toggle('below', b.y < 0.06);
-  if (sel.bar.classList.contains('below')) sel.bar.style.top = (b.y + b.h) * 100 + '%';
+  // a barra fica de pé, sobre a caixa como ela aparece na tela (com a página girada, a caixa gira junto)
+  const bx = sel.box.getBoundingClientRect(), pr = sel.p.el.getBoundingClientRect(), topo = (bx.top - pr.top) / pr.height;
+  sel.bar.style.left = (bx.left + bx.width / 2 - pr.left) / pr.width * 100 + '%';
+  sel.bar.classList.toggle('below', topo < 0.06);
+  sel.bar.style.top = (sel.bar.classList.contains('below') ? (bx.bottom - pr.top) / pr.height : topo) * 100 + '%';
 }
 function commit(p){
   App.renderPageAnnots(p); App.renderPanel(); App.saveDocSoon(); App.emit('hl:changed');

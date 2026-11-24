@@ -81,6 +81,7 @@ App.fileSave = async () => {
   const rec = await getHandle(state.fp);
   if (!rec) return App.fileSaveAs();
   // a permissão é pedida antes de gerar o PDF (o pedido precisa vir logo depois do clique/atalho)
+  if (state.protegido) { await App.saveDoc(); App.toast(App.AVISO_SENHA); return; }
   if (!(await canWrite(rec.handle))) { App.toast('Sem permissão para gravar no arquivo. Use "Salvar como".'); return; }
   busy = true; App.setLoading(0.3);
   try {
@@ -96,6 +97,7 @@ App.fileSave = async () => {
 };
 App.fileSaveAs = async () => {
   if (!state.pdf || busy) return;
+  if (state.protegido) { await App.saveDoc(); App.toast(App.AVISO_SENHA); return; }
   if (!FSA || !('showSaveFilePicker' in window)) { App.savePdf(); return; }
   let handle;
   try {
@@ -132,7 +134,7 @@ App.fileShare = async () => {
   if (!state.pdf) return;
   try {
     await App.saveDoc();
-    const { bytes } = state.highlights.length ? await App.buildPdfBytes() : { bytes: new Uint8Array(state.bytes) };
+    const { bytes } = state.highlights.length && !state.protegido ? await App.buildPdfBytes() : { bytes: new Uint8Array(state.bytes) };
     const file = new File([bytes], state.name.replace(/\.pdf$/i, '') + '.pdf', { type: 'application/pdf' });
     await navigator.share({ files: [file], title: App.baseName(state.name) });
     setDirty(false);
@@ -142,9 +144,9 @@ App.fileShare = async () => {
 // ---------- Imprimir ----------
 App.filePrint = async () => {
   if (!state.pdf) return;
-  App.toast('Preparando para imprimir…');
+  App.toast(state.protegido ? 'Preparando para imprimir (PDF com senha: sai sem os grifos)…' : 'Preparando para imprimir…');
   try {
-    const { bytes } = state.highlights.length ? await App.buildPdfBytes() : { bytes: new Uint8Array(state.bytes) };
+    const { bytes } = state.highlights.length && !state.protegido ? await App.buildPdfBytes() : { bytes: new Uint8Array(state.bytes) };
     const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
     const fr = el('iframe'); fr.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;border:0;right:0;bottom:0';
     fr.src = url; document.body.append(fr);

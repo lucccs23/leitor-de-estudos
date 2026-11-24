@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App; // criado em util.js
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.29.1';
+App.VERSION = '1.30.0';
 App.VERSION_DATE = '19/11/2026';
 const { $, $$, el, btn, ls, DB, safe, uid, SVGNS, CSS_UNITS, clamp01, distSeg } = App;
 
@@ -143,6 +143,79 @@ App.setLoading = frac => {
   bar.classList.add('on'); bar.style.width = Math.round(Math.max(0.04, Math.min(1, frac)) * 100) + '%';
 };
 
+// ---------- PDF com senha ----------
+// As senhas digitadas ficam só na memória enquanto o Vetra está aberto (nunca são gravadas), para as outras
+// partes (busca em todos os PDFs, lado a lado) conseguirem abrir o mesmo arquivo sem perguntar de novo.
+const senhas = [];
+App.AVISO_SENHA = 'Este PDF tem senha: os grifos ficam guardados no Vetra, mas não dá para gravá-los dentro do arquivo.';
+App.pedirSenha = (nome, errou) => new Promise(ok => {
+  const d = App.dialog('senhaDlg', 'pomoDlg senhaDlg'); d.innerHTML = '';
+  const f = el('form'); f.method = 'dialog';
+  const campo = el('input'); campo.type = 'password'; campo.autocomplete = 'off'; campo.spellcheck = false; campo.setAttribute('aria-label', 'Senha do PDF');
+  const erro = el('p', 'senhaErro', errou ? 'Senha incorreta. Tente de novo.' : ''); erro.hidden = !errou;
+  const acoes = el('div', 'senhaAcoes');
+  const cancelar = App.btn('Cancelar', () => { d.close(); }, 'outline'); cancelar.type = 'button';
+  const abrir = el('button', 'btn primary', 'Abrir'); abrir.type = 'submit';
+  acoes.append(cancelar, abrir);
+  f.append(el('h3', null, 'Este PDF tem senha'), el('p', 'muted', App.baseName(nome || 'PDF')), campo, erro, acoes);
+  let valor = null;
+  f.onsubmit = e => { e.preventDefault(); valor = campo.value; d.close(); };
+  d.onclose = () => { const v = valor; campo.value = ''; ok(v || null); };
+  d.append(f); d.showModal(); campo.focus();
+});
+// abre com o pdf.js tentando as senhas já digitadas (sem perguntar); sem senha que sirva, dá o erro normal
+App.abrirPdfjs = async data => {
+  try { return await pdfjsLib.getDocument({ data: new Uint8Array(data.slice(0)) }).promise; }
+  catch (e) {
+    if (e?.name !== 'PasswordException') throw e;
+    for (const password of senhas) { try { return await pdfjsLib.getDocument({ data: new Uint8Array(data.slice(0)), password }).promise; } catch {} }
+    throw e;
+  }
+};
+
+// ---------- Girar a visualização (o arquivo não muda) ----------
+// A página inteira gira com CSS: imagem, texto, grifos, traços e notas continuam alinhados entre si. A caixa da
+// página fica com as medidas giradas; as camadas dentro dela têm as medidas originais (--pw, --ph) e giram juntas.
+// Posições na tela viram posições na página (frações 0–1 da página sem girar) por telaParaPagina.
+function tamanhoPagina(p, s){
+  const rot = p.folha ? 0 : (state.rotacao || 0), deitada = rot % 180 !== 0, w = p.base.w * s, h = p.base.h * s;
+  p.el.style.width = (deitada ? h : w) + 'px'; p.el.style.height = (deitada ? w : h) + 'px';
+  if (rot) { p.el.dataset.rot = rot; p.el.style.setProperty('--pw', w + 'px'); p.el.style.setProperty('--ph', h + 'px'); p.el.style.setProperty('--rot', rot + 'deg'); }
+  else { delete p.el.dataset.rot; p.el.style.removeProperty('--pw'); p.el.style.removeProperty('--ph'); p.el.style.removeProperty('--rot'); }
+}
+// tela → página: [x, y] em frações da página sem girar
+App.telaParaPagina = (pageEl, cx, cy, caixa = pageEl.getBoundingClientRect()) => {
+  const x = (cx - caixa.left) / caixa.width, y = (cy - caixa.top) / caixa.height, rot = +(pageEl.dataset.rot || 0);
+  return rot === 90 ? [y, 1 - x] : rot === 180 ? [1 - x, 1 - y] : rot === 270 ? [1 - y, x] : [x, y];
+};
+// página → tela
+App.paginaParaTela = (pageEl, u, v, caixa = pageEl.getBoundingClientRect()) => {
+  const rot = +(pageEl.dataset.rot || 0);
+  const [x, y] = rot === 90 ? [1 - v, u] : rot === 180 ? [1 - u, 1 - v] : rot === 270 ? [v, 1 - u] : [u, v];
+  return [caixa.left + x * caixa.width, caixa.top + y * caixa.height];
+};
+// retângulo da tela → retângulo na página (frações)
+App.retanguloNaPagina = (pageEl, r, caixa = pageEl.getBoundingClientRect()) => {
+  const [x1, y1] = App.telaParaPagina(pageEl, r.left, r.top, caixa), [x2, y2] = App.telaParaPagina(pageEl, r.right, r.bottom, caixa);
+  return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
+};
+// medidas da página para o desenho: largura e altura sem girar (para distâncias), e a conversão certa
+App.retPagina = pageEl => {
+  const b = pageEl.getBoundingClientRect(), rot = +(pageEl.dataset.rot || 0);
+  if (!rot) return b;
+  const deitada = rot % 180 !== 0;
+  return { left: b.left, top: b.top, right: b.right, bottom: b.bottom, width: deitada ? b.height : b.width, height: deitada ? b.width : b.height, rot, el: pageEl, caixa: b };
+};
+App.girar = (graus = 90) => {
+  if (!state.pdf) return;
+  state.rotacao = (((state.rotacao || 0) + graus) % 360 + 360) % 360;
+  App.lupa?.aberta() && App.lupa.fechar();
+  closePopup();
+  if (state.autoFit) App.setScale(autoScale(), false); else App.setScale(state.scale, true);
+  App.saveDocSoon(); App.emit('rotacao:changed', state.rotacao);
+  App.toast(state.rotacao ? `Visualização girada ${state.rotacao}° (o arquivo não muda)` : 'Visualização na posição original');
+};
+
 let loadSeq = 0;
 App.loadDoc = async (buf, name) => {
   // livro EPUB (um ZIP): abre no leitor de livros, sem converter
@@ -151,14 +224,28 @@ App.loadDoc = async (buf, name) => {
   const seq = ++loadSeq; // só a abertura mais recente vale
   closePopup();
   App.setLoading(0.08);
-  let pdf;
+  let pdf, protegido = false;
   try {
-    pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
+    pdf = await App.abrirPdfjs(buf);
+    protegido = senhas.length > 0 && await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise.then(d => { d.destroy(); return false; }, () => true);
   } catch (e) {
-    console.error(e);
-    App.setLoading(null);
-    if (seq === loadSeq) App.toast(e && e.name === 'PasswordException' ? 'PDF protegido por senha ainda não é suportado.' : 'Não consegui abrir este PDF — o arquivo pode estar corrompido.');
-    return false;
+    if (e?.name === 'PasswordException') {
+      // pede a senha (de novo, se errou) até abrir ou a pessoa cancelar
+      App.setLoading(null);
+      let errou = false;
+      while (!pdf) {
+        const password = await App.pedirSenha(name, errou);
+        if (!password) { if (seq === loadSeq) App.toast('Abertura cancelada.'); return false; }
+        try { pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)), password }).promise; senhas.push(password); protegido = true; }
+        catch (e2) { if (e2?.name !== 'PasswordException') { console.error(e2); App.toast('Não consegui abrir este PDF — o arquivo pode estar corrompido.'); return false; } errou = true; }
+      }
+      App.setLoading(0.08);
+    } else {
+      console.error(e);
+      App.setLoading(null);
+      if (seq === loadSeq) App.toast('Não consegui abrir este PDF — o arquivo pode estar corrompido.');
+      return false;
+    }
   }
   // tamanhos das páginas, em lotes paralelos (bem mais rápido em livros grandes)
   const n = pdf.numPages, sizes = new Array(n), BATCH = 48;
@@ -198,7 +285,7 @@ App.loadDoc = async (buf, name) => {
   Object.assign(state, {
     pdf, fp, name, bytes: buf, highlights: (rec.highlights || []).map(normHl), bookmarks: rec.bookmarks || [],
     stats: { time: rec.time || {}, visited: rec.visited || [] }, selected: null, filter: new Set(), query: '',
-    ocr: rec.ocr || {}, exams: rec.exams || [], folhas: rec.folhas || [],
+    ocr: rec.ocr || {}, exams: rec.exams || [], folhas: rec.folhas || [], protegido, rotacao: rec.rotacao || 0,
     textCache: new Map(), currentPage: 1, lastInk: null, thumb: rec.thumb || null,
   });
   App.undoStack.length = 0; App.redoStack.length = 0; updUndo();
@@ -250,7 +337,7 @@ App.closeDoc = async () => {
   await App.saveDoc();
   loadSeq++; state.token++; closePopup();
   if (state.pdf) state.pdf.destroy();
-  Object.assign(state, { pdf:null, fp:null, name:'', bytes:null, pages:[], highlights:[], bookmarks:[], textCache:new Map(), stats:{ time:{}, visited:[] }, thumb:null, ocr:{}, exams:[], folhas:[] });
+  Object.assign(state, { pdf:null, fp:null, name:'', bytes:null, pages:[], highlights:[], bookmarks:[], textCache:new Map(), stats:{ time:{}, visited:[] }, thumb:null, ocr:{}, exams:[], folhas:[], protegido:false, rotacao:0 });
   pagesEl.innerHTML = ''; document.body.classList.remove('has-doc');
   document.title = 'Vetra'; viewer.scrollTop = 0;
   App.emit('doc:closed');
@@ -277,7 +364,9 @@ const layout = App.layout = { spread: false, paged: false, ...ls.get('le.layout'
 // ajuste da página: 'width' (à largura) ou 'page' (página inteira na tela)
 state.fitMode = ls.get('le.fitMode', 'width') === 'page' ? 'page' : 'width';
 function fitScale(){
-  const p0 = state.pages[0], w = p0 ? p0.base.w : 612 * CSS_UNITS, h = p0 ? p0.base.h : 792 * CSS_UNITS;
+  const p0 = state.pages[0], deitada = (state.rotacao || 0) % 180 !== 0;
+  let w = p0 ? p0.base.w : 612 * CSS_UNITS, h = p0 ? p0.base.h : 792 * CSS_UNITS;
+  if (deitada) [w, h] = [h, w];
   let s = (viewer.clientWidth - 48 - (layout.spread ? 22 : 0)) / (w * (layout.spread ? 2 : 1));
   if (layout.paged || state.fitMode === 'page') s = Math.min(s, (viewer.clientHeight - 32) / h); // página inteira na tela
   return Math.max(0.3, s);
@@ -329,7 +418,7 @@ App.setScale = (s, keepAnchor = true, at = null) => {
     anchor = { p, oy, ox, ry: (py - p.el.offsetTop) / p.el.offsetHeight, rx: (px - p.el.offsetLeft) / p.el.offsetWidth };
   }
   state.scale = s;
-  for (const p of state.pages) { p.el.style.width = p.base.w * s + 'px'; p.el.style.height = p.base.h * s + 'px'; }
+  for (const p of state.pages) tamanhoPagina(p, s);
   App.folhas?.escala();
   // duas páginas: a largura da área fica exata para caberem 2 por linha
   if (layout.spread && state.pages.length) {
@@ -803,7 +892,7 @@ App.saveDoc = async () => {
   const cp = state.pages[state.currentPage - 1];
   const lastFrac = cp ? Math.max(0, Math.min(1, +((viewer.scrollTop - cp.el.offsetTop) / cp.el.offsetHeight).toFixed(4))) : 0;
   await safe(() => DB.update('docs', fp, (rec = {}) => ({
-    ...rec, fp, name: state.name, highlights: state.highlights, bookmarks: state.bookmarks, folhas: state.folhas,
+    ...rec, fp, name: state.name, highlights: state.highlights, bookmarks: state.bookmarks, folhas: state.folhas, rotacao: state.rotacao || 0,
     time: state.stats.time, visited: state.stats.visited, lastPage: state.currentPage, lastFrac, scale: state.scale,
     // quando a posição de leitura mudou de verdade (para a sincronização saber qual aparelho leu por último)
     posTs: rec.lastPage !== state.currentPage || Math.abs((rec.lastFrac || 0) - lastFrac) > 0.05 ? Date.now() : (rec.posTs || 0),

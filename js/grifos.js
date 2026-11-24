@@ -94,8 +94,9 @@ function createHighlight(color){
       if (r.width < 1 || r.height < 1) continue;
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       if (cx < pr.left || cx > pr.right || cy < pr.top || cy > pr.bottom) continue;
-      if (r.height > pr.height * 0.2) continue; // ignora caixas de contêiner
-      list.push({ x: (r.left - pr.left) / pr.width, y: (r.top - pr.top) / pr.height, w: r.width / pr.width, h: r.height / pr.height });
+      const q = App.retanguloNaPagina(p.el, r, pr);
+      if (q.h > 0.2) continue; // ignora caixas de contêiner (medido na página: com ela girada, a linha fica alta na tela)
+      list.push(q);
     }
     if (list.length) parts.push({ page: p.num, rects: mergeRects(list) });
   }
@@ -284,8 +285,9 @@ pagesEl.addEventListener('pointerdown', e => {
     if (!moved && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 4) return;
     if (!moved) { moved = true; snapshot(); closePopup(); }
     const r = h.parts[0].rects[0];
-    r.x = +clamp01(r0.x + (ev.clientX - start.x) / pr.width).toFixed(4);
-    r.y = +clamp01(r0.y + (ev.clientY - start.y) / pr.height).toFixed(4);
+    const [ax, ay] = App.telaParaPagina(p.el, start.x, start.y, pr), [bx, by] = App.telaParaPagina(p.el, ev.clientX, ev.clientY, pr);
+    r.x = +clamp01(r0.x + bx - ax).toFixed(4);
+    r.y = +clamp01(r0.y + by - ay).toFixed(4);
     m.style.left = r.x * 100 + '%'; m.style.top = r.y * 100 + '%';
   };
   const up = () => {
@@ -360,8 +362,7 @@ function markSelected(){
   if (state.selected) $$(`[data-id="${state.selected}"]`).forEach(x => { if (x.closest('.page')) x.classList.add('selected'); });
 }
 function hitTest(pageEl, cx, cy){
-  const r = pageEl.getBoundingClientRect();
-  const x = (cx - r.left) / r.width, y = (cy - r.top) / r.height, num = +pageEl.dataset.page;
+  const [x, y] = App.telaParaPagina(pageEl, cx, cy), num = +pageEl.dataset.page;
   const b = App.paginaDe(num).base;
   for (let i = state.highlights.length - 1; i >= 0; i--) {
     const h = state.highlights[i];
@@ -398,7 +399,8 @@ App.sortedHighlights = list => [...list].sort((a, b) => {
 App.jumpTo = h => {
   const a = App.anchorOf(h), p = App.paginaDe(a.page);
   if (!p) return;
-  viewer.scrollTop = p.el.offsetTop + a.y * p.el.offsetHeight - viewer.clientHeight * 0.3;
+  const [, ty] = App.paginaParaTela(p.el, a.x || 0, a.y), pr = p.el.getBoundingClientRect(); // com a página girada, o alto da tela é outro lado
+  viewer.scrollTop = p.el.offsetTop + (ty - pr.top) - viewer.clientHeight * 0.3;
   updateCurrentPage(); scheduleRender();
   state.selected = h.id; markSelected();
   $$(`.page [data-id="${h.id}"]`).forEach(g => { g.classList.remove('flash'); void g.getBoundingClientRect(); g.classList.add('flash'); });

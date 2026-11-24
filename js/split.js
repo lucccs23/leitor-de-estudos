@@ -33,7 +33,7 @@ $('#splitFile').onchange = async () => {
 async function open(bytes, name, fp, page = 1){
   const token = ++S.token;
   let pdf;
-  try { pdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytes.slice(0)) }).promise; }
+  try { pdf = await App.abrirPdfjs(bytes); }
   catch { App.toast('Não consegui abrir este PDF.'); return false; }
   const n = pdf.numPages, sizes = new Array(n);
   for (let i = 0; i < n; i += 48)

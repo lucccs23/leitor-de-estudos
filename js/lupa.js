@@ -212,6 +212,7 @@ App.lupa = {
   // p e ponto (frações da página) opcionais: sem eles, a página atual, no alto do que está na tela
   abrir(p, ponto){
     if (!state.pdf) return;
+    if (state.rotacao) { App.toast('A lupa de escrita funciona com a página na posição original (Exibir → Girar).'); return; }
     p = p || state.pages[(state.currentPage || 1) - 1] || state.pages[0];
     caixa.hidden = false; lugar();
     const r = p.el.getBoundingClientRect(), v = viewer.getBoundingClientRect();

@@ -199,6 +199,7 @@ function orgMove(targetKey, after){
   rest.splice(at, 0, ...moving); org.items = rest; buildGrid();
 }
 async function orgBuild(onlySelected){
+  if (state.protegido) { App.toast('Este PDF tem senha: não dá para montar um PDF novo a partir dele.'); return; }
   const items = onlySelected ? org.items.filter(it => org.sel.has(it.key)) : org.items;
   if (!items.length) return;
   const base = App.baseName(org.srcName);
