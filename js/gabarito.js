@@ -110,7 +110,7 @@ App.readKeyFile = async (file, n, onStatus = () => {}) => {
   const isPdf = /\.pdf$/i.test(name) || file.type === 'application/pdf' || (file.data && !file.type);
   if (isPdf) {
     const buf = file.data || await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
+    const pdf = await App.getDocument({ data: new Uint8Array(buf.slice(0)) });
     try {
       const allLines = [], commentLines = [];
       const last = Math.min(pdf.numPages, 60);

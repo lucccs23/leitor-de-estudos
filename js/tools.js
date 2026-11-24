@@ -259,7 +259,7 @@ async function addCombineFile(f){
   if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') { App.toast(`"${f.name}" não é PDF.`); return; }
   const buf = await f.arrayBuffer();
   try {
-    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
+    const pdf = await App.getDocument({ data: new Uint8Array(buf.slice(0)) });
     addCombineSource({ name: f.name, fp: pdf.fingerprints[0], pages: pdf.numPages, getBytes: async () => buf });
     pdf.destroy();
   } catch { App.toast(`Não consegui abrir "${f.name}".`); }
