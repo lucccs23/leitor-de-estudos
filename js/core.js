@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App; // criado em util.js
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.30.0';
+App.VERSION = '1.30.1';
 App.VERSION_DATE = '19/11/2026';
 const { $, $$, el, btn, ls, DB, safe, uid, SVGNS, CSS_UNITS, clamp01, distSeg } = App;
 
@@ -163,15 +163,31 @@ App.pedirSenha = (nome, errou) => new Promise(ok => {
   d.onclose = () => { const v = valor; campo.value = ''; ok(v || null); };
   d.append(f); d.showModal(); campo.focus();
 });
-// abre com o pdf.js tentando as senhas já digitadas (sem perguntar); sem senha que sirva, dá o erro normal
-App.abrirPdfjs = async data => {
-  try { return await pdfjsLib.getDocument({ data: new Uint8Array(data.slice(0)) }).promise; }
+// Abrir PDF (todas as partes do app passam por aqui). O leitor de PDF (pdf.js) é compartilhado: fechar um PDF o
+// desmonta por um instante, e abrir outro nesse meio-tempo falhava ("the worker is being destroyed"), parecendo um
+// arquivo corrompido (fechar e reabrir na hora, ou reabrir um PDF com senha). Abrir espera a desmontagem terminar.
+let desmontando = Promise.resolve();
+App.getDocument = async src => {
+  await desmontando;
+  const tarefa = pdfjsLib.getDocument(src);
+  let doc;
+  try { doc = await tarefa.promise; }
+  catch (e) { desmontando = tarefa.destroy().catch(() => {}); await desmontando; throw e; }
+  const fechar = doc.destroy.bind(doc);
+  doc.destroy = () => (desmontando = Promise.resolve(fechar()).catch(() => {}));
+  return doc;
+};
+const tentaAbrir = (data, password) => App.getDocument({ data: new Uint8Array(data.slice(0)), ...(password != null ? { password } : {}) });
+// abre tentando as senhas já digitadas (sem perguntar); comSenha diz se precisou de senha
+async function abrirComSenhas(data){
+  try { return { pdf: await tentaAbrir(data), comSenha: false }; }
   catch (e) {
     if (e?.name !== 'PasswordException') throw e;
-    for (const password of senhas) { try { return await pdfjsLib.getDocument({ data: new Uint8Array(data.slice(0)), password }).promise; } catch {} }
+    for (const password of senhas) { try { return { pdf: await tentaAbrir(data, password), comSenha: true }; } catch {} }
     throw e;
   }
-};
+}
+App.abrirPdfjs = async data => (await abrirComSenhas(data)).pdf;
 
 // ---------- Girar a visualização (o arquivo não muda) ----------
 // A página inteira gira com CSS: imagem, texto, grifos, traços e notas continuam alinhados entre si. A caixa da
@@ -226,8 +242,7 @@ App.loadDoc = async (buf, name) => {
   App.setLoading(0.08);
   let pdf, protegido = false;
   try {
-    pdf = await App.abrirPdfjs(buf);
-    protegido = senhas.length > 0 && await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise.then(d => { d.destroy(); return false; }, () => true);
+    ({ pdf, comSenha: protegido } = await abrirComSenhas(buf));
   } catch (e) {
     if (e?.name === 'PasswordException') {
       // pede a senha (de novo, se errou) até abrir ou a pessoa cancelar
@@ -236,7 +251,7 @@ App.loadDoc = async (buf, name) => {
       while (!pdf) {
         const password = await App.pedirSenha(name, errou);
         if (!password) { if (seq === loadSeq) App.toast('Abertura cancelada.'); return false; }
-        try { pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)), password }).promise; senhas.push(password); protegido = true; }
+        try { pdf = await tentaAbrir(buf, password); senhas.push(password); protegido = true; }
         catch (e2) { if (e2?.name !== 'PasswordException') { console.error(e2); App.toast('Não consegui abrir este PDF — o arquivo pode estar corrompido.'); return false; } errou = true; }
       }
       App.setLoading(0.08);
