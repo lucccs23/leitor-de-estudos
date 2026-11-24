@@ -44,7 +44,7 @@ async function chaptersFor(rec){
   const f = await safe(() => DB.get('files', rec.fp), null);
   if (!f || !window.pdfjsLib) return [];
   let pdf = null;
-  try { pdf = await pdfjsLib.getDocument({ data: new Uint8Array(f.data.slice(0)) }).promise; return await App.chapters(pdf); }
+  try { pdf = await App.abrirPdfjs(f.data); return await App.chapters(pdf); }
   catch { return []; } finally { pdf && pdf.destroy(); }
 }
 function mdDoc(rec, chaps, opt, level){
@@ -162,6 +162,8 @@ const rgb = hex => [1, 3, 5].map(i => +(parseInt(hex.slice(i, i + 2), 16) / 255)
 const OWN = 'Vetra';
 App.OWN_ANNOT = OWN;
 App.buildPdfBytes = async () => {
+  // PDF com senha: o conteúdo é criptografado e não dá para regravá-lo sem estragar (os grifos ficam no Vetra)
+  if (state.protegido) throw Object.assign(new Error('PDF com senha'), { protegido: true });
   const { PDFDocument, PDFHexString, PDFName, PDFString, PDFDict } = PDFLib;
   const doc = await PDFDocument.load(new Uint8Array(state.bytes.slice(0)), { ignoreEncryption: true, updateMetadata: false });
   const pages = doc.getPages();
@@ -277,7 +279,7 @@ App.savePdf = async () => {
     App.toast(`PDF salvo com ${count} marcação(ões)${ocrPages ? ` e texto pesquisável em ${ocrPages} página(s)` : ''} — veja na pasta Downloads.`);
   } catch (e) {
     console.error(e);
-    App.toast('Não consegui gerar o PDF grifado (o arquivo pode ser protegido).');
+    App.toast(e?.protegido ? App.AVISO_SENHA : 'Não consegui gerar o PDF grifado (o arquivo pode ser protegido).');
   }
 };
 

@@ -1962,3 +1962,13 @@ body[data-tool=hand] .textLayer,body[data-tool=zoom] .textLayer{pointer-events:n
 .folhaBarra{position:absolute;top:8px;right:8px;z-index:5;display:flex;align-items:center;gap:4px;padding:4px 4px 4px 12px;border-radius:12px;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);box-shadow:var(--shadow-sm);opacity:.55;transition:opacity .15s}
 .folha:hover .folhaBarra,.folhaBarra:focus-within{opacity:1}
 .folhaNome{font-size:12px;font-weight:600;color:var(--muted);margin-right:4px;white-space:nowrap}
+/* janela da senha do PDF */
+.senhaDlg form{display:flex;flex-direction:column;gap:8px;min-width:min(360px,80vw);padding:24px}
+.senhaDlg h3{margin:0}
+.senhaDlg p{margin:0}
+.senhaDlg input{height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:var(--input);color:var(--text);font-size:15px}
+.senhaErro{color:var(--danger);font-size:13px}
+.senhaAcoes{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+/* página com a visualização girada: as camadas têm as medidas originais e giram juntas, no centro da página */
+.page[data-rot]>:is(.pageCanvas,.imgLayer,.textLayer,.hlLayer,.inkLayer,.searchLayer,.drawLayer,.noteLayer){position:absolute;inset:auto;left:50%;top:50%;width:var(--pw);height:var(--ph);transform:translate(-50%,-50%) rotate(var(--rot));transform-origin:center}
+.page[data-rot] .noteMark{rotate:calc(-1 * var(--rot))}

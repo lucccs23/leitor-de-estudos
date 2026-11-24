@@ -797,8 +797,8 @@ function paintAlts(q){
 }
 function altAt(e2){
   const pageEl = e2.target.closest && e2.target.closest('.page'); if (!pageEl) return null;
-  const r = pageEl.getBoundingClientRect(), num = +pageEl.dataset.page;
-  const x = (e2.clientX - r.left) / r.width, y = (e2.clientY - r.top) / r.height;
+  const num = +pageEl.dataset.page;
+  const [x, y] = App.telaParaPagina(pageEl, e2.clientX, e2.clientY);
   for (const [q, m] of Object.entries(altMap)) for (const [Lt, b] of Object.entries(m))
     if (b.page === num && x >= b.x && x <= b.x1 && y >= b.y && y <= b.y1) return { q: +q, L: Lt };
   return null;

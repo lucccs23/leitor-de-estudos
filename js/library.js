@@ -212,7 +212,7 @@ setTimeout(async () => {
 async function indexFromFile(d){
   const f = await safe(() => DB.get('files', d.fp), null); if (!f) return null;
   let pdf;
-  try { pdf = await pdfjsLib.getDocument({ data: new Uint8Array(f.data.slice(0)) }).promise; } catch { return null; }
+  try { pdf = await App.abrirPdfjs(f.data); } catch { return null; }
   try { return await saveIndex(d.fp, await extractText(pdf, d.ocr), d.ocr); } finally { pdf.destroy(); }
 }
 

@@ -21,7 +21,7 @@ document.addEventListener('contextmenu', e => {
   App.closePopup();
   const h = App.hlAt(p.el, e.clientX, e.clientY);
   if (h) { App.editHl(h, e.clientX, e.clientY); return; }
-  const r = p.el.getBoundingClientRect(), pt = [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height];
+  const pt = App.telaParaPagina(p.el, e.clientX, e.clientY);
   const marcada = state.bookmarks.some(b => b.page === p.num);
   const ferramenta = (id, nome, icone, sub) => ({ label: nome, icon: icone, sub, checked: state.tool === id, on: () => App.setTool(id) });
   // folha de anotação: só o que vale numa folha (sem PDF: sem texto, marcador ou marcar área)
@@ -52,6 +52,8 @@ document.addEventListener('contextmenu', e => {
     { label: 'Aumentar o zoom aqui', icon: 'plus', on: () => App.zoomBy(1.25, { x: e.clientX, y: e.clientY }) },
     { label: 'Diminuir o zoom', icon: 'minus', on: () => App.zoomBy(1 / 1.25, { x: e.clientX, y: e.clientY }) },
     { label: 'Ajustar à largura', icon: 'fit', sub: 'Ctrl+0', on: () => App.fitWidth() },
+    { label: 'Girar a visualização para a direita', icon: 'rotr', on: () => App.girar(90) },
+    { label: 'Girar a visualização para a esquerda', icon: 'rotl', on: () => App.girar(-90) },
     { sep: true },
     { label: 'Localizar', icon: 'search', sub: 'Ctrl+F', on: () => App.openSearch() },
     { label: 'Imprimir…', icon: 'printer', sub: 'Ctrl+P', on: () => App.filePrint() },

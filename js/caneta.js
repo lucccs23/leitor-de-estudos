@@ -90,7 +90,8 @@ App.penRecente = (ms = 700) => performance.now() - penUlt < ms;
 App.penOcupada = () => !!drawing || App.penRecente(1200);
 // mão apoiada na tela: com a caneta por perto (ou um toque largo, de palma) o toque não rola nem desenha
 const ehPalma = e => e.pointerType === 'touch' && state.penSeen && penTools.has(state.tool) && (App.penRecente(700) || Math.max(e.width || 0, e.height || 0) > 48);
-const normPt = (e, r) => [clamp01((e.clientX - r.left) / r.width), clamp01((e.clientY - r.top) / r.height)];
+// posição do evento na página (frações 0–1); com a página girada, a conversão considera a rotação
+const normPt = (e, r) => { if (r.rot) { const [x, y] = App.telaParaPagina(r.el, e.clientX, e.clientY, r.caixa); return [clamp01(x), clamp01(y)]; } return [clamp01((e.clientX - r.left) / r.width), clamp01((e.clientY - r.top) / r.height)]; };
 // botão lateral: pelo navegador (botões 2/32) ou pelo app de Android, que lê o botão direto da caneta (spenNativo)
 let spenNativo = false;
 const isSidePen = e => e.pointerType === 'pen' && (e.button === 2 || e.button === 5 || !!(e.buttons & 34) || spenNativo);
@@ -236,7 +237,7 @@ function comecarTraco(e){
   }
   const p = App.paginaDe(+dl.parentElement.dataset.page); if (!p) return;
   if (p.folha && state.tool === 'area') return; // marcar área recorta a imagem do PDF: não há PDF na folha
-  const rect = p.el.getBoundingClientRect(), start = normPt(e, rect);
+  const rect = App.retPagina(p.el), start = normPt(e, rect);
   e.preventDefault(); closePopup();
   drawing = beginDraw(e, dl, p, rect, start, side);
   if (drawing) { drawing.id = e.pointerId; drawing.kind = e.pointerType; drawing.t0 = performance.now(); drawing.dl = dl; drawing.side = side; drawing.e0 = { pointerId: e.pointerId, pointerType: e.pointerType, clientX: e.clientX, clientY: e.clientY, pressure: e.pressure }; }
@@ -251,7 +252,7 @@ function spenConverteTraco(){
   if (!nd) return;
   Object.assign(nd, { id: d.id, kind: 'pen', t0: d.t0, dl: d.dl, side: tela, e0: d.e0 });
   drawing = nd;
-  for (const q of pts.slice(1)) moverTraco(nd, q, { clientX: d.rect.left + q[0] * d.rect.width, clientY: d.rect.top + q[1] * d.rect.height, pressure: 0.5, pointerId: d.id });
+  for (const q of pts.slice(1)) { const [cx, cy] = App.paginaParaTela(d.p.el, q[0], q[1]); moverTraco(nd, q, { clientX: cx, clientY: cy, pressure: 0.5, pointerId: d.id }); }
 }
 pagesEl.addEventListener('pointerdown', comecarTraco);
 // S Pen com o botão lateral já apertado ao encostar: o navegador não manda "pointerdown" (é um botão a mais num
