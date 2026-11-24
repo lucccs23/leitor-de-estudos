@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App; // criado em util.js
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.29.0';
+App.VERSION = '1.29.1';
 App.VERSION_DATE = '19/11/2026';
 const { $, $$, el, btn, ls, DB, safe, uid, SVGNS, CSS_UNITS, clamp01, distSeg } = App;
 
@@ -207,7 +207,7 @@ App.loadDoc = async (buf, name) => {
 
   // guarda o arquivo só se ainda não estiver salvo (evita regravar livros grandes a cada abertura)
   if (!(await safe(() => DB.has('files', fp), false))) await safe(() => DB.put('files', { fp, data: buf }));
-  await safe(() => DB.update('docs', fp, cur => ({ ...(cur || rec), fp, name, highlights: state.highlights, bookmarks: state.bookmarks, ts: Date.now(), hasFile: true, pages: n })));
+  await safe(() => DB.update('docs', fp, cur => ({ ...(cur || rec), fp, name, highlights: state.highlights, bookmarks: state.bookmarks, ts: Date.now(), hasFile: true, removidoAqui: false, pages: n })));
   App.pruneFiles();
 
   pagesEl.innerHTML = '';
@@ -261,7 +261,7 @@ App.dropFile = async fp => {
   await safe(() => DB.del('files', fp));
   await safe(() => DB.del('meta', 'tx:' + fp));
   await safe(() => DB.del('meta', 'sg:' + fp));
-  await App.patchDoc(fp, { hasFile: false });
+  await App.patchDoc(fp, { hasFile: false, removidoAqui: true });
 };
 App.pruneFiles = async () => {
   const keep = new Set((App.tabList ? App.tabList() : []).map(t => t.fp));

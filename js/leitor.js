@@ -891,7 +891,7 @@ App.openBook = async (book, op = {}) => {
   let rec = {};
   if (!ro) {
     rec = await safe(() => DB.get('docs', book.fp), null) || {};
-    rec = await safe(() => DB.update('docs', book.fp, cur => ({ ...(cur || {}), fp: book.fp, name: book.name, kind: 'epub', author: book.author || '', hasFile: true, ts: Date.now(), pages: book.spine.length,
+    rec = await safe(() => DB.update('docs', book.fp, cur => ({ ...(cur || {}), fp: book.fp, name: book.name, kind: 'epub', author: book.author || '', hasFile: true, removidoAqui: false, ts: Date.now(), pages: book.spine.length,
       highlights: (cur && cur.highlights) || [], bookmarks: (cur && cur.bookmarks) || [] })), null) || rec;
   }
   B = { book, fp: book.fp, ro, rec, hls: (rec.highlights || []).map(App.normHl).filter(h => h.ep), marks: rec.bookmarks || [], ch: 0, pag: 0,

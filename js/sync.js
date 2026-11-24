@@ -186,7 +186,7 @@ async function doSync({ manual } = {}){
           if (!f || f.data.byteLength > MAX_PDF) continue;
           await putFile(path, new Uint8Array(f.data), null, `PDF: ${App.baseName(d.name)}`);
           stats.pdfUp++;
-        } else if (!d.hasFile && rsha) {
+        } else if (!d.hasFile && rsha && !d.removidoAqui) { // removido da lista neste aparelho: não volta sozinho
           const bytes = await getBlob(rsha);
           await safe(() => DB.put('files', { fp: d.fp, data: bytes.buffer }));
           await App.patchDoc(d.fp, { hasFile: true });
