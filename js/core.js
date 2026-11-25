@@ -3,7 +3,7 @@
 'use strict';
 const App = window.App; // criado em util.js
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.30.1';
+App.VERSION = '1.30.2';
 App.VERSION_DATE = '19/11/2026';
 const { $, $$, el, btn, ls, DB, safe, uid, SVGNS, CSS_UNITS, clamp01, distSeg } = App;
 
@@ -950,15 +950,71 @@ if (chan) chan.onmessage = async ({ data }) => {
 
 // ---------- Interação com o texto ----------
 let downPos = null;
+// Seleção precisa: enquanto arrasta, um fundo invisível (endOfContent) cobre a camada de texto e fica logo depois do
+// ponto onde a seleção termina. Assim, passar por um espaço vazio (margem, vão entre linhas) segura a seleção onde
+// está, em vez de o navegador esticá-la até o fim da página (ou pegar a tela inteira do app).
+let selecionando = false, rangeAnterior = null;
+const fimDaCamada = tl => tl.querySelector('.endOfContent');
+const soltaFins = () => {
+  for (const fim of $$('.textLayer .endOfContent')) {
+    const tl = fim.closest('.textLayer');
+    fim.classList.remove('active'); fim.style.width = fim.style.height = '';
+    if (fim.parentElement !== tl || tl.lastElementChild !== fim) tl.append(fim);
+  }
+  rangeAnterior = null;
+};
+viewer.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || state.tool !== 'text') return;
+  soltaFins();
+  const tl = e.target.closest('.textLayer');
+  if (!tl) return;
+  selecionando = true;
+  fimDaCamada(tl)?.classList.add('active');
+});
+document.addEventListener('selectionchange', () => {
+  if (!selecionando) return;
+  const sel = getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  // toda camada de texto que a seleção atravessa fica coberta pelo fundo (vãos de outras páginas também seguram)
+  for (const tl of $$('.textLayer')) if (range.intersectsNode(tl)) fimDaCamada(tl)?.classList.add('active');
+  // qual ponta está mexendo: a do começo (arrastando para cima) ou a do fim
+  const mexeInicio = rangeAnterior && (range.compareBoundaryPoints(Range.END_TO_END, rangeAnterior) === 0 || range.compareBoundaryPoints(Range.START_TO_END, rangeAnterior) === 0);
+  rangeAnterior = range.cloneRange();
+  let ponta = mexeInicio ? range.startContainer : range.endContainer;
+  if (ponta.nodeType === Node.TEXT_NODE) ponta = ponta.parentNode;
+  if (!ponta?.closest || ponta.classList?.contains('endOfContent') || ponta.classList?.contains('textLayer')) return;
+  const tl = ponta.closest('.textLayer'), fim = tl && fimDaCamada(tl);
+  if (!fim) return;
+  fim.style.width = tl.clientWidth + 'px'; fim.style.height = tl.clientHeight + 'px';
+  ponta.parentElement.insertBefore(fim, mexeInicio ? ponta : ponta.nextSibling);
+});
+// ponteiro na margem ao lado de uma linha (fora das letras): a seleção vai até o fim (ou começo) dessa linha,
+// sem perder a última letra
+viewer.addEventListener('pointermove', e => {
+  if (!selecionando || !(e.buttons & 1) || !e.target.classList?.contains('endOfContent')) return;
+  const tl = e.target.closest('.textLayer'), sel = getSelection();
+  if (!tl || !sel.rangeCount || sel.isCollapsed || tl.closest('.page[data-rot]')) return;
+  let perto = null, dist = Infinity;
+  for (const sp of tl.querySelectorAll('span:not(.markedContent)')) {
+    const r = sp.getBoundingClientRect();
+    if (!r.height || e.clientY < r.top || e.clientY > r.bottom) continue;
+    const d = e.clientX < r.left ? r.left - e.clientX : e.clientX > r.right ? e.clientX - r.right : 0;
+    if (d < dist) { dist = d; perto = { sp, r }; }
+  }
+  const t = perto?.sp.firstChild;
+  if (!t || t.nodeType !== Node.TEXT_NODE || !dist) return;
+  sel.extend(t, e.clientX > perto.r.right ? t.length : 0);
+});
+const terminaSelecao = () => { if (!selecionando) return; selecionando = false; soltaFins(); };
+document.addEventListener('pointerup', terminaSelecao, true);
 viewer.addEventListener('mousedown', e => {
   if (e.button !== 0 || state.tool !== 'text') return;
   downPos = { x: e.clientX, y: e.clientY };
-  const tl = e.target.closest('.textLayer');
-  if (tl) tl.querySelector('.endOfContent')?.classList.add('active');
 });
 document.addEventListener('mousedown', e => { if (!popup.hidden && !popup.contains(e.target)) closePopup(); }, true);
 document.addEventListener('mouseup', e => {
-  $$('.endOfContent.active').forEach(x => x.classList.remove('active'));
+  terminaSelecao();
   if (!downPos) return;
   const dp = downPos; downPos = null;
   setTimeout(() => {

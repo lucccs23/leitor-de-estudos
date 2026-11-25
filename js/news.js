@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.30.2', title: 'Selecionar texto com precisão', items: ['Arrastar a seleção até a margem ou pelo espaço entre as linhas não seleciona mais a página inteira: ela fica no trecho que você está marcando', 'Passar do fim da linha pega a linha até a última letra; arrastando para cima até a margem, pega a linha desde o começo'] },
   { v: '1.30.1', title: 'Fechar e reabrir um PDF na hora', items: ['Fechar um PDF e abrir de novo logo em seguida (ou reabrir um PDF com senha) às vezes dava "o arquivo pode estar corrompido"; agora abre normalmente'] },
   { v: '1.30.0', title: 'Girar a página e PDF com senha', items: ['Girar a visualização (Exibir → Girar, ou clique direito): para PDFs escaneados de lado. Só a tela gira, o arquivo não muda, e o Vetra lembra o giro de cada PDF', 'Grifar, desenhar, notas e simulado funcionam com a página girada', 'PDFs com senha agora abrem: o Vetra pede a senha (que fica só na memória enquanto o app está aberto, nunca é gravada)', 'Num PDF com senha os grifos ficam guardados no Vetra; salvar dentro do arquivo não é possível'] },
   { v: '1.29.1', title: 'Remover da lista agora vale', items: ['Com a sincronização ligada, um PDF removido da lista da página inicial não volta mais sozinho na sincronização seguinte', 'Abrindo o arquivo de novo, ele volta para a lista normalmente (com os grifos)'] },
