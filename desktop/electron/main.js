@@ -79,10 +79,41 @@ function criarJanela(){
 }
 
 // ---------- PDFs vindos do Windows ----------
+// Cada PDF aberto pelo Windows ganha um número; o "Salvar" da página grava de volta no mesmo arquivo por esse
+// número (a página nunca recebe nem escolhe caminhos: só grava onde o próprio Windows abriu).
+const arqCaminhos = () => path.join(app.getPath('userData'), 'arquivos-abertos.json');
+let caminhos = null;
+function lerCaminhos(){
+  if (!caminhos) { try { caminhos = JSON.parse(fs.readFileSync(arqCaminhos(), 'utf8')) || {}; } catch { caminhos = {}; } }
+  return caminhos;
+}
+function idDoArquivo(f){
+  const abs = path.resolve(f), c = lerCaminhos();
+  for (const [id, p] of Object.entries(c)) if (p.toLowerCase() === abs.toLowerCase()) return id;
+  const id = crypto.randomBytes(12).toString('hex');
+  c[id] = abs;
+  try { fs.writeFileSync(arqCaminhos(), JSON.stringify(c)); } catch {}
+  return id;
+}
+ipcMain.handle('save-file', async (_e, id, bytes) => {
+  const p = lerCaminhos()[id];
+  if (!p || !/\.pdf$/i.test(p)) return { ok: false, error: 'desconhecido' };
+  if (!fs.existsSync(p)) return { ok: false, error: 'sumiu' };
+  const tmp = p + '.vetra-salvando';
+  try {
+    fs.writeFileSync(tmp, Buffer.from(bytes));
+    fs.renameSync(tmp, p); // troca de uma vez: se algo falhar no meio, o PDF original fica inteiro
+    return { ok: true, name: path.basename(p) };
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch {}
+    const bloq = e && ['EBUSY', 'EPERM', 'EACCES'].includes(e.code);
+    return { ok: false, error: bloq ? 'bloqueado' : String(e && e.message || e) };
+  }
+});
 const pdfsDe = argv => argv.slice(1).filter(a => /\.(pdf|epub)$/i.test(a) && fs.existsSync(a));
 function abrir(arquivos){
   for (const f of arquivos) {
-    try { const data = fs.readFileSync(f); fila.push({ name: path.basename(f), data }); }
+    try { const data = fs.readFileSync(f); fila.push({ name: path.basename(f), data, ...(/\.pdf$/i.test(f) ? { id: idDoArquivo(f) } : {}) }); }
     catch (e) { dialog.showErrorBox('Vetra', 'Não consegui ler o arquivo:\n' + f); }
   }
   enviar();

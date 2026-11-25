@@ -15,6 +15,10 @@ const handleKey = fp => 'fh:' + fp;
 const getHandle = fp => safe(() => DB.get('meta', handleKey(fp)), null).then(r => r && r.handle ? r : null);
 const setHandle = (fp, handle) => safe(() => DB.put('meta', { key: handleKey(fp), handle, name: handle.name, at: Date.now() }));
 App.fileHandleFor = getHandle;
+// PDF aberto pelo Windows no app instalado (duplo clique, "Abrir com"): o app sabe onde ele está e o "Salvar" grava nele
+const winKey = fp => 'fw:' + fp;
+const getWin = fp => window.vetraDesktop?.saveFile ? safe(() => DB.get('meta', winKey(fp)), null).then(r => r && r.id ? r : null) : Promise.resolve(null);
+App.lembrarArquivoWindows = (fp, id, name) => fp && safe(() => DB.put('meta', { key: winKey(fp), id, name, at: Date.now() }));
 App.fileOpenHandle = h => openHandle(h);
 
 async function openHandle(h){
@@ -79,7 +83,16 @@ let busy = false;
 App.fileSave = async () => {
   if (!state.pdf || busy) return;
   const rec = await getHandle(state.fp);
-  if (!rec) return App.fileSaveAs();
+  if (!rec) {
+    const w = await getWin(state.fp);
+    if (w) return salvarNoWindows(w);
+    // app de Windows instalado antes da 1.30.3: ainda não sabe onde fica o PDF aberto pelo Windows
+    if (window.vetraDesktop && !window.vetraDesktop.saveFile && !ls.get('le.avisoInstalador')) {
+      ls.set('le.avisoInstalador', 1);
+      App.toast('Dica: instalando uma vez o instalador novo do Vetra (Vetra-Instalador, na página de versões do GitHub), o "Salvar" passa a gravar direto no PDF aberto pelo Windows, sem perguntar onde.');
+    }
+    return App.fileSaveAs();
+  }
   // a permissão é pedida antes de gerar o PDF (o pedido precisa vir logo depois do clique/atalho)
   if (state.protegido) { await App.saveDoc(); App.toast(App.AVISO_SENHA); return; }
   if (!(await canWrite(rec.handle))) { App.toast('Sem permissão para gravar no arquivo. Use "Salvar como".'); return; }
@@ -95,6 +108,24 @@ App.fileSave = async () => {
     App.toast(e && e.name === 'NoModificationAllowedError' ? 'O arquivo está aberto em outro programa ou é somente leitura. Use "Salvar como".' : 'Não consegui salvar o arquivo. Tente "Salvar como".');
   } finally { busy = false; App.setLoading(null); }
 };
+async function salvarNoWindows(w){
+  if (state.protegido) { await App.saveDoc(); App.toast(App.AVISO_SENHA); return; }
+  busy = true; App.setLoading(0.3);
+  try {
+    await App.saveDoc();
+    const { bytes, count } = await App.buildPdfBytes();
+    const r = await window.vetraDesktop.saveFile(w.id, bytes);
+    if (!r || !r.ok) {
+      App.toast(r?.error === 'bloqueado' ? 'O arquivo está aberto em outro programa ou é somente leitura. Use "Salvar como".'
+        : r?.error === 'sumiu' || r?.error === 'desconhecido' ? 'Não achei mais o arquivo original (foi movido ou apagado?). Use "Salvar como".'
+        : 'Não consegui salvar o arquivo. Tente "Salvar como".');
+      return;
+    }
+    await adopt(bytes, r.name);
+    App.toast(`Salvo em "${r.name}" — ${count} marcação(ões)`);
+  } catch (e) { console.error(e); App.toast('Não consegui salvar o arquivo. Tente "Salvar como".'); }
+  finally { busy = false; App.setLoading(null); }
+}
 App.fileSaveAs = async () => {
   if (!state.pdf || busy) return;
   if (state.protegido) { await App.saveDoc(); App.toast(App.AVISO_SENHA); return; }
@@ -218,7 +249,7 @@ function closeMenu(){ menu.hidden = true; btn.classList.remove('on'); }
 async function openMenu(){
   const doc = !!state.pdf;
   menu.innerHTML = '';
-  const h = doc ? await getHandle(state.fp) : null;
+  const h = doc ? (await getHandle(state.fp)) || (await getWin(state.fp)) : null;
   menu.append(
     item('folder', 'Abrir…', 'Ctrl+O', App.fileOpen),
     item('restore', 'Reabrir a aba fechada', 'Ctrl+Shift+T', App.reopenClosedTab, { disabled: !ls.get('le.closedTabs', []).length }),

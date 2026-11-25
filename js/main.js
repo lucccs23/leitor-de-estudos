@@ -73,7 +73,9 @@ if (window.vetraDesktop) {
   window.vetraDesktop.onOpenFile(async f => {
     try {
       const buf = f.data.buffer.slice(f.data.byteOffset, f.data.byteOffset + f.data.byteLength);
-      if (App.isEpub(f.name || '')) await App.openEpub(buf, f.name); else await App.loadDoc(buf, f.name || 'documento.pdf');
+      if (App.isEpub(f.name || '')) await App.openEpub(buf, f.name);
+      // o "Salvar" grava de volta neste arquivo (o app de Windows sabe onde ele está)
+      else if (await App.loadDoc(buf, f.name || 'documento.pdf') && f.id) await App.lembrarArquivoWindows(state.fp, f.id, f.name);
     }
     catch (e) { console.warn(e); App.toast('Não consegui abrir o arquivo.'); }
   });
