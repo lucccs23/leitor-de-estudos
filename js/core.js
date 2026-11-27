@@ -3,8 +3,8 @@
 'use strict';
 const App = window.App; // criado em util.js
 // Versão do app: mude aqui a cada atualização (aparece na tela inicial e no menu ⋯)
-App.VERSION = '1.30.3';
-App.VERSION_DATE = '19/11/2026';
+App.VERSION = '1.30.4';
+App.VERSION_DATE = '27/11/2026';
 const { $, $$, el, btn, ls, DB, safe, uid, SVGNS, CSS_UNITS, clamp01, distSeg } = App;
 
 App.COLORS = [

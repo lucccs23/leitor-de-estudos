@@ -20,6 +20,10 @@ const winKey = fp => 'fw:' + fp;
 const getWin = fp => window.vetraDesktop?.saveFile ? safe(() => DB.get('meta', winKey(fp)), null).then(r => r && r.id ? r : null) : Promise.resolve(null);
 App.lembrarArquivoWindows = (fp, id, name) => fp && safe(() => DB.put('meta', { key: winKey(fp), id, name, at: Date.now() }));
 App.fileOpenHandle = h => openHandle(h);
+// app de Android: arquivo escolhido no "Salvar como" (o Android guarda a permissão, e o "Salvar" grava nele de novo)
+const andKey = fp => 'fa:' + fp;
+const nativo = () => (App.native && window.Capacitor?.Plugins?.VetraArquivos) || null;
+const getAndroid = fp => nativo()?.gravar ? safe(() => DB.get('meta', andKey(fp)), null).then(r => r && r.uri ? r : null) : Promise.resolve(null);
 
 async function openHandle(h){
   try {
@@ -86,6 +90,8 @@ App.fileSave = async () => {
   if (!rec) {
     const w = await getWin(state.fp);
     if (w) return salvarNoWindows(w);
+    const a = await getAndroid(state.fp);
+    if (a) return salvarNoAndroid(a);
     // app de Windows instalado antes da 1.30.3: ainda não sabe onde fica o PDF aberto pelo Windows
     if (window.vetraDesktop && !window.vetraDesktop.saveFile && !ls.get('le.avisoInstalador')) {
       ls.set('le.avisoInstalador', 1);
@@ -126,9 +132,38 @@ async function salvarNoWindows(w){
   } catch (e) { console.error(e); App.toast('Não consegui salvar o arquivo. Tente "Salvar como".'); }
   finally { busy = false; App.setLoading(null); }
 }
+// Android: o PDF vai para o cache do app e o Vetra nativo copia para o arquivo (destino null = abre "Salvar em…")
+async function paraCache(bytes){
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const data = await new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => bad(r.error); r.readAsDataURL(blob); });
+  const { uri } = await window.Capacitor.Plugins.Filesystem.writeFile({ path: `salvando-${Date.now()}.pdf`, data, directory: 'CACHE' });
+  return uri;
+}
+async function salvarNoAndroid(destino){
+  if (state.protegido) { await App.saveDoc(); App.toast(App.AVISO_SENHA); return; }
+  busy = true; App.setLoading(0.3);
+  try {
+    await App.saveDoc();
+    const { bytes, count } = await App.buildPdfBytes();
+    const origem = await paraCache(bytes);
+    App.setLoading(null);
+    const r = destino ? await nativo().gravar({ origem, uri: destino.uri })
+      : await nativo().salvarComo({ origem, nome: state.name.replace(/\.pdf$/i, '') + '.pdf' });
+    if (r?.cancelado) return;
+    if (!r?.ok) {
+      App.toast(destino ? 'Não consegui gravar no arquivo (foi movido ou apagado?). Use "Salvar como".' : 'Não consegui salvar o arquivo.');
+      return;
+    }
+    await safe(() => DB.put('meta', { key: andKey(state.fp), uri: r.uri, name: r.nome, at: Date.now() }));
+    await adopt(bytes, r.nome);
+    App.toast(`${destino ? 'Salvo em' : 'Salvo como'} "${r.nome}" — ${count} marcação(ões)`);
+  } catch (e) { console.error(e); App.toast('Não consegui salvar o arquivo.'); }
+  finally { busy = false; App.setLoading(null); }
+}
 App.fileSaveAs = async () => {
   if (!state.pdf || busy) return;
   if (state.protegido) { await App.saveDoc(); App.toast(App.AVISO_SENHA); return; }
+  if (nativo()?.salvarComo) return salvarNoAndroid(null);
   if (!FSA || !('showSaveFilePicker' in window)) { App.savePdf(); return; }
   let handle;
   try {
@@ -249,7 +284,7 @@ function closeMenu(){ menu.hidden = true; btn.classList.remove('on'); }
 async function openMenu(){
   const doc = !!state.pdf;
   menu.innerHTML = '';
-  const h = doc ? (await getHandle(state.fp)) || (await getWin(state.fp)) : null;
+  const h = doc ? (await getHandle(state.fp)) || (await getWin(state.fp)) || (await getAndroid(state.fp)) : null;
   menu.append(
     item('folder', 'Abrir…', 'Ctrl+O', App.fileOpen),
     item('restore', 'Reabrir a aba fechada', 'Ctrl+Shift+T', App.reopenClosedTab, { disabled: !ls.get('le.closedTabs', []).length }),
