@@ -5,6 +5,7 @@ const App = window.App;
 const { el, ls } = App;
 
 const NEWS = [
+  { v: '1.30.4', title: 'Salvar no celular', items: ['No app de Android, Salvar como abre a janela do Android para escolher a pasta e o nome do arquivo (antes só abria o Compartilhar)', 'Depois disso, Salvar grava os grifos direto nesse mesmo arquivo, sem perguntar de novo', 'Para mandar o PDF pelo WhatsApp ou Drive, continua valendo Arquivo → Compartilhar PDF com grifos'] },
   { v: '1.30.3', title: 'Salvar grava no próprio arquivo', items: ['No app de Windows, um PDF aberto pelo Windows (duplo clique ou "Abrir com") agora é salvo direto no próprio arquivo com Salvar (Ctrl+S), sem a janela perguntando onde; a janela fica só para o Salvar como', 'Isso precisa do instalador novo do Vetra, instalado uma vez (Vetra-Instalador-1.30.3)'] },
   { v: '1.30.2', title: 'Selecionar texto com precisão', items: ['Arrastar a seleção até a margem ou pelo espaço entre as linhas não seleciona mais a página inteira: ela fica no trecho que você está marcando', 'Passar do fim da linha pega a linha até a última letra; arrastando para cima até a margem, pega a linha desde o começo'] },
   { v: '1.30.1', title: 'Fechar e reabrir um PDF na hora', items: ['Fechar um PDF e abrir de novo logo em seguida (ou reabrir um PDF com senha) às vezes dava "o arquivo pode estar corrompido"; agora abre normalmente'] },
